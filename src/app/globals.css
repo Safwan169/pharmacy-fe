@@ -1,26 +1,115 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f6f7f9;
+  --foreground: #101828;
+  --surface: #ffffff;
+  --border: #e4e7ec;
+  --muted: #667085;
+  --primary: #0d9488;
+  --primary-foreground: #ffffff;
+  --danger: #d92d20;
+  --warning: #b54708;
+  --success: #067647;
+  --grid-line-color: #98a2b3;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Dashed guide lines that frame the centered auth card.
+   The box geometry is driven by these four values so the lines and their
+   crossings stay in sync at every breakpoint. */
+.grid-frame {
+  --frame-half-w: 13.5rem; /* horizontal distance from centre to a vertical line */
+  --frame-half-h: 11rem; /* vertical distance from centre to a horizontal line */
+  --frame-line-w: 31rem; /* length of each horizontal line */
+  --frame-line-h: 25rem; /* length of each vertical line */
+}
+
+.grid-line {
+  position: absolute;
+  background-image: repeating-linear-gradient(
+    var(--grid-line-angle, to bottom),
+    var(--grid-line-color) 0 3px,
+    transparent 3px 6px
+  );
+  /* Fade the dashes out toward both ends so the crossing near the card
+     stays crisp and the tips dissolve into the background. */
+  mask-image: linear-gradient(
+    var(--grid-line-angle, to bottom),
+    transparent 0%,
+    rgb(0 0 0 / 0.12) 1%,
+    rgb(0 0 0 / 0.4) 2%,
+    rgb(0 0 0 / 0.72) 3.2%,
+    rgb(0 0 0 / 0.92) 4.4%,
+    #000 5.5%,
+    #000 94.5%,
+    rgb(0 0 0 / 0.92) 95.6%,
+    rgb(0 0 0 / 0.72) 96.8%,
+    rgb(0 0 0 / 0.4) 98%,
+    rgb(0 0 0 / 0.12) 99%,
+    transparent 100%
+  );
+}
+
+/* Vertical lines run the height of the framed box, overhanging the card
+   top and bottom; horizontal lines do the same across its width. */
+/* Emphasised edges: darker dashes, same hairline thickness. */
+.grid-line-strong {
+  --grid-line-color: #667085;
+}
+
+.grid-line-v {
+  --grid-line-angle: to bottom;
+
+  top: 50%;
+  left: 50%;
+  height: var(--frame-line-h);
+  width: 1px;
+  transform: translateY(-50%);
+}
+
+.grid-line-h {
+  --grid-line-angle: to right;
+  left: 50%;
+  width: var(--frame-line-w);
+  height: 1px;
+  transform: translateX(-50%);
+}
+
+/* Edge placement, offset from the centre of the frame. */
+.grid-line-left {
+  margin-left: calc(-1 * var(--frame-half-w));
+}
+
+.grid-line-right {
+  margin-left: var(--frame-half-w);
+}
+
+.grid-line-top {
+  top: 50%;
+  margin-top: calc(-1 * var(--frame-half-h));
+}
+
+.grid-line-bottom {
+  top: 50%;
+  margin-top: var(--frame-half-h);
 }
