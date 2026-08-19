@@ -1,65 +1,55 @@
 "use client";
 
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
-import {
-  loginSchema,
-  type LoginFormValues,
-  type LoginInput,
-} from "@/lib/validations";
+import { useActionState } from "react";
+import { useSearchParams } from "next/navigation";
+import { login, type LoginState } from "@/lib/actions/auth";
 import { Field, Input } from "@/components/ui/input";
+import { Alert } from "@/components/ui/alert";
+
+const initialState: LoginState = {};
 
 export function LoginForm() {
-  const router = useRouter();
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<LoginFormValues, unknown, LoginInput>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "", remember: false },
-  });
-
-  async function onSubmit(values: LoginInput) {
-    // TODO: replace with the real auth call once the backend exists.
-    console.log("login payload", values);
-    router.push("/dashboard");
-  }
+  const [state, formAction, pending] = useActionState(login, initialState);
+  const next = useSearchParams().get("next");
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-      <Field label="Email" error={errors.email?.message} htmlFor="email">
+    <form action={formAction} className="space-y-5 " noValidate>
+      {next && <input type="hidden" name="next" value={next} />}
+
+      {state.message && <Alert tone="error">{state.message}</Alert>}
+
+      <Field label="Email" error={state.errors?.email} htmlFor="email">
         <Input
           id="email"
+          name="email"
           type="email"
           autoComplete="email"
-          placeholder="you@example.com"
-          className="h-11 rounded-xl shadow-xs focus:border-neutral-400 focus:outline-neutral-300/50"
-          invalid={!!errors.email}
-          {...register("email")}
+          autoFocus
+          placeholder="you@pharmacy.com"
+          aria-describedby={state.errors?.email ? "email-error" : undefined}
+          className="h-11 rounded-xl shadow-xs"
+          invalid={!!state.errors?.email}
         />
       </Field>
 
-      <Field label="Password" error={errors.password?.message} htmlFor="password">
+      <Field label="Password" error={state.errors?.password} htmlFor="password">
         <Input
           id="password"
+          name="password"
           type="password"
           autoComplete="current-password"
-          placeholder="••••••••"
-          className="h-11 rounded-xl shadow-xs focus:border-neutral-400 focus:outline-neutral-300/50"
-          invalid={!!errors.password}
-          {...register("password")}
+          placeholder="Enter your password"
+          className="h-11 rounded-xl shadow-xs"
+          invalid={!!state.errors?.password}
         />
       </Field>
 
       <button
         type="submit"
-        disabled={isSubmitting}
-        className="h-11 w-full rounded-xl bg-linear-to-b from-neutral-800 to-neutral-950 text-sm font-semibold text-white shadow-md transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:pointer-events-none disabled:opacity-50"
+        disabled={pending}
+        className="h-11 w-full rounded-xl bg-linear-to-b from-neutral-800 to-neutral-950 text-sm font-semibold text-white shadow-md transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:pointer-events-none disabled:opacity-60"
       >
-        {isSubmitting ? "Signing in..." : "Sign in"}
+        {pending ? "Signing in…" : "Sign in"}
       </button>
     </form>
   );

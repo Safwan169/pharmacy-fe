@@ -1,152 +1,201 @@
 import Link from "next/link";
-import { Pill, DollarSign, TriangleAlert, CalendarClock } from "lucide-react";
+import { Suspense } from "react";
+import { Banknote, Boxes, PackageCheck, ReceiptText } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { PeriodTabs } from "@/components/dashboard/period-tabs";
 import { Card, CardHeader } from "@/components/ui/card";
+import { Table, Th, Td } from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Table, Th, Td, EmptyRow } from "@/components/ui/table";
-import { medicines, sales, findMedicine } from "@/lib/mock-data";
-import {
-  getStockStatus,
-  getExpiryStatus,
-  getInventoryValue,
-  stockLabels,
-  stockTones,
-} from "@/lib/inventory";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { getLowStock, getSummary } from "@/lib/api/sales";
+import { ApiError } from "@/lib/api/client";
+import { formatCurrency, formatNumber } from "@/lib/utils";
+import { SUMMARY_PERIODS, type SummaryPeriod } from "@/types";
 
 export const metadata = { title: "Dashboard" };
 
-export default function DashboardPage() {
-  const lowStock = medicines.filter(
-    (m) => getStockStatus(m) !== "in-stock",
-  );
-  const expiring = medicines.filter((m) => getExpiryStatus(m) !== "valid");
-  const todayRevenue = sales.reduce((sum, s) => sum + s.total, 0);
+const PERIOD_LABELS: Record<SummaryPeriod, string> = {
+  today: "today",
+  this_week: "this week",
+  this_month: "this month",
+};
+
+export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
+  const params = await searchParams;
+  const requested = typeof params.period === "string" ? params.period : "today";
+  const period: SummaryPeriod = SUMMARY_PERIODS.includes(requested as SummaryPeriod)
+    ? (requested as SummaryPeriod)
+    : "today";
 
   return (
     <>
       <PageHeader
         title="Dashboard"
-        description="Overview of inventory, sales and stock health."
+        description="How the shop is doing, and what needs restocking."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Total medicines"
-          value={String(medicines.length)}
-          hint={`${formatCurrency(getInventoryValue(medicines))} stock value`}
-          icon={Pill}
-        />
-        <StatCard
-          label="Revenue"
-          value={formatCurrency(todayRevenue)}
-          hint={`${sales.length} invoices`}
-          icon={DollarSign}
-        />
-        <StatCard
-          label="Stock alerts"
-          value={String(lowStock.length)}
-          hint="At or below reorder level"
-          icon={TriangleAlert}
-          tone="warning"
-        />
-        <StatCard
-          label="Expiry alerts"
-          value={String(expiring.length)}
-          hint="Expired or within 90 days"
-          icon={CalendarClock}
-          tone="danger"
-        />
-      </div>
+      <PeriodTabs current={period} />
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-2">
-        <Card>
-          <CardHeader
-            title="Needs restocking"
-            description="Items at or below their reorder level"
-            action={
-              <Link
-                href="/alerts"
-                className="text-xs font-medium text-primary hover:underline"
-              >
-                View all
-              </Link>
-            }
-          />
-          <Table>
-            <thead>
-              <tr>
-                <Th>Medicine</Th>
-                <Th className="text-right">In stock</Th>
-                <Th className="text-right">Reorder at</Th>
-                <Th>Status</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {lowStock.length === 0 ? (
-                <EmptyRow colSpan={4} message="All items are above reorder level." />
-              ) : (
-                lowStock.map((m) => {
-                  const status = getStockStatus(m);
-                  return (
-                    <tr key={m.id}>
-                      <Td className="font-medium">{m.name}</Td>
-                      <Td className="text-right tabular-nums">{m.quantity}</Td>
-                      <Td className="text-right tabular-nums text-muted">
-                        {m.reorderLevel}
-                      </Td>
-                      <Td>
-                        <Badge tone={stockTones[status]}>{stockLabels[status]}</Badge>
-                      </Td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </Table>
-        </Card>
+      {/* Each half streams on its own, so a slow query can't hold up the page. */}
+      <Suspense key={period} fallback={<SummarySkeleton />}>
+        <SummarySection period={period} />
+      </Suspense>
 
-        <Card>
-          <CardHeader
-            title="Recent sales"
-            description="Latest invoices processed"
-            action={
-              <Link
-                href="/sales"
-                className="text-xs font-medium text-primary hover:underline"
-              >
-                View all
-              </Link>
-            }
-          />
-          <Table>
-            <thead>
-              <tr>
-                <Th>Invoice</Th>
-                <Th>Item</Th>
-                <Th>Date</Th>
-                <Th className="text-right">Total</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {sales.map((sale) => (
-                <tr key={sale.id}>
-                  <Td className="font-medium">{sale.invoiceNumber}</Td>
-                  <Td className="text-muted">
-                    {findMedicine(sale.items[0].medicineId)?.name ?? "—"}
-                    {sale.items.length > 1 && ` +${sale.items.length - 1}`}
-                  </Td>
-                  <Td className="text-muted">{formatDate(sale.createdAt)}</Td>
-                  <Td className="text-right font-medium tabular-nums">
-                    {formatCurrency(sale.total)}
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </Card>
+      <div className="mt-5">
+        <Suspense fallback={<LowStockSkeleton />}>
+          <LowStockSection />
+        </Suspense>
       </div>
     </>
+  );
+}
+
+async function SummarySection({ period }: { period: SummaryPeriod }) {
+  let summary;
+  try {
+    summary = await getSummary({ period });
+  } catch (error) {
+    return (
+      <Alert tone="error" title="We couldn't load the sales figures">
+        {error instanceof ApiError
+          ? error.message
+          : "Please refresh the page to try again."}
+      </Alert>
+    );
+  }
+
+  const label = PERIOD_LABELS[period];
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <StatCard
+        label="Money taken"
+        value={formatCurrency(summary.total_earning)}
+        hint={`Total collected ${label}, after discounts`}
+        icon={Banknote}
+      />
+      <StatCard
+        label="Sales made"
+        value={formatNumber(summary.total_transactions)}
+        hint={`Separate checkouts ${label}`}
+        icon={ReceiptText}
+      />
+      <StatCard
+        label="Items sold"
+        value={formatNumber(summary.total_units_sold)}
+        hint={`Individual units handed over ${label}`}
+        icon={Boxes}
+      />
+      <StatCard
+        label="Different medicines"
+        value={formatNumber(summary.distinct_products_sold)}
+        hint={`Distinct products that sold ${label}`}
+        icon={PackageCheck}
+      />
+    </div>
+  );
+}
+
+async function LowStockSection() {
+  let items;
+  try {
+    items = await getLowStock();
+  } catch (error) {
+    return (
+      <Alert tone="error" title="We couldn't load the restocking list">
+        {error instanceof ApiError
+          ? error.message
+          : "Please refresh the page to try again."}
+      </Alert>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        title="Needs restocking"
+        description="Running low or already out. Lowest stock first."
+        action={
+          items.length > 0 ? (
+            <Badge tone="warning">{items.length} to reorder</Badge>
+          ) : undefined
+        }
+      />
+
+      {items.length === 0 ? (
+        <EmptyState
+          icon={PackageCheck}
+          title="Nothing needs restocking"
+          description="Every medicine that has been counted has enough stock on the shelf. Items nobody has counted yet aren't listed here."
+        />
+      ) : (
+        <Table>
+          <thead>
+            <tr>
+              <Th>Medicine</Th>
+              <Th className="hidden md:table-cell">Made by</Th>
+              <Th className="text-right">Left</Th>
+              <Th className="text-right">Action</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.variant_id} className="hover:bg-background/60">
+                <Td>
+                  <p className="font-medium">
+                    {item.brand_name}
+                    {item.strength ? ` ${item.strength}` : ""}
+                  </p>
+                  <p className="text-xs text-muted">{item.dosage_form}</p>
+                </Td>
+                <Td className="hidden text-muted md:table-cell">{item.manufacturer}</Td>
+                <Td className="text-right">
+                  {item.stock_quantity === 0 ? (
+                    <Badge tone="danger">Out of stock</Badge>
+                  ) : (
+                    <span className="font-medium tabular-nums text-warning">
+                      {item.stock_quantity} left
+                    </span>
+                  )}
+                </Td>
+                <Td className="text-right">
+                  <Link
+                    href={`/catalogue/${item.variant_id}`}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    Add stock
+                  </Link>
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
+    </Card>
+  );
+}
+
+function SummarySkeleton() {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="h-26 animate-pulse rounded-xl bg-surface" />
+      ))}
+    </div>
+  );
+}
+
+function LowStockSkeleton() {
+  return (
+    <Card>
+      <CardHeader title="Needs restocking" description="Checking the shelves…" />
+      <div className="space-y-3 p-5">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-10 animate-pulse rounded-lg bg-background" />
+        ))}
+      </div>
+    </Card>
   );
 }

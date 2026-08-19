@@ -14,10 +14,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Pharmacy Admin",
-    template: "%s | Pharmacy Admin",
+    default: "Pharmacy",
+    template: "%s | Pharmacy",
   },
-  description: "Administration panel for pharmacy inventory, sales and suppliers.",
+  description:
+    "Manage the medicine catalogue, set prices and stock, and sell at the counter.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
