@@ -6,7 +6,7 @@
     "dev": "next dev --port 3001",
     "build": "next build",
     "start": "next start --port 3001",
-    "lint": "eslint"
+    "typecheck": "tsc --noEmit", "lint": "eslint", "test": "echo \"No tests specified\""
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.0",
