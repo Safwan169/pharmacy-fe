@@ -1,0 +1,69 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+
+jobs:
+  check:
+    name: Typecheck, lint & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+
+  deploy-home:
+    name: Deploy to Home Server
+    needs: check
+    if: github.ref == 'refs/heads/dev'
+    runs-on: [self-hosted, Linux, X64, pharmacy-frontend-home]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to Server Folder
+        run: |
+          mkdir -p /root/pharmacy/pharmacy-next-frontend
+          cp -rT . /root/pharmacy/pharmacy-next-frontend/
+
+      - name: Start Application
+        working-directory: /root/pharmacy/pharmacy-next-frontend
+        run: |
+          if [ -f .env.example ]; then cp .env.example .env; else touch .env; fi
+          echo "PORT=3012" >> .env
+          echo "NEXT_PUBLIC_API_URL=http://192.168.0.150:3011" >> .env
+          
+          docker compose down || true
+          docker compose up -d --build
+
+  deploy-hostinger:
+    name: Deploy to Hostinger VPS
+    needs: check
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, Linux, X64, pharmacy-frontend-hostinger]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to Server Folder
+        run: |
+          mkdir -p /root/pharmacy/pharmacy-next-frontend
+          cp -rT . /root/pharmacy/pharmacy-next-frontend/
+
+      - name: Start Application
+        working-directory: /root/pharmacy/pharmacy-next-frontend
+        run: |
+          if [ -f .env.example ]; then cp .env.example .env; else touch .env; fi
+          echo "PORT=3014" >> .env
+          echo "NEXT_PUBLIC_API_URL=http://72.62.194.133:3013" >> .env
+          
+          docker compose down || true
+          docker compose up -d --build
