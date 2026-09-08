@@ -11,12 +11,13 @@ export const SESSION_COOKIE = "pharmacy_session";
  * which `apiFetch` turns into a redirect to /login.
  */
 const MAX_AGE_SECONDS = 60 * 60 * 24; // 1 day, matching the API's default JWT_EXPIRES_IN
+const SECURE_COOKIE = process.env.SESSION_COOKIE_SECURE === "true";
 
 export async function createSession(token: string) {
   const store = await cookies();
   store.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: SECURE_COOKIE,
     sameSite: "lax",
     path: "/",
     maxAge: MAX_AGE_SECONDS,

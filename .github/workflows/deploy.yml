@@ -40,7 +40,8 @@ jobs:
         run: |
           if [ -f .env.example ]; then cp .env.example .env; else touch .env; fi
           echo "PORT=3012" >> .env
-          echo "NEXT_PUBLIC_API_URL=http://192.168.0.150:3011" >> .env
+          echo "API_BASE_URL=http://192.168.0.150:3011" >> .env
+          echo "SESSION_COOKIE_SECURE=false" >> .env
           
           docker compose down || true
           docker compose up -d --build
@@ -63,7 +64,8 @@ jobs:
         run: |
           if [ -f .env.example ]; then cp .env.example .env; else touch .env; fi
           echo "PORT=3014" >> .env
-          echo "NEXT_PUBLIC_API_URL=http://72.62.194.133:3013" >> .env
+          echo "API_BASE_URL=http://72.62.194.133:3013" >> .env
+          echo "SESSION_COOKIE_SECURE=false" >> .env
           
           docker compose down || true
           docker compose up -d --build
