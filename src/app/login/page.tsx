@@ -1,12 +1,12 @@
 import { Suspense } from "react";
-import { Cross } from "lucide-react";
+import { ArrowUpRight, Pill, ShieldCheck } from "lucide-react";
 import { LoginForm } from "@/components/auth/login-form";
 
 export const metadata = { title: "Sign in" };
 
 export default function LoginPage() {
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-x-hidden bg-background px-5 py-16 sm:py-16">
+    <div className="relative flex min-h-screen items-center justify-center overflow-x-hidden bg-background px-5 py-12 sm:py-16">
       {/* Dashed lines boxing in the card, as in the reference layout. */}
       <div
         aria-hidden
@@ -18,22 +18,45 @@ export default function LoginPage() {
         <div className="hidden md:block grid-line grid-line-h grid-line-bottom grid-line-strong" />
       </div>
 
-      <div className="relative w-full max-w-sm px-4">
-        <div className="mb-2 flex items-center justify-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-foreground">
-            <Cross className="h-5 w-5 text-surface" aria-hidden />
+      <main className="relative w-full max-w-md">
+        <div className="mb-8 flex items-center justify-between px-1 text-xs font-medium uppercase tracking-[0.18em] text-muted">
+          <span className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Pill className="h-4 w-4" aria-hidden />
+            </span>
+            Pharmacy OS
           </span>
-          <span className="text-2xl font-semibold tracking-tight">Pharmacy</span>
+          <span className="flex items-center gap-1.5 normal-case tracking-normal">
+            <ShieldCheck className="h-3.5 w-3.5 text-success" aria-hidden />
+            Secure access
+          </span>
         </div>
-        <p className="mb-8 text-center text-sm text-muted">
-          Sign in to manage the catalogue and the counter.
-        </p>
 
-        {/* useSearchParams needs a boundary; the form is the only dynamic part. */}
-        <Suspense fallback={<div className="h-72" />}>
-          <LoginForm />
-        </Suspense>
-      </div>
+        <section className="rounded-2xl border border-border/80 bg-surface p-6 shadow-[0_24px_70px_-32px_rgba(16,24,40,0.38)] sm:p-8">
+          <div className="mb-8">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+              Staff portal
+            </p>
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+              Welcome back
+            </h1>
+            <p className="mt-2 max-w-xs text-sm leading-6 text-muted">
+              Sign in to manage the catalogue, stock, and counter sales.
+            </p>
+          </div>
+
+          <Suspense fallback={<div className="h-72" />}>
+            <LoginForm />
+          </Suspense>
+        </section>
+
+        <p className="mt-5 flex items-center justify-center gap-1 text-center text-xs text-muted">
+          Need help getting access?
+          <span className="inline-flex items-center gap-0.5 font-medium text-foreground">
+            Contact your administrator <ArrowUpRight className="h-3 w-3" aria-hidden />
+          </span>
+        </p>
+      </main>
     </div>
   );
 }
