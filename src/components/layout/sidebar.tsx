@@ -37,12 +37,12 @@ export const navigation = [
     icon: Search,
     hint: "Search every medicine",
   },
-  {
-    href: "/pricing",
-    label: "Pricing",
-    icon: Tags,
-    hint: "Set prices and stock",
-  },
+  // {
+  //   href: "/pricing",
+  //   label: "Pricing",
+  //   icon: Tags,
+  //   hint: "Set prices and stock",
+  // },
   {
     href: "/sales",
     label: "Sales",
