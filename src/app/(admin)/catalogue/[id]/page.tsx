@@ -122,6 +122,16 @@ export default async function VariantDetailPage({
             <CardHeader
               title="Batches on the shelf"
               description="Where the stock came from and when each lot expires. The counter sells the soonest-expiring batch first."
+              action={
+                <span className="flex gap-3 text-xs font-medium">
+                  <Link href={`/stock/receive`} className="text-primary hover:underline">
+                    Receive stock
+                  </Link>
+                  <Link href={`/stock/movements?variant=${variant.id}`} className="text-primary hover:underline">
+                    History
+                  </Link>
+                </span>
+              }
             />
             <BatchTable
               variantId={variant.id}

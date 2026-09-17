@@ -104,6 +104,74 @@ export interface ExpiringItem {
   value_at_cost: number | null;
 }
 
+export interface Supplier {
+  id: number;
+  name: string;
+  phone: string | null;
+  address: string | null;
+  isActive: boolean;
+}
+
+export interface StockReceiptItem {
+  id: number;
+  variantId: number;
+  variant?: ProductVariant;
+  batchId: number;
+  batchNo: string | null;
+  expiryDate: string | null;
+  /** The unit it was bought in, e.g. "box". */
+  unitName: string;
+  qtyInBase: number;
+  /** In the purchase unit. */
+  quantity: number;
+  baseQuantity: number;
+  unitCost: number;
+  lineCost: number;
+}
+
+/** A goods-received note — one delivery. */
+export interface StockReceipt {
+  id: number;
+  receiptNumber: string;
+  supplierId: number | null;
+  supplier: Supplier | null;
+  supplierInvoiceNo: string | null;
+  receivedAt: string;
+  totalCost: number;
+  note: string | null;
+  createdBy?: { id: number; email: string };
+  /** Only on `GET /stock/receipts/:id`. */
+  items?: StockReceiptItem[];
+  createdAt: string;
+}
+
+export const MOVEMENT_TYPES = [
+  "sale",
+  "sale_return",
+  "stock_in",
+  "adjustment",
+  "expired_writeoff",
+] as const;
+export type MovementType = (typeof MOVEMENT_TYPES)[number];
+
+export interface StockMovement {
+  id: number;
+  variantId: number;
+  variant: ProductVariant;
+  batchId: number | null;
+  batch: StockBatch | null;
+  type: MovementType;
+  /** Signed, base units. */
+  quantity: number;
+  previousStock: number;
+  newStock: number;
+  referenceType: string | null;
+  referenceId: number | null;
+  note: string | null;
+  createdBy?: { id: number; email: string };
+  createdAt: string;
+}
+
 export const EXPIRY_WINDOWS = [30, 60, 90] as const;
 export type ExpiryWindow = (typeof EXPIRY_WINDOWS)[number];
 

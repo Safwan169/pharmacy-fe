@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { CalendarClock } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
+import { StockNav } from "@/components/stock/stock-nav";
 import { Card } from "@/components/ui/card";
 import { Table, Th, Td } from "@/components/ui/table";
 import { Alert } from "@/components/ui/alert";
@@ -40,6 +41,7 @@ export default async function ExpiringPage({ searchParams }: PageProps<"/stock/e
         title="Expiry dates"
         description="Batches that are past their date or getting close. Sell the closest first, or write off what's expired."
       />
+      <StockNav />
 
       <div
         className="mb-5 inline-flex rounded-lg border border-border bg-surface p-1"

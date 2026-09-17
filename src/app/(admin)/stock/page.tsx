@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** The Stock section's landing page. Grows a menu in the next step; for now, expiry is the one screen. */
+/** The Stock section opens on receiving, the thing done most often. */
 export default function StockPage() {
-  redirect("/stock/expiring");
+  redirect("/stock/receive");
 }
