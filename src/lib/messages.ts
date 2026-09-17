@@ -167,6 +167,7 @@ export function humaniseCheckoutFailure(
       failure.available_quantity === 0
         ? `Not enough ${name} in stock for even one of that unit. Try a smaller unit, or remove it.`
         : `Only ${failure.available_quantity} of ${name} left in that unit — you asked for ${failure.requested_quantity}. Lower the quantity.`,
+    expired_only: `The only ${name} left in stock has expired and can't be sold. Remove it from the basket and write off the expired batch.`,
     duplicate_item: `${name} is in the basket twice. Combine it into one line with the total quantity.`,
     stock_changed: `${name} was sold to someone else while you were checking out. Nothing was charged — please try again.`,
   };

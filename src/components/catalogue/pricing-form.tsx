@@ -257,7 +257,7 @@ export function PricingForm({
         hint={
           stock === null
             ? `Nobody has counted this yet. Count in ${pluralise(baseUnit, 2)}, not strips or boxes. Enter 0 if there are none.`
-            : `${stockBreakdown}. Leave blank to keep it.`
+            : `${stockBreakdown}. Leave blank to keep it. New stock with a batch and expiry date is better entered under Stock → Receive.`
         }
       >
         <Input
@@ -269,6 +269,13 @@ export function PricingForm({
           autoComplete="off"
           invalid={!!state.errors?.stock_quantity}
         />
+      </Field>
+      <Field
+        label="Why did the count change?"
+        htmlFor="stock_note"
+        hint="Optional. Kept in the stock history — e.g. “recounted shelf”, “2 strips damaged”."
+      >
+        <Input id="stock_note" name="stock_note" type="text" maxLength={255} autoComplete="off" />
       </Field>
 
       <Button type="submit" disabled={pending} className="w-full">

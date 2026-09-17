@@ -71,7 +71,41 @@ export interface ProductVariant {
   packSize: number | null;
   /** Sellable-unit ladder, in display order. Empty until set up. */
   units: VariantUnit[];
+  /** Only on `GET /variants/:id`: batches with stock plus recently emptied ones. */
+  batches?: StockBatch[];
 }
+
+/** One received lot. Quantities are in the variant's base unit. */
+export interface StockBatch {
+  id: number;
+  variantId: number;
+  batchNo: string | null;
+  /** `YYYY-MM-DD`, or null for stock entered without a date (sells last). */
+  expiryDate: string | null;
+  quantity: number;
+  initialQuantity: number;
+  costPrice: number | null;
+  receivedAt: string;
+}
+
+export interface ExpiringItem {
+  batch_id: number;
+  variant_id: number;
+  brand_name: string;
+  dosage_form: string;
+  strength: string | null;
+  manufacturer: string;
+  batch_no: string | null;
+  expiry_date: string;
+  /** Negative once expired. */
+  days_left: number;
+  quantity: number;
+  base_unit: string;
+  value_at_cost: number | null;
+}
+
+export const EXPIRY_WINDOWS = [30, 60, 90] as const;
+export type ExpiryWindow = (typeof EXPIRY_WINDOWS)[number];
 
 /** "strip of 10 at ৳12". `qtyInBase` is what one of these takes off stock. */
 export interface VariantUnit {
@@ -113,6 +147,7 @@ export interface SaleItem {
   dosageFormSnapshot: string;
   strengthSnapshot: string | null;
   /** The unit it was sold in, e.g. "strip". */
+  batchId: number | null;
   unitNameSnapshot: string;
   qtyInBase: number;
   baseQtyDeducted: number;
@@ -166,6 +201,7 @@ export const CHECKOUT_FAILURE_REASONS = [
   "unit_not_found",
   "unit_not_sellable",
   "insufficient_stock",
+  "expired_only",
   "duplicate_item",
   "stock_changed",
 ] as const;

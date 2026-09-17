@@ -9,6 +9,7 @@ import {
   ShoppingCart,
   ReceiptText,
   Upload,
+  Boxes,
   Cross,
   X,
 } from "lucide-react";
@@ -43,6 +44,12 @@ export const navigation = [
   //   icon: Tags,
   //   hint: "Set prices and stock",
   // },
+  {
+    href: "/stock",
+    label: "Stock",
+    icon: Boxes,
+    hint: "Batches, expiry dates and stock history",
+  },
   {
     href: "/sales",
     label: "Sales",

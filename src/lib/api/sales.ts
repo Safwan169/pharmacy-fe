@@ -1,7 +1,14 @@
 import "server-only";
 
 import { apiFetch, buildQuery } from "./client";
-import type { DashboardSummary, LowStockItem, Paginated, Sale } from "@/types";
+import type {
+  DashboardSummary,
+  ExpiringItem,
+  ExpiryWindow,
+  LowStockItem,
+  Paginated,
+  Sale,
+} from "@/types";
 
 export function listSales(
   params: {
@@ -23,6 +30,16 @@ export function getSale(id: number) {
     auth: true,
     redirectOnUnauthorized: true,
   });
+}
+
+/** Batches with stock that expire within the window, soonest first. */
+export function getExpiring(days: ExpiryWindow = 30) {
+  return apiFetch<ExpiringItem[]>(`/stock/expiring${buildQuery({ days })}`, { auth: true });
+}
+
+/** Batches already past their date that still hold stock. */
+export function getExpired() {
+  return apiFetch<ExpiringItem[]>("/stock/expired", { auth: true });
 }
 
 export function getLowStock() {

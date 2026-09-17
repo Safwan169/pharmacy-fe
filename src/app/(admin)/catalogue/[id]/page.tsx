@@ -9,6 +9,7 @@ import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PricingForm } from "@/components/catalogue/pricing-form";
 import { AvailabilityControl } from "@/components/catalogue/availability-control";
+import { BatchTable } from "@/components/catalogue/batch-table";
 import { SellableBadge, PriceCell, StockCell } from "@/components/catalogue/status-badges";
 import { getUnitTemplate, getVariant, listGenericVariants } from "@/lib/api/catalogue";
 import { ApiError } from "@/lib/api/client";
@@ -115,6 +116,18 @@ export default async function VariantDetailPage({
               />
               <Detail label="Reference number" value={`#${variant.id}`} />
             </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader
+              title="Batches on the shelf"
+              description="Where the stock came from and when each lot expires. The counter sells the soonest-expiring batch first."
+            />
+            <BatchTable
+              variantId={variant.id}
+              baseUnit={variant.baseUnit}
+              batches={variant.batches ?? []}
+            />
           </Card>
 
           {variant.genericId && (

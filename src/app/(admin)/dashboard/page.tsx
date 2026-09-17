@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { Banknote, Boxes, PackageCheck, ReceiptText } from "lucide-react";
+import { Banknote, Boxes, CalendarClock, PackageCheck, ReceiptText } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { PeriodTabs } from "@/components/dashboard/period-tabs";
@@ -9,7 +9,7 @@ import { Table, Th, Td } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { getLowStock, getSummary } from "@/lib/api/sales";
+import { getExpired, getExpiring, getLowStock, getSummary } from "@/lib/api/sales";
 import { ApiError } from "@/lib/api/client";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import { SUMMARY_PERIODS, type SummaryPeriod } from "@/types";
@@ -44,11 +44,50 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       </Suspense>
 
       <div className="mt-5">
+        <Suspense fallback={null}>
+          <ExpirySection />
+        </Suspense>
+      </div>
+
+      <div className="mt-5">
         <Suspense fallback={<LowStockSkeleton />}>
           <LowStockSection />
         </Suspense>
       </div>
     </>
+  );
+}
+
+/** Two numbers the owner should see every morning: expired on the shelf, and expiring soon. */
+async function ExpirySection() {
+  let expiring;
+  let expired;
+  try {
+    [expiring, expired] = await Promise.all([getExpiring(30), getExpired()]);
+  } catch {
+    return null;
+  }
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <Link href="/stock/expiring?tab=expired" className="block">
+        <StatCard
+          label="Expired on the shelf"
+          value={formatNumber(expired.length)}
+          hint={expired.length === 0 ? "Nothing expired — good." : "Batches that can't be sold. Write them off."}
+          icon={CalendarClock}
+          tone={expired.length > 0 ? "danger" : "default"}
+        />
+      </Link>
+      <Link href="/stock/expiring" className="block">
+        <StatCard
+          label="Expiring within 30 days"
+          value={formatNumber(expiring.length)}
+          hint={expiring.length === 0 ? "No batches close to their date." : "Sell these first, or return them to the supplier."}
+          icon={CalendarClock}
+          tone={expiring.length > 0 ? "warning" : "default"}
+        />
+      </Link>
+    </div>
   );
 }
 

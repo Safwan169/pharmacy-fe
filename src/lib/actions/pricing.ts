@@ -33,6 +33,7 @@ export async function updatePricing(
   const body: {
     price?: number;
     stock_quantity?: number;
+    stock_note?: string;
     units?: Array<{
       name: string;
       qty_in_base: number;
@@ -56,6 +57,7 @@ export async function updatePricing(
     body.units = units.data;
   }
 
+  const stockNote = String(formData.get("stock_note") ?? "").trim();
   const parsed = pricingSchema.safeParse({
     price: "",
     stock_quantity: formData.get("stock_quantity") ?? "",
@@ -75,6 +77,7 @@ export async function updatePricing(
   }
   if (parsed.success && parsed.data.stock_quantity !== "" && parsed.data.stock_quantity !== undefined) {
     body.stock_quantity = parsed.data.stock_quantity;
+    if (stockNote) body.stock_note = stockNote;
   } else if (!parsed.success) {
     const { fieldErrors } = parsed.error.flatten();
     if (fieldErrors.stock_quantity?.[0]) {
@@ -121,6 +124,41 @@ function describeSaved(body: { price?: number; stock_quantity?: number; units?: 
   if (hasPrice && hasStock) return "Saved. Units, prices and stock are all up to date.";
   if (hasPrice) return "Saved. The new units and prices are now in use at the counter.";
   return "Saved. The stock count is up to date.";
+}
+
+export interface WriteOffState {
+  status: "idle" | "success" | "error";
+  message?: string;
+}
+
+/** Zeroes an expired (or damaged) batch and records the write-off. */
+export async function writeOffBatch(
+  _prev: WriteOffState,
+  formData: FormData,
+): Promise<WriteOffState> {
+  const batchId = Number(formData.get("batch_id"));
+  const variantId = Number(formData.get("variant_id"));
+  const note = String(formData.get("note") ?? "").trim();
+  if (!Number.isInteger(batchId) || batchId < 1) {
+    return { status: "error", message: "We couldn't tell which batch to write off. Reload the page." };
+  }
+  try {
+    await apiFetch(`/stock/batches/${batchId}/write-off`, {
+      method: "POST",
+      auth: true,
+      body: note ? { note } : {},
+    });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return { status: "error", message: error.message };
+    }
+    throw error;
+  }
+  revalidatePath("/dashboard");
+  revalidatePath("/stock/expiring");
+  revalidatePath("/catalogue");
+  if (variantId) revalidatePath(`/catalogue/${variantId}`);
+  return { status: "success", message: "Written off. The batch no longer counts as stock." };
 }
 
 export interface AvailabilityState {
