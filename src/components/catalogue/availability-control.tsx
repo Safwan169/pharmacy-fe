@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { setVariantAvailability } from "@/lib/actions/pricing";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
+import { useT } from "@/i18n/client";
 
 /**
  * Withdraw a SKU from sale, or put it back.
@@ -25,6 +26,7 @@ export function AvailabilityControl({
     status: "idle" as const,
   });
   const [confirming, setConfirming] = useState(false);
+  const t = useT();
 
   return (
     <div className="space-y-3">
@@ -39,19 +41,17 @@ export function AvailabilityControl({
         confirming ? (
           <div className="rounded-xl border border-danger/30 bg-danger/5 p-4">
             <p className="text-sm font-semibold text-danger">
-              Withdraw {name} from sale?
+              {t("availability.confirmTitle", { name })}
             </p>
             <p className="mt-1 text-sm text-foreground/80">
-              It will disappear from search and can&apos;t be sold at the counter.
-              Its price, stock count and past sales are all kept, and you can put
-              it back at any time.
+              {t("availability.confirmBody")}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <form action={formAction}>
                 <input type="hidden" name="variant_id" value={variantId} />
                 <input type="hidden" name="intent" value="withdraw" />
                 <Button type="submit" variant="danger" size="sm" disabled={pending}>
-                  {pending ? "Withdrawing…" : "Yes, withdraw it"}
+                  {pending ? t("availability.withdrawing") : t("availability.yesWithdraw")}
                 </Button>
               </form>
               <Button
@@ -61,7 +61,7 @@ export function AvailabilityControl({
                 onClick={() => setConfirming(false)}
                 disabled={pending}
               >
-                Keep it on sale
+                {t("availability.keep")}
               </Button>
             </div>
           </div>
@@ -72,7 +72,7 @@ export function AvailabilityControl({
             size="sm"
             onClick={() => setConfirming(true)}
           >
-            Withdraw from sale
+            {t("availability.withdraw")}
           </Button>
         )
       ) : (
@@ -80,7 +80,7 @@ export function AvailabilityControl({
           <input type="hidden" name="variant_id" value={variantId} />
           <input type="hidden" name="intent" value="restore" />
           <Button type="submit" size="sm" disabled={pending}>
-            {pending ? "Putting back…" : "Put back on sale"}
+            {pending ? t("availability.restoring") : t("availability.restore")}
           </Button>
         </form>
       )}

@@ -15,17 +15,20 @@ import { getStockValue } from "@/lib/api/reports";
 import { ApiError } from "@/lib/api/client";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import { SUMMARY_PERIODS, type SummaryPeriod } from "@/types";
+import { getT } from "@/i18n/server";
+import type { MessageKey } from "@/i18n";
 
 export const metadata = { title: "Dashboard" };
 
-const PERIOD_LABELS: Record<SummaryPeriod, string> = {
-  today: "today",
-  this_week: "this week",
-  this_month: "this month",
+const PERIOD_LABELS: Record<SummaryPeriod, MessageKey> = {
+  today: "dashboard.period.today",
+  this_week: "dashboard.period.thisWeek",
+  this_month: "dashboard.period.thisMonth",
 };
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   await requireOwner();
+  const t = await getT();
   const params = await searchParams;
   const requested = typeof params.period === "string" ? params.period : "today";
   const period: SummaryPeriod = SUMMARY_PERIODS.includes(requested as SummaryPeriod)
@@ -35,8 +38,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   return (
     <>
       <PageHeader
-        title="Dashboard"
-        description="How the shop is doing, and what needs restocking."
+        title={t("dashboard.title")}
+        description={t("dashboard.description")}
       />
 
       <PeriodTabs current={period} />
@@ -63,6 +66,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
 /** Two numbers the owner should see every morning: expired on the shelf, and expiring soon. */
 async function ExpirySection() {
+  const t = await getT();
   let expiring;
   let expired;
   try {
@@ -81,27 +85,27 @@ async function ExpirySection() {
       {stockValue && (
         <Link href="/reports" className="block">
           <StatCard
-            label="Stock on the shelf, at cost"
+            label={t("dashboard.stockAtCost")}
             value={formatCurrency(stockValue.value_at_cost)}
-            hint={`Worth ${formatCurrency(stockValue.value_at_price)} at selling price${stockValue.uncosted_units > 0 ? ` · ${formatNumber(stockValue.uncosted_units)} units have no cost` : ""}`}
+            hint={`${t("dashboard.worthAtPrice", { amount: formatCurrency(stockValue.value_at_price) })}${stockValue.uncosted_units > 0 ? ` · ${t("dashboard.unitsNoCost", { count: formatNumber(stockValue.uncosted_units) })}` : ""}`}
             icon={Warehouse}
           />
         </Link>
       )}
       <Link href="/stock/expiring?tab=expired" className="block">
         <StatCard
-          label="Expired on the shelf"
+          label={t("dashboard.expiredOnShelf")}
           value={formatNumber(expired.length)}
-          hint={expired.length === 0 ? "Nothing expired — good." : "Batches that can't be sold. Write them off."}
+          hint={expired.length === 0 ? t("dashboard.nothingExpired") : t("dashboard.expiredHint")}
           icon={CalendarClock}
           tone={expired.length > 0 ? "danger" : "default"}
         />
       </Link>
       <Link href="/stock/expiring" className="block">
         <StatCard
-          label="Expiring within 30 days"
+          label={t("dashboard.expiring30")}
           value={formatNumber(expiring.length)}
-          hint={expiring.length === 0 ? "No batches close to their date." : "Sell these first, or return them to the supplier."}
+          hint={expiring.length === 0 ? t("dashboard.noneExpiring") : t("dashboard.expiringHint")}
           icon={CalendarClock}
           tone={expiring.length > 0 ? "warning" : "default"}
         />
@@ -111,45 +115,46 @@ async function ExpirySection() {
 }
 
 async function SummarySection({ period }: { period: SummaryPeriod }) {
+  const t = await getT();
   let summary;
   try {
     summary = await getSummary({ period });
   } catch (error) {
     return (
-      <Alert tone="error" title="We couldn't load the sales figures">
+      <Alert tone="error" title={t("dashboard.summaryError")}>
         {error instanceof ApiError
           ? error.message
-          : "Please refresh the page to try again."}
+          : t("common.refresh")}
       </Alert>
     );
   }
 
-  const label = PERIOD_LABELS[period];
+  const label = t(PERIOD_LABELS[period]);
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <StatCard
-        label="Money taken"
+        label={t("dashboard.moneyTaken")}
         value={formatCurrency(summary.total_earning)}
-        hint={`Total collected ${label}, after discounts`}
+        hint={t("dashboard.moneyTakenHint", { period: label })}
         icon={Banknote}
       />
       <StatCard
-        label="Sales made"
+        label={t("dashboard.salesMade")}
         value={formatNumber(summary.total_transactions)}
-        hint={`Separate checkouts ${label}`}
+        hint={t("dashboard.salesMadeHint", { period: label })}
         icon={ReceiptText}
       />
       <StatCard
-        label="Items sold"
+        label={t("dashboard.itemsSold")}
         value={formatNumber(summary.total_units_sold)}
-        hint={`Individual units handed over ${label}`}
+        hint={t("dashboard.itemsSoldHint", { period: label })}
         icon={Boxes}
       />
       <StatCard
-        label="Different medicines"
+        label={t("dashboard.distinct")}
         value={formatNumber(summary.distinct_products_sold)}
-        hint={`Distinct products that sold ${label}`}
+        hint={t("dashboard.distinctHint", { period: label })}
         icon={PackageCheck}
       />
     </div>
@@ -157,15 +162,16 @@ async function SummarySection({ period }: { period: SummaryPeriod }) {
 }
 
 async function LowStockSection() {
+  const t = await getT();
   let items;
   try {
     items = await getLowStock();
   } catch (error) {
     return (
-      <Alert tone="error" title="We couldn't load the restocking list">
+      <Alert tone="error" title={t("dashboard.lowStockError")}>
         {error instanceof ApiError
           ? error.message
-          : "Please refresh the page to try again."}
+          : t("common.refresh")}
       </Alert>
     );
   }
@@ -173,11 +179,11 @@ async function LowStockSection() {
   return (
     <Card>
       <CardHeader
-        title="Needs restocking"
-        description="Running low or already out. Lowest stock first."
+        title={t("dashboard.needsRestocking")}
+        description={t("dashboard.needsRestockingHint")}
         action={
           items.length > 0 ? (
-            <Badge tone="warning">{items.length} to reorder</Badge>
+            <Badge tone="warning">{t("dashboard.toReorder", { count: items.length })}</Badge>
           ) : undefined
         }
       />
@@ -185,17 +191,17 @@ async function LowStockSection() {
       {items.length === 0 ? (
         <EmptyState
           icon={PackageCheck}
-          title="Nothing needs restocking"
-          description="Every medicine that has been counted has enough stock on the shelf. Items nobody has counted yet aren't listed here."
+          title={t("dashboard.nothingLow")}
+          description={t("dashboard.nothingLowHint")}
         />
       ) : (
         <Table>
           <thead>
             <tr>
-              <Th>Medicine</Th>
-              <Th className="hidden md:table-cell">Made by</Th>
-              <Th className="text-right">Left</Th>
-              <Th className="text-right">Action</Th>
+              <Th>{t("th.medicine")}</Th>
+              <Th className="hidden md:table-cell">{t("th.madeBy")}</Th>
+              <Th className="text-right">{t("th.left")}</Th>
+              <Th className="text-right">{t("th.action")}</Th>
             </tr>
           </thead>
           <tbody>
@@ -211,10 +217,10 @@ async function LowStockSection() {
                 <Td className="hidden text-muted md:table-cell">{item.manufacturer}</Td>
                 <Td className="text-right">
                   {item.stock_quantity === 0 ? (
-                    <Badge tone="danger">Out of stock</Badge>
+                    <Badge tone="danger">{t("stock.outOfStock")}</Badge>
                   ) : (
                     <span className="font-medium tabular-nums text-warning">
-                      {item.stock_quantity} {item.base_unit} left
+                      {item.stock_quantity} {item.base_unit} {t("stock.left")}
                     </span>
                   )}
                 </Td>
@@ -223,7 +229,7 @@ async function LowStockSection() {
                     href={`/catalogue/${item.variant_id}`}
                     className="text-xs font-medium text-primary hover:underline"
                   >
-                    Add stock
+                    {t("dashboard.addStock")}
                   </Link>
                 </Td>
               </tr>
@@ -245,10 +251,11 @@ function SummarySkeleton() {
   );
 }
 
-function LowStockSkeleton() {
+async function LowStockSkeleton() {
+  const t = await getT();
   return (
     <Card>
-      <CardHeader title="Needs restocking" description="Checking the shelves…" />
+      <CardHeader title={t("dashboard.needsRestocking")} description={t("dashboard.checkingShelves")} />
       <div className="space-y-3 p-5">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="h-10 animate-pulse rounded-lg bg-background" />

@@ -3,6 +3,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { getSessionToken } from "@/lib/session";
 import { humaniseApiMessage } from "@/lib/messages";
+import { getT } from "@/i18n/server";
 
 const BASE_URL = (process.env.API_BASE_URL ?? "http://localhost:3000").replace(
   /\/$/,
@@ -78,13 +79,14 @@ export async function apiFetch<T>(
   } = options;
 
   const requestHeaders = new Headers(headers);
+  const t = await getT();
   let token: string | undefined;
 
   if (auth) {
     token = await getSessionToken();
     if (!token) {
       if (redirectOnUnauthorized) redirect("/login");
-      throw new ApiError(401, "Your session has ended. Please sign in again.", null);
+      throw new ApiError(401, t("api.401"), null);
     }
     requestHeaders.set("Authorization", `Bearer ${token}`);
   }
@@ -105,18 +107,14 @@ export async function apiFetch<T>(
       cache: "no-store",
     });
   } catch {
-    throw new ApiError(
-      0,
-      "Could not reach the server. Check that the API is running and try again.",
-      null,
-    );
+    throw new ApiError(0, t("api.unreachable"), null);
   }
 
   if (response.status === 401 && redirectOnUnauthorized) {
     redirect("/login");
   }
   if (response.status === 403) {
-    throw new ApiError(403, "Only the owner can do this. Ask them to sign in.", await readBody(response));
+    throw new ApiError(403, t("api.ownerOnly"), await readBody(response));
   }
 
   if (response.status === 204) {
@@ -128,7 +126,7 @@ export async function apiFetch<T>(
   if (!response.ok) {
     throw new ApiError(
       response.status,
-      humaniseApiMessage(response.status, payload),
+      humaniseApiMessage(response.status, payload, t),
       payload,
     );
   }
@@ -149,9 +147,10 @@ async function readBody(response: Response): Promise<unknown> {
 export async function apiFetchBlob(
   path: string,
 ): Promise<{ blob: Blob; filename: string }> {
+  const t = await getT();
   const token = await getSessionToken();
   if (!token) {
-    throw new ApiError(401, "Your session has ended. Please sign in again.", null);
+    throw new ApiError(401, t("api.401"), null);
   }
 
   const response = await fetch(`${BASE_URL}${path}`, {
@@ -162,7 +161,7 @@ export async function apiFetchBlob(
   if (!response.ok) {
     throw new ApiError(
       response.status,
-      humaniseApiMessage(response.status, await readBody(response)),
+      humaniseApiMessage(response.status, await readBody(response), t),
       null,
     );
   }

@@ -4,6 +4,9 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { Search, X, Loader2 } from "lucide-react";
 import { todayInDhaka } from "@/lib/utils";
+import { useT } from "@/i18n/client";
+import { SALE_STATUS_KEYS } from "@/i18n";
+import { SALE_STATUSES } from "@/types";
 
 /**
  * Invoice search plus a date range.
@@ -16,6 +19,7 @@ export function SalesFilters() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
+  const t = useT();
 
   const from = searchParams.get("from") ?? "";
   const to = searchParams.get("to") ?? "";
@@ -56,7 +60,7 @@ export function SalesFilters() {
 
   const rangeError =
     from && to && from > to
-      ? "The start date is after the end date. Swap them around."
+      ? t("sales.rangeError")
       : undefined;
 
   const hasFilters = Boolean(search || from || to || searchParams.get("status"));
@@ -73,14 +77,14 @@ export function SalesFilters() {
           type="search"
           value={search}
           onChange={(e) => setTyped(e.target.value)}
-          placeholder="Search by invoice number — for example INV-20260817"
-          aria-label="Search sales by invoice number"
+          placeholder={t("sales.searchPlaceholder")}
+          aria-label={t("sales.searchLabel")}
           className="h-11 w-full rounded-lg border border-border bg-surface pr-10 pl-9 text-sm placeholder:text-muted/70 focus:border-primary focus:outline-2 focus:outline-primary/30"
         />
         {pending && (
           <Loader2
             className="absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 animate-spin text-muted"
-            aria-label="Searching"
+            aria-label={t("filters.searching")}
           />
         )}
       </div>
@@ -88,14 +92,14 @@ export function SalesFilters() {
       <div className="flex flex-wrap items-end gap-3">
         <DateField
           id="from"
-          label="From"
+          label={t("common.from")}
           value={from}
           max={today}
           onChange={(value) => apply({ from: value })}
         />
         <DateField
           id="to"
-          label="To"
+          label={t("common.toDate")}
           value={to}
           max={today}
           onChange={(value) => apply({ to: value })}
@@ -103,7 +107,7 @@ export function SalesFilters() {
 
         <div className="flex flex-col gap-1">
           <label htmlFor="status" className="text-xs font-medium text-muted">
-            Status
+            {t("th.status")}
           </label>
           <select
             id="status"
@@ -111,11 +115,10 @@ export function SalesFilters() {
             onChange={(e) => apply({ status: e.target.value })}
             className="h-9 rounded-lg border border-border bg-surface px-2 text-sm"
           >
-            <option value="">All</option>
-            <option value="completed">Completed</option>
-            <option value="voided">Voided</option>
-            <option value="partial_return">Part returned</option>
-            <option value="returned">Returned</option>
+            <option value="">{t("common.all")}</option>
+            {SALE_STATUSES.map((status) => (
+              <option key={status} value={status}>{t(SALE_STATUS_KEYS[status])}</option>
+            ))}
           </select>
         </div>
 
@@ -128,7 +131,7 @@ export function SalesFilters() {
             className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-medium text-muted transition-colors hover:bg-background hover:text-foreground"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
-            Clear filters
+            {t("filters.clear")}
           </button>
         )}
       </div>

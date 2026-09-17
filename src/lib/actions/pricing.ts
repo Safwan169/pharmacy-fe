@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { pricingSchema, unitsSchema } from "@/lib/validations";
 import type { ProductVariant } from "@/types";
+import { issueText } from "@/lib/messages";
+import { getT } from "@/i18n/server";
+import type { Translate } from "@/i18n";
 
 export interface PricingState {
   status: "idle" | "success" | "error";
@@ -22,9 +25,10 @@ export async function updatePricing(
   _prev: PricingState,
   formData: FormData,
 ): Promise<PricingState> {
+  const t = await getT();
   const variantId = Number(formData.get("variant_id"));
   if (!Number.isInteger(variantId) || variantId < 1) {
-    return { status: "error", message: "We couldn't tell which item to update. Please reload the page." };
+    return { status: "error", message: t("action.reload") };
   }
 
   // The unit ladder arrives as JSON from the client editor; stock as a plain field.
@@ -48,11 +52,11 @@ export async function updatePricing(
     try {
       decoded = JSON.parse(rawUnits);
     } catch {
-      return { status: "error", message: "The unit list couldn't be read. Reload the page and try again." };
+      return { status: "error", message: t("action.reload") };
     }
     const units = unitsSchema.safeParse(decoded);
     if (!units.success) {
-      return { status: "error", errors: { units: units.error.issues[0]?.message } };
+      return { status: "error", errors: { units: issueText(t, units.error.issues[0]?.message) } };
     }
     body.units = units.data;
   }
@@ -68,10 +72,8 @@ export async function updatePricing(
     return {
       status: "error",
       errors: {
-        stock_quantity: fieldErrors.stock_quantity?.[0],
-        units: fieldErrors.price?.[0]
-          ? "Set the units and prices, or enter a stock count — otherwise there's nothing to save."
-          : undefined,
+        stock_quantity: issueText(t, fieldErrors.stock_quantity?.[0]),
+        units: fieldErrors.price?.[0] ? t("pricingAction.nothingToSave") : undefined,
       },
     };
   }
@@ -81,14 +83,14 @@ export async function updatePricing(
   } else if (!parsed.success) {
     const { fieldErrors } = parsed.error.flatten();
     if (fieldErrors.stock_quantity?.[0]) {
-      return { status: "error", errors: { stock_quantity: fieldErrors.stock_quantity[0] } };
+      return { status: "error", errors: { stock_quantity: issueText(t, fieldErrors.stock_quantity[0]) } };
     }
   }
 
   if (body.units === undefined && body.stock_quantity === undefined) {
     return {
       status: "error",
-      errors: { units: "Change the units or prices, or enter a stock count — otherwise there's nothing to save." },
+      errors: { units: t("pricingAction.nothingToSave") },
     };
   }
 
@@ -112,18 +114,18 @@ export async function updatePricing(
 
   return {
     status: "success",
-    message: describeSaved(body),
+    message: describeSaved(body, t),
   };
 }
 
 /** Confirms exactly what changed, so nobody has to guess whether it saved. */
-function describeSaved(body: { price?: number; stock_quantity?: number; units?: unknown }): string {
+function describeSaved(body: { price?: number; stock_quantity?: number; units?: unknown }, t: Translate): string {
   const hasPrice = body.price !== undefined || body.units !== undefined;
   const hasStock = body.stock_quantity !== undefined;
 
-  if (hasPrice && hasStock) return "Saved. Units, prices and stock are all up to date.";
-  if (hasPrice) return "Saved. The new units and prices are now in use at the counter.";
-  return "Saved. The stock count is up to date.";
+  if (hasPrice && hasStock) return t("pricingAction.savedBoth");
+  if (hasPrice) return t("pricingAction.savedUnits");
+  return t("pricingAction.savedStock");
 }
 
 export interface WriteOffState {
@@ -139,8 +141,9 @@ export async function writeOffBatch(
   const batchId = Number(formData.get("batch_id"));
   const variantId = Number(formData.get("variant_id"));
   const note = String(formData.get("note") ?? "").trim();
+  const t = await getT();
   if (!Number.isInteger(batchId) || batchId < 1) {
-    return { status: "error", message: "We couldn't tell which batch to write off. Reload the page." };
+    return { status: "error", message: t("action.reload") };
   }
   try {
     await apiFetch(`/stock/batches/${batchId}/write-off`, {
@@ -158,7 +161,7 @@ export async function writeOffBatch(
   revalidatePath("/stock/expiring");
   revalidatePath("/catalogue");
   if (variantId) revalidatePath(`/catalogue/${variantId}`);
-  return { status: "success", message: "Written off. The batch no longer counts as stock." };
+  return { status: "success", message: t("pricingAction.writtenOff") };
 }
 
 export interface AvailabilityState {
@@ -176,9 +179,10 @@ export async function setVariantAvailability(
 ): Promise<AvailabilityState> {
   const variantId = Number(formData.get("variant_id"));
   const intent = formData.get("intent");
+  const t = await getT();
 
   if (!Number.isInteger(variantId) || variantId < 1) {
-    return { status: "error", message: "We couldn't tell which item to update. Please reload the page." };
+    return { status: "error", message: t("action.reload") };
   }
 
   const withdrawing = intent === "withdraw";
@@ -202,7 +206,7 @@ export async function setVariantAvailability(
   return {
     status: "success",
     message: withdrawing
-      ? "Withdrawn from sale. It won't appear in search or the counter, and it can't be sold — but its price, stock and past sales are all kept."
-      : "Back on sale. It will appear in search and can be sold again.",
+      ? t("pricingAction.withdrawn")
+      : t("pricingAction.restored"),
   };
 }

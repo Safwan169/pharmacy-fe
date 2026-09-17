@@ -9,7 +9,7 @@ import { emailSchema } from "./common";
  */
 export const loginSchema = z.object({
   email: emailSchema,
-  password: z.string().min(1, "Enter your password."),
+  password: z.string().min(1, "v.passwordEmpty"),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;

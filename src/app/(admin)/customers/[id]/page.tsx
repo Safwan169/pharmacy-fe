@@ -9,7 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { getCustomer, getCustomerHistory } from "@/lib/api/customers";
 import { ApiError } from "@/lib/api/client";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
-import { PAYMENT_METHOD_LABELS, SALE_STATUS_LABELS, type PaymentMethod } from "@/types";
+import type { PaymentMethod } from "@/types";
+import { getT } from "@/i18n/server";
+import { PAYMENT_METHOD_KEYS, SALE_STATUS_KEYS } from "@/i18n";
 
 export async function generateMetadata({ params }: PageProps<"/customers/[id]">) {
   const { id } = await params;
@@ -23,6 +25,7 @@ export async function generateMetadata({ params }: PageProps<"/customers/[id]">)
 export default async function CustomerPage({ params }: PageProps<"/customers/[id]">) {
   const { id } = await params;
   const customerId = Number(id);
+  const t = await getT();
   if (!Number.isInteger(customerId) || customerId < 1) notFound();
 
   let customer;
@@ -38,16 +41,16 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
     <>
       <Link href="/customers" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground">
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        Back to customers
+        {t("customer.back")}
       </Link>
       <PageHeader
         title={customer.name}
-        description={[customer.phone, customer.address].filter(Boolean).join(" · ") || "No contact details"}
+        description={[customer.phone, customer.address].filter(Boolean).join(" · ") || t("customer.noContact")}
         action={
           customer.dueBalance > 0 ? (
-            <Badge tone="warning" className="text-sm">Owes {formatCurrency(customer.dueBalance)}</Badge>
+            <Badge tone="warning" className="text-sm">{t("customer.owesAmount", { amount: formatCurrency(customer.dueBalance) })}</Badge>
           ) : (
-            <Badge tone="success">Nothing owed</Badge>
+            <Badge tone="success">{t("customer.nothingOwed")}</Badge>
           )
         }
       />
@@ -55,17 +58,17 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           <Card>
-            <CardHeader title="Sales on account and recent purchases" />
+            <CardHeader title={t("customer.salesTitle")} />
             {history.sales.length === 0 ? (
-              <p className="p-5 text-sm text-muted">No sales recorded for this customer.</p>
+              <p className="p-5 text-sm text-muted">{t("customer.noSales")}</p>
             ) : (
               <Table>
                 <thead>
                   <tr>
-                    <Th>Invoice</Th>
-                    <Th>When</Th>
-                    <Th className="text-right">Total</Th>
-                    <Th className="text-right">Still owed</Th>
+                    <Th>{t("th.invoice")}</Th>
+                    <Th>{t("th.when")}</Th>
+                    <Th className="text-right">{t("th.total")}</Th>
+                    <Th className="text-right">{t("customer.stillOwed")}</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -74,8 +77,8 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
                       <Td>
                         <Link href={`/sales/${s.id}`} className="font-mono text-sm text-primary hover:underline">{s.invoiceNumber}</Link>
                         <p className="text-xs text-muted">
-                          {PAYMENT_METHOD_LABELS[s.paymentMethod as PaymentMethod] ?? s.paymentMethod}
-                          {s.status !== "completed" ? ` · ${SALE_STATUS_LABELS[s.status]}` : ""}
+                          {PAYMENT_METHOD_KEYS[s.paymentMethod as PaymentMethod] ? t(PAYMENT_METHOD_KEYS[s.paymentMethod as PaymentMethod]) : s.paymentMethod}
+                          {s.status !== "completed" ? ` · ${t(SALE_STATUS_KEYS[s.status])}` : ""}
                         </p>
                       </Td>
                       <Td className="text-muted">{formatDateTime(s.createdAt)}</Td>
@@ -91,18 +94,18 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
           </Card>
 
           <Card>
-            <CardHeader title="Payments received" />
+            <CardHeader title={t("customer.payments")} />
             {history.payments.length === 0 ? (
-              <p className="p-5 text-sm text-muted">No payments yet.</p>
+              <p className="p-5 text-sm text-muted">{t("customer.noPayments")}</p>
             ) : (
               <Table>
                 <thead>
                   <tr>
-                    <Th>Receipt</Th>
-                    <Th>When</Th>
-                    <Th>By</Th>
-                    <Th className="text-right">Amount</Th>
-                    <Th className="text-right">Balance after</Th>
+                    <Th>{t("deliveries.receipt")}</Th>
+                    <Th>{t("th.when")}</Th>
+                    <Th>{t("receipt.by")}</Th>
+                    <Th className="text-right">{t("th.amount")}</Th>
+                    <Th className="text-right">{t("customer.balanceAfter")}</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -114,7 +117,7 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
                         </a>
                       </Td>
                       <Td className="text-muted">{formatDateTime(p.createdAt)}</Td>
-                      <Td>{p.method === "bkash" ? "bKash" : "Cash"}{p.bkashTrxId ? ` · ${p.bkashTrxId}` : ""}</Td>
+                      <Td>{p.method === "bkash" ? t("paymentMethod.bkash") : t("paymentMethod.cash")}{p.bkashTrxId ? ` · ${p.bkashTrxId}` : ""}</Td>
                       <Td className="text-right font-medium tabular-nums text-success">{formatCurrency(p.amount)}</Td>
                       <Td className="text-right tabular-nums text-muted">{formatCurrency(p.balanceAfter)}</Td>
                     </tr>
@@ -128,14 +131,14 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
         <div className="space-y-5">
           {customer.dueBalance > 0 && (
             <Card>
-              <CardHeader title="Receive payment" />
+              <CardHeader title={t("due.receivePayment")} />
               <CardBody>
                 <ReceivePayment customerId={customer.id} dueBalance={customer.dueBalance} />
               </CardBody>
             </Card>
           )}
           <Card>
-            <CardHeader title="Details" />
+            <CardHeader title={t("catalogue.details")} />
             <CardBody>
               <CustomerForm customer={customer} />
             </CardBody>

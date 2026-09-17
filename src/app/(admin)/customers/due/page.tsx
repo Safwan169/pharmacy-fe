@@ -10,36 +10,38 @@ import { LinkButton } from "@/components/ui/link-button";
 import { getDueList } from "@/lib/api/customers";
 import { ApiError } from "@/lib/api/client";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getT } from "@/i18n/server";
 
 export const metadata = { title: "Due list" };
 
 export default async function DuePage() {
+  const t = await getT();
   let rows;
   try {
     rows = await getDueList();
   } catch (error) {
-    return <Alert tone="error">{error instanceof ApiError ? error.message : "Please refresh to try again."}</Alert>;
+    return <Alert tone="error">{error instanceof ApiError ? error.message : t("common.refresh")}</Alert>;
   }
   const total = rows.reduce((sum, r) => sum + r.due_balance, 0);
 
   return (
     <>
       <PageHeader
-        title="Who owes money"
-        description={rows.length === 0 ? "Nobody at the moment." : `${rows.length} ${rows.length === 1 ? "customer owes" : "customers owe"} ${formatCurrency(total)} in total. Longest outstanding first.`}
-        action={<LinkButton href="/customers" variant="secondary">All customers</LinkButton>}
+        title={t("customers.whoOwes")}
+        description={rows.length === 0 ? t("due.nobody") : t(rows.length === 1 ? "due.summaryOne" : "due.summaryMany", { count: rows.length, amount: formatCurrency(total) })}
+        action={<LinkButton href="/customers" variant="secondary">{t("due.allCustomers")}</LinkButton>}
       />
       <Card>
         {rows.length === 0 ? (
-          <EmptyState icon={CircleCheck} title="No money owed" description="Every account is settled." />
+          <EmptyState icon={CircleCheck} title={t("due.none")} description={t("due.noneHint")} />
         ) : (
           <Table>
             <thead>
               <tr>
-                <Th>Customer</Th>
-                <Th className="hidden sm:table-cell">Owed since</Th>
-                <Th className="text-right">Owes</Th>
-                <Th className="text-right">Receive</Th>
+                <Th>{t("receipt.customer")}</Th>
+                <Th className="hidden sm:table-cell">{t("due.owedSince")}</Th>
+                <Th className="text-right">{t("customers.owes")}</Th>
+                <Th className="text-right">{t("due.receive")}</Th>
               </tr>
             </thead>
             <tbody>
@@ -51,7 +53,7 @@ export default async function DuePage() {
                   </Td>
                   <Td className="hidden text-muted sm:table-cell">
                     {r.oldest_due_at ? formatDate(r.oldest_due_at) : "—"}
-                    {r.open_sales > 0 && <p className="text-xs">{r.open_sales} {r.open_sales === 1 ? "sale" : "sales"} open</p>}
+                    {r.open_sales > 0 && <p className="text-xs">{t("due.openSales", { count: r.open_sales })}</p>}
                   </Td>
                   <Td className="text-right font-semibold tabular-nums text-warning">{formatCurrency(r.due_balance)}</Td>
                   <Td className="text-right">

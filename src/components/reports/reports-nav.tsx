@@ -3,17 +3,20 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useT } from "@/i18n/client";
+import type { MessageKey } from "@/i18n";
 
-const TABS = [
-  { href: "/reports/daily-closing", label: "Daily closing" },
-  { href: "/reports/profit", label: "Profit" },
-  { href: "/reports", label: "Stock value" },
+const TABS: { href: string; label: MessageKey }[] = [
+  { href: "/reports/daily-closing", label: "reports.dailyClosing" },
+  { href: "/reports/profit", label: "reports.profit" },
+  { href: "/reports", label: "reports.stockValue" },
 ];
 
 export function ReportsNav() {
   const pathname = usePathname();
+  const t = useT();
   return (
-    <nav className="mb-5 flex flex-wrap gap-1 rounded-lg border border-border bg-surface p-1 print:hidden" aria-label="Reports">
+    <nav className="mb-5 flex flex-wrap gap-1 rounded-lg border border-border bg-surface p-1 print:hidden" aria-label={t("nav.reports")}>
       {TABS.map(({ href, label }) => {
         const active = href === "/reports" ? pathname === "/reports" : pathname.startsWith(href);
         return (
@@ -26,7 +29,7 @@ export function ReportsNav() {
               active ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground",
             )}
           >
-            {label}
+            {t(label)}
           </Link>
         );
       })}
@@ -34,14 +37,15 @@ export function ReportsNav() {
   );
 }
 
-export function PrintButton({ label = "Print" }: { label?: string }) {
+export function PrintButton({ label }: { label?: string }) {
+  const t = useT();
   return (
     <button
       type="button"
       onClick={() => window.print()}
       className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-background print:hidden"
     >
-      {label}
+      {label ?? t("common.print")}
     </button>
   );
 }

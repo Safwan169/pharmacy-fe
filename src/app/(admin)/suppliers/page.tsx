@@ -1,5 +1,6 @@
 import { requireOwner } from "@/lib/current-user";
 import Link from "next/link";
+import Form from "next/form";
 import { Suspense } from "react";
 import { Truck } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
@@ -13,11 +14,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
 import { listSuppliers } from "@/lib/api/stock";
 import { ApiError } from "@/lib/api/client";
+import { getT } from "@/i18n/server";
 
 export const metadata = { title: "Suppliers" };
 
 export default async function SuppliersPage({ searchParams }: PageProps<"/suppliers">) {
   await requireOwner();
+  const t = await getT();
   const params = await searchParams;
   const search = typeof params.search === "string" ? params.search : undefined;
   const status = typeof params.status === "string" ? params.status : "active";
@@ -25,32 +28,32 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
 
   return (
     <>
-      <PageHeader title="Suppliers" description="Who the shop buys from. Pick one when receiving a delivery." />
+      <PageHeader title={t("suppliers.title")} description={t("suppliers.description")} />
       <StockNav />
 
       <Card className="mb-5">
-        <CardHeader title="Add a supplier" />
+        <CardHeader title={t("suppliers.add")} />
         <CardBody>
           <SupplierForm />
         </CardBody>
       </Card>
 
-      <form className="mb-4 flex flex-wrap gap-2" action="/suppliers">
+      <Form className="mb-4 flex flex-wrap gap-2" action="/suppliers">
         <input
           type="search"
           name="search"
           defaultValue={search}
-          placeholder="Name or phone"
+          placeholder={t("suppliers.searchPlaceholder")}
           className="h-10 min-w-56 flex-1 rounded-lg border border-border bg-surface px-3 text-sm"
-          aria-label="Search suppliers"
+          aria-label={t("suppliers.searchLabel")}
         />
-        <select name="status" defaultValue={status} className="h-10 rounded-lg border border-border bg-surface px-3 text-sm" aria-label="Status">
-          <option value="active">In use</option>
-          <option value="inactive">Not used any more</option>
-          <option value="all">All</option>
+        <select name="status" defaultValue={status} className="h-10 rounded-lg border border-border bg-surface px-3 text-sm" aria-label={t("th.status")}>
+          <option value="active">{t("suppliers.inUse")}</option>
+          <option value="inactive">{t("suppliers.notUsedAnyMore")}</option>
+          <option value="all">{t("common.all")}</option>
         </select>
-        <button type="submit" className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-background">Search</button>
-      </form>
+        <button type="submit" className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-background">{t("common.search")}</button>
+      </Form>
 
       <Card>
         <Suspense key={`${search}-${status}-${page}`} fallback={<div className="h-40 animate-pulse" />}>
@@ -62,19 +65,20 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
 }
 
 async function SupplierList({ search, status, page }: { search?: string; status: string; page: number }) {
+  const t = await getT();
   let result;
   try {
     result = await listSuppliers({ search, status, page });
   } catch (error) {
     return (
       <div className="p-5">
-        <Alert tone="error">{error instanceof ApiError ? error.message : "Please refresh to try again."}</Alert>
+        <Alert tone="error">{error instanceof ApiError ? error.message : t("common.refresh")}</Alert>
       </div>
     );
   }
 
   if (result.data.length === 0) {
-    return <EmptyState icon={Truck} title="No suppliers yet" description="Add the companies and distributors you buy from above." />;
+    return <EmptyState icon={Truck} title={t("suppliers.empty")} description={t("suppliers.emptyHint")} />;
   }
 
   return (
@@ -82,10 +86,10 @@ async function SupplierList({ search, status, page }: { search?: string; status:
       <Table>
         <thead>
           <tr>
-            <Th>Supplier</Th>
-            <Th className="hidden sm:table-cell">Phone</Th>
-            <Th className="hidden md:table-cell">Address</Th>
-            <Th>Status</Th>
+            <Th>{t("deliveries.supplier")}</Th>
+            <Th className="hidden sm:table-cell">{t("th.phone")}</Th>
+            <Th className="hidden md:table-cell">{t("th.address")}</Th>
+            <Th>{t("th.status")}</Th>
             <Th />
           </tr>
         </thead>
@@ -95,16 +99,16 @@ async function SupplierList({ search, status, page }: { search?: string; status:
               <Td>
                 <p className="font-medium">{s.name}</p>
                 <Link href={`/stock/receipts?search=&supplier_id=${s.id}`} className="text-xs text-primary hover:underline">
-                  Deliveries
+                  {t("stockNav.deliveries")}
                 </Link>
                 {" · "}
                 <Link href={`/stock/receive?supplier=${s.id}`} className="text-xs text-primary hover:underline">
-                  Receive from them
+                  {t("suppliers.receiveFrom")}
                 </Link>
               </Td>
               <Td className="hidden text-muted sm:table-cell">{s.phone ?? "—"}</Td>
               <Td className="hidden max-w-[16rem] truncate text-muted md:table-cell">{s.address ?? "—"}</Td>
-              <Td>{s.isActive ? <Badge tone="success">In use</Badge> : <Badge tone="neutral">Not used</Badge>}</Td>
+              <Td>{s.isActive ? <Badge tone="success">{t("suppliers.inUse")}</Badge> : <Badge tone="neutral">{t("suppliers.notUsed")}</Badge>}</Td>
               <Td className="text-right">
                 <SupplierEditToggle supplier={s} />
               </Td>

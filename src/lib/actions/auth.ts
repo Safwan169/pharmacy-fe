@@ -6,6 +6,8 @@ import { createSession, destroySession } from "@/lib/session";
 import { homeFor } from "@/lib/current-user";
 import type { UserProfile } from "@/types";
 import { loginSchema } from "@/lib/validations";
+import { issueText } from "@/lib/messages";
+import { getT } from "@/i18n/server";
 
 export interface LoginState {
   /** Field-level problems, keyed by input name. */
@@ -18,6 +20,7 @@ export async function login(
   _prev: LoginState,
   formData: FormData,
 ): Promise<LoginState> {
+  const t = await getT();
   const parsed = loginSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
@@ -27,8 +30,8 @@ export async function login(
     const { fieldErrors } = parsed.error.flatten();
     return {
       errors: {
-        email: fieldErrors.email?.[0],
-        password: fieldErrors.password?.[0],
+        email: issueText(t, fieldErrors.email?.[0]),
+        password: issueText(t, fieldErrors.password?.[0]),
       },
     };
   }
@@ -49,9 +52,9 @@ export async function login(
       return {
         message:
           reason === "inactive_user"
-            ? "This account has been deactivated. Ask the owner to reactivate it."
+            ? t("auth.inactive")
             : error.status === 401
-              ? "That email and password don't match. Please check them and try again."
+              ? t("api.badCredentials")
               : error.message,
       };
     }

@@ -5,22 +5,25 @@ import { z } from "zod";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { listCustomers } from "@/lib/api/customers";
 import type { Customer, DuePayment } from "@/types";
+import { issueText } from "@/lib/messages";
+import { getT } from "@/i18n/server";
+import type { Translate } from "@/i18n";
 
 const customerSchema = z.object({
-  name: z.string().trim().min(1, "Enter the customer's name.").max(100, "Keep the name under 100 letters."),
-  phone: z.string().trim().max(20, "That phone number is too long.").optional(),
-  address: z.string().trim().max(255).optional(),
+  name: z.string().trim().min(1, "v.customerName").max(100, "v.nameLong"),
+  phone: z.string().trim().max(20, "v.phoneLong").optional(),
+  address: z.string().trim().max(255, "v.addressLong").optional(),
 });
 
-function reasonMessage(error: ApiError): string {
+function reasonMessage(error: ApiError, t: Translate): string {
   const reason = (error.body as { reason?: string } | null)?.reason;
   switch (reason) {
     case "phone_taken":
-      return "Someone already has that phone number. Search for them instead.";
+      return t("customerAction.phoneTaken");
     case "has_due":
-      return "They still owe money. Collect it before deactivating them.";
+      return t("customerAction.hasDue");
     case "overpayment":
-      return "That's more than they owe. Enter the amount owed or less.";
+      return t("customerAction.overpayment");
     default:
       return error.message;
   }
@@ -32,8 +35,9 @@ export async function searchCustomers(term: string): Promise<Customer[]> {
 }
 
 export async function quickAddCustomer(name: string, phone: string): Promise<{ customer?: Customer; error?: string }> {
+  const t = await getT();
   const parsed = customerSchema.safeParse({ name, phone });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  if (!parsed.success) return { error: issueText(t, parsed.error.issues[0]?.message) };
   try {
     const customer = await apiFetch<Customer>("/customers", {
       method: "POST",
@@ -43,7 +47,7 @@ export async function quickAddCustomer(name: string, phone: string): Promise<{ c
     revalidatePath("/customers");
     return { customer };
   } catch (error) {
-    if (error instanceof ApiError) return { error: reasonMessage(error) };
+    if (error instanceof ApiError) return { error: reasonMessage(error, t) };
     throw error;
   }
 }
@@ -54,13 +58,14 @@ export interface CustomerFormState {
 }
 
 export async function saveCustomer(_prev: CustomerFormState, formData: FormData): Promise<CustomerFormState> {
+  const t = await getT();
   const id = Number(formData.get("customer_id") ?? 0);
   const parsed = customerSchema.safeParse({
     name: formData.get("name") ?? "",
     phone: formData.get("phone") ?? "",
     address: formData.get("address") ?? "",
   });
-  if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message };
+  if (!parsed.success) return { status: "error", message: issueText(t, parsed.error.issues[0]?.message) };
   const body: Record<string, unknown> = {
     name: parsed.data.name,
     phone: parsed.data.phone || (id ? null : undefined),
@@ -73,12 +78,12 @@ export async function saveCustomer(_prev: CustomerFormState, formData: FormData)
       body,
     });
   } catch (error) {
-    if (error instanceof ApiError) return { status: "error", message: reasonMessage(error) };
+    if (error instanceof ApiError) return { status: "error", message: reasonMessage(error, t) };
     throw error;
   }
   revalidatePath("/customers");
   if (id) revalidatePath(`/customers/${id}`);
-  return { status: "success", message: id ? "Saved." : `${parsed.data.name} added.` };
+  return { status: "success", message: id ? t("action.saved") : t("action.added", { name: parsed.data.name }) };
 }
 
 export interface PaymentState {
@@ -94,11 +99,12 @@ export async function receiveDuePayment(_prev: PaymentState, formData: FormData)
   const method = String(formData.get("method") ?? "cash");
   const trx = String(formData.get("bkash_trx_id") ?? "").trim();
   const note = String(formData.get("note") ?? "").trim();
+  const t = await getT();
   if (!Number.isInteger(customerId) || customerId < 1) {
-    return { status: "error", message: "Reload the page and try again." };
+    return { status: "error", message: t("action.reload") };
   }
-  if (!(amount > 0)) return { status: "error", message: "Enter the amount received." };
-  if (method !== "cash" && method !== "bkash") return { status: "error", message: "Pick cash or bKash." };
+  if (!(amount > 0)) return { status: "error", message: t("customerAction.enterAmount") };
+  if (method !== "cash" && method !== "bkash") return { status: "error", message: t("customerAction.pickMethod") };
   try {
     const payment = await apiFetch<DuePayment>(`/customers/${customerId}/payments`, {
       method: "POST",
@@ -116,11 +122,11 @@ export async function receiveDuePayment(_prev: PaymentState, formData: FormData)
     revalidatePath("/dashboard");
     return {
       status: "success",
-      message: `Received. Balance left: ${payment.balanceAfter.toFixed(2)}.`,
+      message: t("customerAction.received", { balance: payment.balanceAfter.toFixed(2) }),
       payment,
     };
   } catch (error) {
-    if (error instanceof ApiError) return { status: "error", message: reasonMessage(error) };
+    if (error instanceof ApiError) return { status: "error", message: reasonMessage(error, t) };
     throw error;
   }
 }

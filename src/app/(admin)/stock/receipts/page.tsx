@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Form from "next/form";
 import { Suspense } from "react";
 import { PackagePlus } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
@@ -12,10 +13,12 @@ import { LinkButton } from "@/components/ui/link-button";
 import { listReceipts, type ReceiptFilters } from "@/lib/api/stock";
 import { ApiError } from "@/lib/api/client";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getT } from "@/i18n/server";
 
 export const metadata = { title: "Deliveries" };
 
 export default async function ReceiptsPage({ searchParams }: PageProps<"/stock/receipts">) {
+  const t = await getT();
   const params = await searchParams;
   const filters: ReceiptFilters = {
     search: typeof params.search === "string" ? params.search : undefined,
@@ -28,33 +31,33 @@ export default async function ReceiptsPage({ searchParams }: PageProps<"/stock/r
   return (
     <>
       <PageHeader
-        title="Deliveries"
-        description="Every delivery received, newest first."
+        title={t("deliveries.title")}
+        description={t("deliveries.description")}
         action={
           <LinkButton href="/stock/receive">
             <PackagePlus className="h-4 w-4" aria-hidden />
-            Receive stock
+            {t("catalogue.receiveStock")}
           </LinkButton>
         }
       />
       <StockNav />
 
-      <form className="mb-4 flex flex-wrap gap-2" action="/stock/receipts">
+      <Form className="mb-4 flex flex-wrap gap-2" action="/stock/receipts">
         {filters.supplier_id && <input type="hidden" name="supplier_id" value={filters.supplier_id} />}
         <input
           type="search"
           name="search"
           defaultValue={filters.search}
-          placeholder="Receipt or supplier invoice no."
+          placeholder={t("deliveries.searchPlaceholder")}
           className="h-10 min-w-56 flex-1 rounded-lg border border-border bg-surface px-3 text-sm"
-          aria-label="Search deliveries"
+          aria-label={t("deliveries.searchLabel")}
         />
-        <input type="date" name="from" defaultValue={filters.from} className="h-10 rounded-lg border border-border bg-surface px-3 text-sm" aria-label="From" />
-        <input type="date" name="to" defaultValue={filters.to} className="h-10 rounded-lg border border-border bg-surface px-3 text-sm" aria-label="To" />
+        <input type="date" name="from" defaultValue={filters.from} className="h-10 rounded-lg border border-border bg-surface px-3 text-sm" aria-label={t("common.from")} />
+        <input type="date" name="to" defaultValue={filters.to} className="h-10 rounded-lg border border-border bg-surface px-3 text-sm" aria-label={t("common.toDate")} />
         <button type="submit" className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-background">
-          Search
+          {t("common.search")}
         </button>
-      </form>
+      </Form>
 
       <Card>
         <Suspense key={JSON.stringify(filters)} fallback={<Skeleton />}>
@@ -66,13 +69,14 @@ export default async function ReceiptsPage({ searchParams }: PageProps<"/stock/r
 }
 
 async function ReceiptList({ filters }: { filters: ReceiptFilters }) {
+  const t = await getT();
   let result;
   try {
     result = await listReceipts(filters);
   } catch (error) {
     return (
       <div className="p-5">
-        <Alert tone="error">{error instanceof ApiError ? error.message : "Please refresh to try again."}</Alert>
+        <Alert tone="error">{error instanceof ApiError ? error.message : t("common.refresh")}</Alert>
       </div>
     );
   }
@@ -81,8 +85,8 @@ async function ReceiptList({ filters }: { filters: ReceiptFilters }) {
     return (
       <EmptyState
         icon={PackagePlus}
-        title="No deliveries yet"
-        description="When stock arrives, record it under Receive so every batch gets an expiry date and cost."
+        title={t("deliveries.empty")}
+        description={t("deliveries.emptyHint")}
       />
     );
   }
@@ -92,11 +96,11 @@ async function ReceiptList({ filters }: { filters: ReceiptFilters }) {
       <Table>
         <thead>
           <tr>
-            <Th>Receipt</Th>
-            <Th>Date</Th>
-            <Th className="hidden md:table-cell">Supplier</Th>
-            <Th className="hidden sm:table-cell">Their invoice</Th>
-            <Th className="text-right">Total cost</Th>
+            <Th>{t("deliveries.receipt")}</Th>
+            <Th>{t("th.date")}</Th>
+            <Th className="hidden md:table-cell">{t("deliveries.supplier")}</Th>
+            <Th className="hidden sm:table-cell">{t("deliveries.theirInvoice")}</Th>
+            <Th className="text-right">{t("deliveries.totalCost")}</Th>
           </tr>
         </thead>
         <tbody>

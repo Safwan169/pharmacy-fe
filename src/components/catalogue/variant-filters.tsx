@@ -4,6 +4,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { Search, X, Loader2 } from "lucide-react";
 import type { Generic, Manufacturer } from "@/types";
+import { useT } from "@/i18n/client";
 
 interface Props {
   manufacturers: Manufacturer[];
@@ -30,6 +31,7 @@ export function VariantFilters({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
+  const t = useT();
 
   const urlSearch = searchParams.get("search") ?? "";
 
@@ -85,70 +87,70 @@ export function VariantFilters({
           type="search"
           value={search}
           onChange={(e) => setTyped(e.target.value)}
-          placeholder="Search by brand name or ingredient — try “Napa” or “Paracetamol”"
-          aria-label="Search medicines"
+          placeholder={t("catalogue.searchPlaceholder")}
+          aria-label={t("catalogue.searchLabel")}
           className="h-11 w-full rounded-lg border border-border bg-surface pr-10 pl-9 text-sm placeholder:text-muted/70 focus:border-primary focus:outline-2 focus:outline-primary/30"
         />
         {pending && (
           <Loader2
             className="absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 animate-spin text-muted"
-            aria-label="Searching"
+            aria-label={t("filters.searching")}
           />
         )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <FilterSelect
-          label="Company"
+          label={t("th.company")}
           value={searchParams.get("manufacturer_id") ?? ""}
           onChange={(v) => apply("manufacturer_id", v)}
           options={manufacturers.map((m) => ({ value: String(m.id), label: m.name }))}
-          allLabel="All companies"
+          allLabel={t("filters.allCompanies")}
         />
 
         <FilterSelect
-          label="Ingredient"
+          label={t("th.ingredient")}
           value={searchParams.get("generic_id") ?? ""}
           onChange={(v) => apply("generic_id", v)}
           options={generics.map((g) => ({ value: String(g.id), label: g.name }))}
-          allLabel="All ingredients"
+          allLabel={t("filters.allIngredients")}
         />
 
         <FilterSelect
-          label="Kind"
+          label={t("filters.kind")}
           value={searchParams.get("type") ?? ""}
           onChange={(v) => apply("type", v)}
           options={[
-            { value: "allopathic", label: "Allopathic" },
-            { value: "herbal", label: "Herbal" },
+            { value: "allopathic", label: t("kind.allopathic") },
+            { value: "herbal", label: t("kind.herbal") },
           ]}
-          allLabel="All kinds"
+          allLabel={t("filters.allKinds")}
         />
 
         {showPricingStatus && (
           <FilterSelect
-            label="Pricing"
+            label={t("filters.pricing")}
             value={searchParams.get("pricing_status") ?? ""}
             onChange={(v) => apply("pricing_status", v)}
             options={[
-              { value: "missing", label: "Still needs a price" },
-              { value: "set", label: "Already priced" },
+              { value: "missing", label: t("filters.needsPrice") },
+              { value: "set", label: t("filters.priced") },
             ]}
-            allLabel="Priced or not"
+            allLabel={t("filters.pricedOrNot")}
           />
         )}
 
         {showAvailability && (
           <FilterSelect
-            label="Availability"
+            label={t("filters.availability")}
             value={searchParams.get("status") ?? ""}
             onChange={(v) => apply("status", v)}
             options={[
-              { value: "active", label: "On sale" },
-              { value: "inactive", label: "Withdrawn" },
-              { value: "all", label: "Both" },
+              { value: "active", label: t("badge.onSale") },
+              { value: "inactive", label: t("filters.withdrawn") },
+              { value: "all", label: t("filters.both") },
             ]}
-            allLabel="On sale"
+            allLabel={t("badge.onSale")}
           />
         )}
 
@@ -159,7 +161,7 @@ export function VariantFilters({
             className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-medium text-muted transition-colors hover:bg-background hover:text-foreground"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
-            Clear {activeCount === 1 ? "filter" : `all ${activeCount} filters`}
+            {activeCount === 1 ? t("filters.clearOne") : t("filters.clearAll", { count: activeCount })}
           </button>
         )}
       </div>

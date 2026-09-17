@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { checkoutRejectionSummary, humaniseCheckoutFailure } from "@/lib/messages";
 import type { CheckoutItemFailure, DiscountType, PaymentMethod, Sale } from "@/types";
+import { getT } from "@/i18n/server";
 
 export interface CheckoutRequest {
   items: { variant_id: number; unit_id: number; quantity: number; name: string }[];
@@ -33,11 +34,9 @@ export type CheckoutResult =
  * sentences that say what to do about each one.
  */
 export async function checkout(request: CheckoutRequest): Promise<CheckoutResult> {
+  const t = await getT();
   if (request.items.length === 0) {
-    return {
-      status: "error",
-      message: "The basket is empty. Add at least one item before taking payment.",
-    };
+    return { status: "error", message: t("checkout.empty") };
   }
 
   const names = new Map(request.items.map((i) => [i.variant_id, i.name]));
@@ -76,10 +75,10 @@ export async function checkout(request: CheckoutRequest): Promise<CheckoutResult
       if (failures.length > 0) {
         return {
           status: "rejected",
-          summary: checkoutRejectionSummary(failures.length),
+          summary: checkoutRejectionSummary(failures.length, t),
           problems: failures.map((failure) => ({
             variantId: failure.variant_id,
-            message: humaniseCheckoutFailure(failure, names.get(failure.variant_id)),
+            message: humaniseCheckoutFailure(failure, t, names.get(failure.variant_id)),
           })),
         };
       }
@@ -87,11 +86,11 @@ export async function checkout(request: CheckoutRequest): Promise<CheckoutResult
       const reason = (error.body as { reason?: string } | null)?.reason;
       const message =
         reason === "tendered_short"
-          ? "The cash given is less than the total. Enter what they actually handed over."
+          ? t("checkout.tenderedShort")
           : reason === "customer_required"
-            ? "A due sale needs a customer. Pick one or add them."
+            ? t("checkout.customerRequired")
             : reason === "customer_not_found"
-              ? "That customer no longer exists. Pick another."
+              ? t("checkout.customerNotFound")
               : error.message;
       return { status: "error", message };
     }

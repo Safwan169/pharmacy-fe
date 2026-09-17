@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { UnitTemplate, VariantUnit } from "@/types";
-import { pluralise } from "./status-badges";
+import { pluralise } from "@/lib/utils";
+import { useT } from "@/i18n/client";
+import type { Translate } from "@/i18n";
 
 // A "use server" file may only export async functions, so the starting state
 // lives here rather than beside the action.
@@ -45,6 +47,7 @@ export function PricingForm({
   stock: number | null;
 }) {
   const [state, formAction, pending] = useActionState(updatePricing, initialState);
+  const t = useT();
 
   const [rows, setRows] = useState<Row[]>(() =>
     units.length > 0
@@ -127,7 +130,7 @@ export function PricingForm({
     })),
   );
 
-  const stockBreakdown = describeStock(stock, baseUnit, rows);
+  const stockBreakdown = describeStock(t, stock, baseUnit, rows);
 
   return (
     <form action={formAction} className="space-y-5" noValidate>
@@ -144,13 +147,11 @@ export function PricingForm({
 
       <div>
         <div className="flex items-baseline justify-between">
-          <p className="text-sm font-medium text-foreground">How is it sold?</p>
-          <p className="text-xs text-muted">Counted in {pluralise(baseUnit, 2)}</p>
+          <p className="text-sm font-medium text-foreground">{t("pricing.howSold")}</p>
+          <p className="text-xs text-muted">{t("pricing.countedIn", { unit: pluralise(baseUnit, 2) })}</p>
         </div>
         <p className="mt-1 text-xs text-muted">
-          {neverPriced
-            ? "This medicine has never been priced, so it can't be sold yet. Enter one price and the others will be suggested."
-            : "Each unit has its own price. Untick “Sell” for a unit you won't break the pack to."}
+          {neverPriced ? t("pricing.neverPriced") : t("pricing.eachUnit")}
         </p>
 
         <div className="mt-3 space-y-2">
@@ -166,14 +167,14 @@ export function PricingForm({
               >
                 <div className="grid grid-cols-[1fr_5rem] gap-2">
                   <Input
-                    aria-label="Unit name"
+                    aria-label={t("pricing.unitName")}
                     value={row.name}
                     placeholder="strip"
                     onChange={(e) => update(row.key, { name: e.target.value })}
                     disabled={isBase && rows.length > 1}
                   />
                   <Input
-                    aria-label={`How many ${pluralise(baseUnit, 2)} in one`}
+                    aria-label={t("pricing.howMany", { unit: pluralise(baseUnit, 2) })}
                     inputMode="numeric"
                     value={row.qtyInBase}
                     placeholder="10"
@@ -187,7 +188,7 @@ export function PricingForm({
                       ৳
                     </span>
                     <Input
-                      aria-label={`Price per ${row.name || "unit"}`}
+                      aria-label={t("pricing.pricePer", { unit: row.name || t("th.unit") })}
                       inputMode="decimal"
                       value={row.price}
                       placeholder="0.00"
@@ -202,7 +203,7 @@ export function PricingForm({
                       checked={row.isSellable}
                       onChange={(e) => update(row.key, { isSellable: e.target.checked })}
                     />
-                    Sell
+                    {t("pricing.sell")}
                   </label>
                   <label className="flex items-center gap-1 text-xs">
                     <input
@@ -212,13 +213,13 @@ export function PricingForm({
                       onChange={() => setDefault(row.key)}
                       disabled={!row.isSellable}
                     />
-                    First
+                    {t("pricing.first")}
                   </label>
                   {!(isBase && rows.length > 1) && (
                     <button
                       type="button"
                       onClick={() => remove(row.key)}
-                      aria-label={`Remove ${row.name || "this unit"}`}
+                      aria-label={t("pricing.remove", { unit: row.name || t("th.unit") })}
                       className="rounded-md p-1 text-muted hover:bg-danger/10 hover:text-danger"
                       disabled={rows.length === 1}
                     >
@@ -228,7 +229,7 @@ export function PricingForm({
                 </div>
                 {row.price !== "" && Number(row.qtyInBase) > 1 && Number(row.price) > 0 && (
                   <p className="mt-1 text-xs text-muted">
-                    {formatCurrency(Number(row.price) / Number(row.qtyInBase))} per {baseUnit}
+                    {formatCurrency(Number(row.price) / Number(row.qtyInBase))} / {baseUnit}
                   </p>
                 )}
               </div>
@@ -245,19 +246,19 @@ export function PricingForm({
             className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
           >
             <Plus className="h-3.5 w-3.5" aria-hidden />
-            Add another unit (box, pack…)
+            {t("pricing.addUnit")}
           </button>
         )}
       </div>
 
       <Field
-        label={`${capitalise(pluralise(baseUnit, 2))} in stock`}
+        label={t("pricing.inStock", { unit: capitalise(pluralise(baseUnit, 2)) })}
         htmlFor="stock_quantity"
         error={state.errors?.stock_quantity}
         hint={
           stock === null
-            ? `Nobody has counted this yet. Count in ${pluralise(baseUnit, 2)}, not strips or boxes. Enter 0 if there are none.`
-            : `${stockBreakdown}. Leave blank to keep it. New stock with a batch and expiry date is better entered under Stock → Receive.`
+            ? t("pricing.notCountedHint", { unit: pluralise(baseUnit, 2) })
+            : `${stockBreakdown}. ${t("pricing.countHint")}`
         }
       >
         <Input
@@ -271,28 +272,28 @@ export function PricingForm({
         />
       </Field>
       <Field
-        label="Why did the count change?"
+        label={t("pricing.noteLabel")}
         htmlFor="stock_note"
-        hint="Optional. Kept in the stock history — e.g. “recounted shelf”, “2 strips damaged”."
+        hint={t("pricing.noteHint")}
       >
         <Input id="stock_note" name="stock_note" type="text" maxLength={255} autoComplete="off" />
       </Field>
 
       <Button type="submit" disabled={pending} className="w-full">
-        {pending ? "Saving…" : "Save changes"}
+        {pending ? t("common.saving") : t("common.saveChanges")}
       </Button>
 
       <p className="text-xs text-muted">
-        Restocking doesn&apos;t require touching the units — just enter the new count.
+        {t("pricing.restockNote")}
       </p>
     </form>
   );
 }
 
 /** "Currently 34 tablets on the shelf — 3 strips + 4 tablets". */
-function describeStock(stock: number | null, baseUnit: string, rows: Row[]): string {
+function describeStock(t: Translate, stock: number | null, baseUnit: string, rows: Row[]): string {
   if (stock === null) return "";
-  const base = `Currently ${stock.toLocaleString()} ${pluralise(baseUnit, stock)} on the shelf`;
+  const base = t("pricing.currently", { count: stock.toLocaleString(), unit: pluralise(baseUnit, stock) });
   const pack = rows
     .map((r) => ({ name: r.name, qty: Number(r.qtyInBase) }))
     .filter((r) => r.qty > 1 && r.name)

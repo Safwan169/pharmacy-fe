@@ -12,7 +12,9 @@ import { listSales } from "@/lib/api/sales";
 import { ApiError } from "@/lib/api/client";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { SALE_STATUSES, SALE_STATUS_LABELS, type SaleStatus } from "@/types";
+import { SALE_STATUSES, type SaleStatus } from "@/types";
+import { getT } from "@/i18n/server";
+import { SALE_STATUS_KEYS } from "@/i18n";
 
 const STATUS_TONE = {
   completed: "success",
@@ -24,14 +26,15 @@ const STATUS_TONE = {
 export const metadata = { title: "Sales" };
 
 export default async function SalesPage({ searchParams }: PageProps<"/sales">) {
+  const t = await getT();
   const params = await searchParams;
   const filters = readFilters(params);
 
   return (
     <>
       <PageHeader
-        title="Sales"
-        description="Every sale made, newest first. Search by invoice number or narrow it down to a date range."
+        title={t("sales.title")}
+        description={t("sales.description")}
       />
 
       <Suspense fallback={<div className="mb-4 h-24 animate-pulse rounded-lg bg-surface" />}>
@@ -54,16 +57,17 @@ async function SalesList({
   filters: ReturnType<typeof readFilters>;
   params: Awaited<PageProps<"/sales">["searchParams"]>;
 }) {
+  const t = await getT();
   let result;
   try {
     result = await listSales(filters);
   } catch (error) {
     return (
       <div className="p-5">
-        <Alert tone="error" title="We couldn't load the sales list">
+        <Alert tone="error" title={t("sales.loadError")}>
           {error instanceof ApiError
             ? error.message
-            : "Please refresh the page to try again."}
+            : t("common.refresh")}
         </Alert>
       </div>
     );
@@ -75,12 +79,8 @@ async function SalesList({
     return (
       <EmptyState
         icon={ReceiptText}
-        title={filtered ? "No sales match your search" : "No sales yet"}
-        description={
-          filtered
-            ? "Try a different invoice number, or widen the dates."
-            : "Once you take payment at the counter, every sale will be listed here with its invoice."
-        }
+        title={filtered ? t("sales.emptyFiltered") : t("sales.empty")}
+        description={filtered ? t("sales.emptyFilteredHint") : t("sales.emptyHint")}
       />
     );
   }
@@ -90,13 +90,13 @@ async function SalesList({
       <Table>
         <thead>
           <tr>
-            <Th>Invoice</Th>
-            <Th>When</Th>
-            <Th className="hidden text-right sm:table-cell">Before discount</Th>
-            <Th className="hidden text-right sm:table-cell">Discount</Th>
-            <Th className="text-right">Paid</Th>
-            <Th>Status</Th>
-            <Th><span className="sr-only">Actions</span></Th>
+            <Th>{t("th.invoice")}</Th>
+            <Th>{t("th.when")}</Th>
+            <Th className="hidden text-right sm:table-cell">{t("sales.beforeDiscount")}</Th>
+            <Th className="hidden text-right sm:table-cell">{t("pos.discount")}</Th>
+            <Th className="text-right">{t("receipt.paid")}</Th>
+            <Th>{t("th.status")}</Th>
+            <Th><span className="sr-only">{t("th.action")}</span></Th>
           </tr>
         </thead>
         <tbody>
@@ -120,7 +120,7 @@ async function SalesList({
                     −{formatCurrency(sale.discountAmount)}
                   </span>
                 ) : (
-                  <span className="text-muted">None</span>
+                  <span className="text-muted">{t("sales.noDiscount")}</span>
                 )}
               </Td>
               <Td className={`text-right font-semibold tabular-nums ${sale.status === "voided" ? "text-muted line-through" : ""}`}>
@@ -128,17 +128,17 @@ async function SalesList({
               </Td>
               <Td>
                 {sale.status !== "completed" && (
-                  <Badge tone={STATUS_TONE[sale.status]}>{SALE_STATUS_LABELS[sale.status]}</Badge>
+                  <Badge tone={STATUS_TONE[sale.status]}>{t(SALE_STATUS_KEYS[sale.status])}</Badge>
                 )}
               </Td>
               <Td className="text-right">
                 <a
                   href={`/api/invoices/${sale.id}`}
-                  aria-label={`Download invoice ${sale.invoiceNumber}`}
+                  aria-label={t("sales.downloadInvoice", { invoice: sale.invoiceNumber })}
                   className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                 >
                   <Download className="h-3.5 w-3.5" aria-hidden />
-                  <span className="hidden sm:inline">Invoice</span>
+                  <span className="hidden sm:inline">{t("th.invoice")}</span>
                 </a>
               </Td>
             </tr>

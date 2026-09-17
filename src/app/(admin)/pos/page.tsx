@@ -1,14 +1,16 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { CounterTerminal } from "@/components/pos/counter-terminal";
+import { getT } from "@/i18n/server";
 
 export const metadata = { title: "Counter" };
 
-export default function CounterPage() {
+export default async function CounterPage() {
+  const t = await getT();
   return (
     <>
       <PageHeader
-        title="Counter"
-        description="Add what the customer is buying, then take payment. Nothing is charged until the whole basket goes through."
+        title={t("pos.title")}
+        description={t("pos.description")}
       />
       <CounterTerminal />
     </>

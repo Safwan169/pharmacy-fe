@@ -69,3 +69,9 @@ export function describeVariant(variant: {
   const strength = variant.strength ? ` ${variant.strength}` : "";
   return `${brand}${strength} — ${variant.dosageForm}`.trim();
 }
+
+export function pluralise(unit: string, count: number): string {
+  if (count === 1) return unit;
+  if (/(s|x|ch|sh)$/i.test(unit)) return `${unit}es`;
+  return `${unit}s`;
+}

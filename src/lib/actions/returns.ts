@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import type { RefundMethod, Sale } from "@/types";
+import { getT } from "@/i18n/server";
+import type { Translate } from "@/i18n";
 
 export interface VoidState {
   status: "idle" | "success" | "error";
@@ -13,22 +15,23 @@ export interface VoidState {
 export async function voidSale(_prev: VoidState, formData: FormData): Promise<VoidState> {
   const saleId = Number(formData.get("sale_id"));
   const reason = String(formData.get("reason") ?? "").trim();
+  const t = await getT();
   if (!Number.isInteger(saleId) || saleId < 1) {
-    return { status: "error", message: "We couldn't tell which sale to void. Reload the page." };
+    return { status: "error", message: t("action.reload") };
   }
   if (!reason) {
-    return { status: "error", message: "Say why the sale is being voided — it's kept in the record." };
+    return { status: "error", message: t("returnAction.reasonRequired") };
   }
   try {
     await apiFetch<Sale>(`/sales/${saleId}/void`, { method: "POST", auth: true, body: { reason } });
   } catch (error) {
     if (error instanceof ApiError) {
-      return { status: "error", message: humaniseConflict(error) };
+      return { status: "error", message: humaniseConflict(error, t) };
     }
     throw error;
   }
   revalidateSale(saleId);
-  return { status: "success", message: "Voided. The stock is back on the shelf and the sale no longer counts towards earnings." };
+  return { status: "success", message: t("returnAction.voided") };
 }
 
 export interface ReturnRequest {
@@ -51,8 +54,9 @@ interface LineFailure {
 }
 
 export async function returnItems(request: ReturnRequest): Promise<ReturnResult> {
+  const t = await getT();
   if (request.items.length === 0) {
-    return { status: "error", message: "Pick at least one item to take back." };
+    return { status: "error", message: t("returnAction.pickOne") };
   }
   try {
     const sale = await apiFetch<Sale>(`/sales/${request.saleId}/returns`, {
@@ -82,28 +86,28 @@ export async function returnItems(request: ReturnRequest): Promise<ReturnResult>
             saleItemId: f.sale_item_id,
             message:
               f.reason === "too_many"
-                ? `Only ${f.returnable_quantity ?? 0} can still be returned on this line.`
+                ? t("returnAction.tooMany", { count: f.returnable_quantity ?? 0 })
                 : f.reason === "sale_item_not_found"
-                  ? "That line isn't part of this sale."
+                  ? t("returnAction.lineNotFound")
                   : f.message,
           })),
         };
       }
-      return { status: "error", message: humaniseConflict(error) };
+      return { status: "error", message: humaniseConflict(error, t) };
     }
     throw error;
   }
 }
 
-function humaniseConflict(error: ApiError): string {
+function humaniseConflict(error: ApiError, t: Translate): string {
   const reason = (error.body as { reason?: string } | null)?.reason;
   switch (reason) {
     case "void_window_closed":
-      return "This sale wasn't made today, so it can't be voided any more. Use “Return items” instead.";
+      return t("returnAction.windowClosed");
     case "not_voidable":
-      return "This sale has already been voided or had items returned.";
+      return t("returnAction.notVoidable");
     case "not_returnable":
-      return "Nothing on this sale can be returned — it was voided or everything is already back.";
+      return t("returnAction.notReturnable");
     default:
       return error.message;
   }

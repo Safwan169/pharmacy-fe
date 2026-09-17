@@ -6,6 +6,9 @@ import { apiFetch, ApiError } from "@/lib/api/client";
 import { listVariants } from "@/lib/api/catalogue";
 import { listSuppliers } from "@/lib/api/stock";
 import type { StockReceipt, Supplier } from "@/types";
+import { issueText } from "@/lib/messages";
+import { getT } from "@/i18n/server";
+import type { Translate } from "@/i18n";
 
 // ---------- Suppliers ----------
 
@@ -16,12 +19,13 @@ export interface SupplierState {
 }
 
 const supplierSchema = z.object({
-  name: z.string().trim().min(1, "Enter the supplier's name.").max(150, "Keep the name under 150 letters."),
-  phone: z.string().trim().max(30, "That phone number is too long.").optional(),
-  address: z.string().trim().max(255, "Keep the address under 255 letters.").optional(),
+  name: z.string().trim().min(1, "v.supplierName").max(150, "v.nameLong"),
+  phone: z.string().trim().max(30, "v.phoneLong").optional(),
+  address: z.string().trim().max(255, "v.addressLong").optional(),
 });
 
 export async function saveSupplier(_prev: SupplierState, formData: FormData): Promise<SupplierState> {
+  const t = await getT();
   const id = Number(formData.get("supplier_id") ?? 0);
   const parsed = supplierSchema.safeParse({
     name: formData.get("name") ?? "",
@@ -29,7 +33,7 @@ export async function saveSupplier(_prev: SupplierState, formData: FormData): Pr
     address: formData.get("address") ?? "",
   });
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message };
+    return { status: "error", message: issueText(t, parsed.error.issues[0]?.message) };
   }
   const body: Record<string, unknown> = {
     name: parsed.data.name,
@@ -50,7 +54,7 @@ export async function saveSupplier(_prev: SupplierState, formData: FormData): Pr
     revalidatePath("/stock/receive");
     return {
       status: "success",
-      message: id ? "Saved." : `${supplier.name} added.`,
+      message: id ? t("action.saved") : t("action.added", { name: supplier.name }),
       supplier,
     };
   } catch (error) {
@@ -59,7 +63,7 @@ export async function saveSupplier(_prev: SupplierState, formData: FormData): Pr
         status: "error",
         message:
           error.status === 409
-            ? "A supplier with that name already exists. Pick it from the list instead."
+            ? t("stockAction.supplierExists")
             : error.message,
       };
     }
@@ -78,8 +82,9 @@ export async function quickAddSupplier(
   name: string,
   phone: string,
 ): Promise<{ supplier?: Supplier; error?: string }> {
+  const t = await getT();
   const parsed = supplierSchema.safeParse({ name, phone });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  if (!parsed.success) return { error: issueText(t, parsed.error.issues[0]?.message) };
   try {
     const supplier = await apiFetch<Supplier>("/suppliers", {
       method: "POST",
@@ -93,7 +98,7 @@ export async function quickAddSupplier(
       return {
         error:
           error.status === 409
-            ? "A supplier with that name already exists. Search for it instead."
+            ? t("stockAction.supplierExists")
             : error.message,
       };
     }
@@ -133,8 +138,9 @@ interface LineFailure {
 }
 
 export async function receiveStock(request: ReceiveRequest): Promise<ReceiveResult> {
+  const t = await getT();
   if (request.items.length === 0) {
-    return { status: "error", message: "Add at least one line before saving the delivery." };
+    return { status: "error", message: t("stockAction.addLine") };
   }
   try {
     const receipt = await apiFetch<StockReceipt>("/stock/receipts", {
@@ -155,7 +161,7 @@ export async function receiveStock(request: ReceiveRequest): Promise<ReceiveResu
       if (Array.isArray(errors) && errors.length > 0) {
         return {
           status: "rejected",
-          problems: errors.map((f) => ({ index: f.index, message: humaniseLine(f) })),
+          problems: errors.map((f) => ({ index: f.index, message: humaniseLine(f, t) })),
         };
       }
       return { status: "error", message: error.message };
@@ -164,16 +170,16 @@ export async function receiveStock(request: ReceiveRequest): Promise<ReceiveResu
   }
 }
 
-function humaniseLine(f: LineFailure): string {
+function humaniseLine(f: LineFailure, t: Translate): string {
   switch (f.reason) {
     case "not_found":
-      return "This medicine no longer exists in the catalogue. Remove the line.";
+      return t("stockAction.notFound");
     case "inactive":
-      return "This medicine is withdrawn from sale. Put it back on sale first, then receive it.";
+      return t("stockAction.inactive");
     case "unit_not_found":
-      return "That unit isn't set up for this medicine any more. Pick another unit.";
+      return t("stockAction.unitNotFound");
     case "expired_batch":
-      return "The expiry date is already in the past. Check the date on the pack.";
+      return t("stockAction.expiredBatch");
     default:
       return f.message;
   }

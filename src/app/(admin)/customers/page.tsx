@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Form from "next/form";
 import { Suspense } from "react";
 import { Contact } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
@@ -13,10 +14,12 @@ import { LinkButton } from "@/components/ui/link-button";
 import { listCustomers } from "@/lib/api/customers";
 import { ApiError } from "@/lib/api/client";
 import { formatCurrency } from "@/lib/utils";
+import { getT } from "@/i18n/server";
 
 export const metadata = { title: "Customers" };
 
 export default async function CustomersPage({ searchParams }: PageProps<"/customers">) {
+  const t = await getT();
   const params = await searchParams;
   const search = typeof params.search === "string" ? params.search : undefined;
   const hasDue = params.has_due === "1";
@@ -25,33 +28,33 @@ export default async function CustomersPage({ searchParams }: PageProps<"/custom
   return (
     <>
       <PageHeader
-        title="Customers"
-        description="People who buy on account. Only a due sale needs a customer."
-        action={<LinkButton href="/customers/due" variant="secondary">Who owes money</LinkButton>}
+        title={t("customers.title")}
+        description={t("customers.description")}
+        action={<LinkButton href="/customers/due" variant="secondary">{t("customers.whoOwes")}</LinkButton>}
       />
 
       <Card className="mb-5">
-        <CardHeader title="Add a customer" />
+        <CardHeader title={t("customers.add")} />
         <CardBody>
           <CustomerForm />
         </CardBody>
       </Card>
 
-      <form className="mb-4 flex flex-wrap gap-2" action="/customers">
+      <Form className="mb-4 flex flex-wrap gap-2" action="/customers">
         <input
           type="search"
           name="search"
           defaultValue={search}
-          placeholder="Name or phone"
+          placeholder={t("suppliers.searchPlaceholder")}
           className="h-10 min-w-56 flex-1 rounded-lg border border-border bg-surface px-3 text-sm"
-          aria-label="Search customers"
+          aria-label={t("customers.searchLabel")}
         />
         <label className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-sm">
           <input type="checkbox" name="has_due" value="1" defaultChecked={hasDue} />
-          Owes money
+          {t("customers.owesMoney")}
         </label>
-        <button type="submit" className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-background">Search</button>
-      </form>
+        <button type="submit" className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-background">{t("common.search")}</button>
+      </Form>
 
       <Card>
         <Suspense key={`${search}-${hasDue}-${page}`} fallback={<div className="h-40 animate-pulse" />}>
@@ -63,27 +66,28 @@ export default async function CustomersPage({ searchParams }: PageProps<"/custom
 }
 
 async function CustomerList({ search, hasDue, page }: { search?: string; hasDue: boolean; page: number }) {
+  const t = await getT();
   let result;
   try {
     result = await listCustomers({ search, has_due: hasDue || undefined, page });
   } catch (error) {
     return (
       <div className="p-5">
-        <Alert tone="error">{error instanceof ApiError ? error.message : "Please refresh to try again."}</Alert>
+        <Alert tone="error">{error instanceof ApiError ? error.message : t("common.refresh")}</Alert>
       </div>
     );
   }
   if (result.data.length === 0) {
-    return <EmptyState icon={Contact} title="No customers yet" description="A customer is created the first time someone buys on account, or add one above." />;
+    return <EmptyState icon={Contact} title={t("customers.empty")} description={t("customers.emptyHint")} />;
   }
   return (
     <>
       <Table>
         <thead>
           <tr>
-            <Th>Customer</Th>
-            <Th className="hidden sm:table-cell">Phone</Th>
-            <Th className="text-right">Owes</Th>
+            <Th>{t("receipt.customer")}</Th>
+            <Th className="hidden sm:table-cell">{t("th.phone")}</Th>
+            <Th className="text-right">{t("customers.owes")}</Th>
             <Th />
           </tr>
         </thead>

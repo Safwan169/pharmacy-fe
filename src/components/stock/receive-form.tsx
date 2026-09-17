@@ -17,6 +17,7 @@ import {
 } from "@/lib/actions/stock";
 import { cn, formatCurrency, todayInDhaka } from "@/lib/utils";
 import type { StockReceipt, Supplier } from "@/types";
+import { useT } from "@/i18n/client";
 
 interface Line {
   key: number;
@@ -56,6 +57,7 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
   const [saved, setSaved] = useState<StockReceipt | null>(null);
   const [submitting, startSubmit] = useTransition();
   const keyRef = useRef(0);
+  const t = useT();
 
   function addLine(item: ReceiveSearchResult) {
     const biggest = [...item.units].sort((a, b) => b.qtyInBase - a.qtyInBase)[0];
@@ -91,9 +93,9 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
   const lineErrors = lines.map((l) => {
     const qty = Number(l.quantity);
     const cost = Number(l.unitCost);
-    if (!l.quantity || !Number.isInteger(qty) || qty < 1) return "Enter how many arrived.";
-    if (l.unitCost === "" || Number.isNaN(cost) || cost < 0) return "Enter what each one cost.";
-    if (l.expiryMonth && !endOfMonth(l.expiryMonth)) return "Expiry must be a month and year.";
+    if (!l.quantity || !Number.isInteger(qty) || qty < 1) return t("receive.errQty");
+    if (l.unitCost === "" || Number.isNaN(cost) || cost < 0) return t("receive.errCost");
+    if (l.expiryMonth && !endOfMonth(l.expiryMonth)) return t("receive.errExpiry");
     return undefined;
   });
   const hasErrors = lineErrors.some(Boolean);
@@ -141,18 +143,18 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
             <CircleCheck className="h-6 w-6 text-success" aria-hidden />
           </span>
           <div>
-            <h2 className="text-lg font-semibold">Delivery received</h2>
+            <h2 className="text-lg font-semibold">{t("receive.done")}</h2>
             <p className="mt-1 text-sm text-muted">
-              Stock is updated and each line is now a batch with its expiry date.
+              {t("receive.doneHint")}
             </p>
           </div>
           <div className="rounded-xl bg-background p-4 text-left text-sm">
             <div className="flex justify-between">
-              <span className="text-muted">Receipt</span>
+              <span className="text-muted">{t("deliveries.receipt")}</span>
               <span className="font-mono font-semibold">{saved.receiptNumber}</span>
             </div>
             <div className="mt-1 flex justify-between">
-              <span className="text-muted">Total cost</span>
+              <span className="text-muted">{t("deliveries.totalCost")}</span>
               <span className="font-semibold tabular-nums">{formatCurrency(saved.totalCost)}</span>
             </div>
           </div>
@@ -161,7 +163,7 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
               href={`/stock/receipts/${saved.id}`}
               className="inline-flex h-10 flex-1 items-center justify-center rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-background"
             >
-              View receipt
+              {t("receive.viewReceipt")}
             </Link>
             <Button
               className="h-10 flex-1"
@@ -174,7 +176,7 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
               }}
             >
               <Plus className="h-4 w-4" aria-hidden />
-              Receive another
+              {t("receive.another")}
             </Button>
           </div>
         </CardBody>
@@ -186,19 +188,19 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
     <div className="grid gap-5 lg:grid-cols-5">
       <div className="space-y-5 lg:col-span-3">
         <Card>
-          <CardHeader title="Delivery" description="Who it came from and when." />
+          <CardHeader title={t("receive.delivery")} description={t("receive.deliveryHint")} />
           <CardBody className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <SupplierPicker value={supplier} onChange={setSupplier} initialId={initialSupplierId} />
             </div>
-            <Field label="Supplier's invoice number" htmlFor="invoice_no" hint="Optional. As printed on their paper.">
+            <Field label={t("receive.invoiceNo")} htmlFor="invoice_no" hint={t("receive.invoiceNoHint")}>
               <Input id="invoice_no" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} maxLength={50} />
             </Field>
-            <Field label="Date received" htmlFor="received_at">
+            <Field label={t("receive.dateReceived")} htmlFor="received_at">
               <Input id="received_at" type="date" value={receivedAt} onChange={(e) => setReceivedAt(e.target.value)} />
             </Field>
             <div className="sm:col-span-2">
-              <Field label="Note" htmlFor="note" hint="Optional.">
+              <Field label={t("deliveries.note")} htmlFor="note" hint={`${t("common.optional")}.`}>
                 <Input id="note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={255} />
               </Field>
             </div>
@@ -211,14 +213,14 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
       <div className="lg:sticky lg:top-2 lg:col-span-2 lg:self-start">
         <Card className="max-h-[calc(100vh-6rem)] overflow-y-auto">
           <CardHeader
-            title="Lines"
-            description={lines.length === 0 ? "Nothing added yet" : `${lines.length} ${lines.length === 1 ? "line" : "lines"}`}
+            title={t("receive.lines")}
+            description={lines.length === 0 ? t("pos.nothingAdded") : t(lines.length === 1 ? "receive.lineCount" : "receive.linesCount", { count: lines.length })}
           />
 
           {result?.status === "rejected" && (
             <div className="px-5 pt-5">
-              <Alert tone="error" title="Delivery not saved">
-                Fix the highlighted lines. Nothing was added to stock.
+              <Alert tone="error" title={t("receive.notSaved")}>
+                {t("receive.notSavedHint")}
               </Alert>
             </div>
           )}
@@ -230,7 +232,7 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
 
           {lines.length === 0 ? (
             <p className="p-5 text-sm text-muted">
-              Search for a medicine on the left and select it to add a line.
+              {t("receive.emptyLines")}
             </p>
           ) : (
             <ul className="divide-y divide-border">
@@ -250,7 +252,7 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
                       <button
                         type="button"
                         onClick={() => remove(line.key)}
-                        aria-label={`Remove ${line.name}`}
+                        aria-label={t("pricing.remove", { unit: line.name })}
                         className="rounded-md p-1 text-muted hover:bg-danger/10 hover:text-danger"
                       >
                         <Trash2 className="h-4 w-4" aria-hidden />
@@ -259,7 +261,7 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
 
                     <div className="grid grid-cols-3 gap-2">
                       <Select
-                        aria-label="Unit delivered in"
+                        aria-label={t("receive.unitIn")}
                         value={line.unitId}
                         onChange={(e) => update(line.key, { unitId: e.target.value === "" ? "" : Number(e.target.value) })}
                       >
@@ -273,18 +275,18 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
                           ))}
                       </Select>
                       <Input
-                        aria-label="Quantity"
+                        aria-label={t("th.quantity")}
                         inputMode="numeric"
-                        placeholder="Qty"
+                        placeholder={t("th.qty")}
                         value={line.quantity}
                         onChange={(e) => update(line.key, { quantity: e.target.value.replace(/\D/g, "") })}
                       />
                       <div className="relative">
                         <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-xs text-muted">৳</span>
                         <Input
-                          aria-label={`Cost per ${unitName}`}
+                          aria-label={t("receive.costPer", { unit: unitName })}
                           inputMode="decimal"
-                          placeholder="Cost each"
+                          placeholder={t("th.costEach")}
                           value={line.unitCost}
                           className="pl-5"
                           onChange={(e) => update(line.key, { unitCost: e.target.value })}
@@ -294,14 +296,14 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
 
                     <div className="grid grid-cols-2 gap-2">
                       <Input
-                        aria-label="Batch number"
-                        placeholder="Batch no."
+                        aria-label={t("receive.batchNo")}
+                        placeholder={t("receive.batchNoShort")}
                         value={line.batchNo}
                         maxLength={50}
                         onChange={(e) => update(line.key, { batchNo: e.target.value })}
                       />
                       <Input
-                        aria-label="Expiry month"
+                        aria-label={t("receive.expiryMonth")}
                         type="month"
                         value={line.expiryMonth}
                         onChange={(e) => update(line.key, { expiryMonth: e.target.value })}
@@ -310,15 +312,15 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
 
                     <div className="flex items-center justify-between text-xs text-muted">
                       <span>
-                        {qty > 0 ? `${(qty * qtyInBase).toLocaleString()} ${line.baseUnit}s` : "—"}
-                        {qty > 0 && cost >= 0 && qtyInBase > 1 ? ` · ${formatCurrency(cost / qtyInBase)} per ${line.baseUnit}` : ""}
+                        {qty > 0 ? `${(qty * qtyInBase).toLocaleString()} ${line.baseUnit}` : "—"}
+                        {qty > 0 && cost >= 0 && qtyInBase > 1 ? ` · ${formatCurrency(cost / qtyInBase)} / ${line.baseUnit}` : ""}
                       </span>
                       <span className="font-medium tabular-nums text-foreground">
                         {qty > 0 && cost >= 0 ? formatCurrency(qty * cost) : ""}
                       </span>
                     </div>
                     {!line.expiryMonth && (
-                      <p className="text-xs text-warning">No expiry date — this batch will sell last and never show in expiry warnings.</p>
+                      <p className="text-xs text-warning">{t("receive.noExpiry")}</p>
                     )}
                     {(problemByIndex.get(index) ?? lineErrors[index]) && (
                       <p className="text-xs text-danger">{problemByIndex.get(index) ?? lineErrors[index]}</p>
@@ -332,11 +334,11 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
           {lines.length > 0 && (
             <CardBody className="space-y-3 border-t border-border">
               <div className="flex justify-between text-base font-semibold">
-                <span>Total cost</span>
+                <span>{t("deliveries.totalCost")}</span>
                 <span className="tabular-nums">{formatCurrency(total)}</span>
               </div>
               <Button type="button" onClick={submit} disabled={submitting || hasErrors} className="h-11 w-full">
-                {submitting ? "Saving…" : "Save delivery"}
+                {submitting ? t("common.saving") : t("receive.save")}
               </Button>
             </CardBody>
           )}
@@ -364,6 +366,7 @@ function SupplierPicker({
   const [error, setError] = useState<string | undefined>();
   const [pending, start] = useTransition();
   const requestId = useRef(0);
+  const t = useT();
 
   useEffect(() => {
     const id = ++requestId.current;
@@ -383,14 +386,14 @@ function SupplierPicker({
 
   if (value) {
     return (
-      <Field label="Supplier">
+      <Field label={t("deliveries.supplier")}>
         <div className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-sm">
           <span>
             <span className="font-medium">{value.name}</span>
             {value.phone && <span className="ml-2 text-muted">{value.phone}</span>}
           </span>
           <button type="button" onClick={() => onChange(null)} className="text-xs text-primary hover:underline">
-            Change
+            {t("payment.change")}
           </button>
         </div>
       </Field>
@@ -399,10 +402,10 @@ function SupplierPicker({
 
   if (adding) {
     return (
-      <Field label="New supplier" error={error}>
+      <Field label={t("receive.newSupplier")} error={error}>
         <div className="grid gap-2 sm:grid-cols-[1fr_10rem_auto]">
-          <Input placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={150} autoFocus />
-          <Input placeholder="Phone (optional)" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} maxLength={30} />
+          <Input placeholder={t("th.name")} value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={150} autoFocus />
+          <Input placeholder={`${t("th.phone")} (${t("common.optional").toLowerCase()})`} value={newPhone} onChange={(e) => setNewPhone(e.target.value)} maxLength={30} />
           <div className="flex gap-2">
             <Button
               type="button"
@@ -420,10 +423,10 @@ function SupplierPicker({
                 })
               }
             >
-              {pending ? "Adding…" : "Add"}
+              {pending ? t("payment.adding") : t("payment.add")}
             </Button>
             <Button type="button" variant="ghost" onClick={() => setAdding(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
           </div>
         </div>
@@ -432,10 +435,10 @@ function SupplierPicker({
   }
 
   return (
-    <Field label="Supplier" hint="Optional, but it makes the receipt findable later.">
+    <Field label={t("deliveries.supplier")} hint={t("receive.supplierHint")}>
       <div className="relative">
         <Input
-          placeholder="Search suppliers…"
+          placeholder={t("receive.searchSuppliers")}
           value={term}
           onChange={(e) => {
             setTerm(e.target.value);
@@ -474,7 +477,7 @@ function SupplierPicker({
                 className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-sm font-medium text-primary hover:bg-background"
               >
                 <Plus className="h-3.5 w-3.5" aria-hidden />
-                {term.trim() ? `Add “${term.trim()}” as a new supplier` : "Add a new supplier"}
+                {term.trim() ? t("receive.addNamedSupplier", { name: term.trim() }) : t("receive.addSupplier")}
               </button>
             </li>
           </ul>
@@ -491,6 +494,7 @@ function ItemSearch({ onSelect }: { onSelect: (item: ReceiveSearchResult) => voi
     results: [],
   });
   const requestId = useRef(0);
+  const t = useT();
 
   useEffect(() => {
     const query = term.trim();
@@ -513,7 +517,7 @@ function ItemSearch({ onSelect }: { onSelect: (item: ReceiveSearchResult) => voi
 
   return (
     <Card>
-      <CardHeader title="Add medicines" description="Search by brand or ingredient, then select to add a line." />
+      <CardHeader title={t("receive.addMedicines")} description={t("receive.addMedicinesHint")} />
       <CardBody className="space-y-3">
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
@@ -521,17 +525,17 @@ function ItemSearch({ onSelect }: { onSelect: (item: ReceiveSearchResult) => voi
             type="search"
             value={term}
             onChange={(e) => setTerm(e.target.value)}
-            placeholder="Start typing — for example “Napa”"
-            aria-label="Search for a medicine"
+            placeholder={t("receive.searchPlaceholder")}
+            aria-label={t("pos.searchLabel")}
             className="h-11 w-full rounded-lg border border-border bg-surface pr-10 pl-9 text-sm placeholder:text-muted/70 focus:border-primary focus:outline-2 focus:outline-primary/30"
           />
           {state.status === "searching" && (
-            <Loader2 className="absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 animate-spin text-muted" aria-label="Searching" />
+            <Loader2 className="absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 animate-spin text-muted" aria-label={t("filters.searching")} />
           )}
         </div>
-        {state.status === "failed" && <Alert tone="error">The search didn&apos;t work. Try again.</Alert>}
+        {state.status === "failed" && <Alert tone="error">{t("receive.searchFailed")}</Alert>}
         {state.status === "done" && state.results.length === 0 && (
-          <p className="rounded-lg bg-background p-4 text-sm text-muted">Nothing found for “{term.trim()}”.</p>
+          <p className="rounded-lg bg-background p-4 text-sm text-muted">{t("receive.nothingFound", { query: term.trim() })}</p>
         )}
         <ul className="divide-y divide-border">
           {state.results.map((item) => (
@@ -549,7 +553,7 @@ function ItemSearch({ onSelect }: { onSelect: (item: ReceiveSearchResult) => voi
                   </p>
                 </div>
                 <p className="shrink-0 text-xs text-muted">
-                  {item.stock === null ? "Not counted" : `${item.stock} ${item.baseUnit}${item.stock === 1 ? "" : "s"}`}
+                  {item.stock === null ? t("receive.notCounted") : `${item.stock} ${item.baseUnit}`}
                 </p>
               </button>
             </li>

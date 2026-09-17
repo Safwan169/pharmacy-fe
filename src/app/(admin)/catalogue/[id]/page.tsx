@@ -15,6 +15,7 @@ import { getUnitTemplate, getVariant, listGenericVariants } from "@/lib/api/cata
 import { getCurrentUser } from "@/lib/current-user";
 import { ApiError } from "@/lib/api/client";
 import { formatDateTime } from "@/lib/utils";
+import { getT } from "@/i18n/server";
 
 export async function generateMetadata({ params }: PageProps<"/catalogue/[id]">) {
   const { id } = await params;
@@ -31,6 +32,7 @@ export default async function VariantDetailPage({
 }: PageProps<"/catalogue/[id]">) {
   const { id } = await params;
   const variantId = Number(id);
+  const t = await getT();
 
   if (!Number.isInteger(variantId) || variantId < 1) notFound();
 
@@ -65,12 +67,12 @@ export default async function VariantDetailPage({
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        Back to catalogue
+        {t("catalogue.back")}
       </Link>
 
       <PageHeader
         title={name}
-        description={`${variant.dosageForm} · ${variant.product.manufacturer?.name ?? "Unknown company"}`}
+        description={`${variant.dosageForm} · ${variant.product.manufacturer?.name ?? t("catalogue.unknownCompany")}`}
         action={
           <SellableBadge
             isActive={variant.isActive}
@@ -81,57 +83,55 @@ export default async function VariantDetailPage({
       />
 
       {!variant.isActive && (
-        <Alert tone="warning" title="This medicine is withdrawn from sale" className="mb-5">
-          It won&apos;t show up in the catalogue or at the counter, and it can&apos;t
-          be sold. Everything about it has been kept — put it back on sale below
-          whenever you need it.
+        <Alert tone="warning" title={t("catalogue.withdrawnTitle")} className="mb-5">
+          {t("catalogue.withdrawnBody")}
         </Alert>
       )}
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           <Card>
-            <CardHeader title="Details" />
+            <CardHeader title={t("catalogue.details")} />
             <CardBody className="grid gap-4 sm:grid-cols-2">
-              <Detail label="Brand" value={variant.product.brandName} />
-              <Detail label="Form" value={variant.dosageForm} />
-              <Detail label="Strength" value={variant.strength ?? "Not recorded"} />
+              <Detail label={t("catalogue.brand")} value={variant.product.brandName} />
+              <Detail label={t("catalogue.form")} value={variant.dosageForm} />
+              <Detail label={t("catalogue.strength")} value={variant.strength ?? t("catalogue.notRecorded")} />
               <Detail
-                label="Active ingredient"
-                value={variant.generic?.name ?? "Not recorded"}
+                label={t("catalogue.activeIngredient")}
+                value={variant.generic?.name ?? t("catalogue.notRecorded")}
               />
               <Detail
-                label="Company"
-                value={variant.product.manufacturer?.name ?? "Not recorded"}
+                label={t("th.company")}
+                value={variant.product.manufacturer?.name ?? t("catalogue.notRecorded")}
               />
               <Detail
-                label="Kind"
-                value={variant.product.type === "herbal" ? "Herbal" : "Allopathic"}
+                label={t("filters.kind")}
+                value={variant.product.type === "herbal" ? t("kind.herbal") : t("kind.allopathic")}
               />
               <Detail
-                label="Price last changed"
+                label={t("catalogue.priceChanged")}
                 value={
                   variant.priceUpdatedAt
                     ? formatDateTime(variant.priceUpdatedAt)
-                    : "Never — this has not been priced yet"
+                    : t("catalogue.neverPriced")
                 }
               />
-              <Detail label="Reference number" value={`#${variant.id}`} />
+              <Detail label={t("catalogue.reference")} value={`#${variant.id}`} />
             </CardBody>
           </Card>
 
           <Card>
             <CardHeader
-              title="Batches on the shelf"
-              description="Where the stock came from and when each lot expires. The counter sells the soonest-expiring batch first."
+              title={t("catalogue.batchesTitle")}
+              description={t("catalogue.batchesHint")}
               action={
                 isOwner ? (
                   <span className="flex gap-3 text-xs font-medium">
                     <Link href={`/stock/receive`} className="text-primary hover:underline">
-                      Receive stock
+                      {t("catalogue.receiveStock")}
                     </Link>
                     <Link href={`/stock/movements?variant=${variant.id}`} className="text-primary hover:underline">
-                      History
+                      {t("catalogue.history")}
                     </Link>
                   </span>
                 ) : undefined
@@ -150,7 +150,7 @@ export default async function VariantDetailPage({
               <Alternatives
                 genericId={variant.genericId}
                 currentId={variant.id}
-                genericName={variant.generic?.name ?? "this ingredient"}
+                genericName={variant.generic?.name ?? t("catalogue.thisIngredient")}
               />
             </Suspense>
           )}
@@ -160,8 +160,8 @@ export default async function VariantDetailPage({
         <div className="space-y-5">
           <Card>
             <CardHeader
-              title="How it's sold, price and stock"
-              description="Which units the counter can sell, what each costs, and how many you have."
+              title={t("catalogue.pricingTitle")}
+              description={t("catalogue.pricingHint")}
             />
             <CardBody>
               <PricingForm
@@ -176,8 +176,8 @@ export default async function VariantDetailPage({
 
           <Card>
             <CardHeader
-              title="Availability"
-              description="Stop selling this without losing any of its history."
+              title={t("filters.availability")}
+              description={t("catalogue.availabilityHint")}
             />
             <CardBody>
               <AvailabilityControl
@@ -204,6 +204,7 @@ async function Alternatives({
   currentId: number;
   genericName: string;
 }) {
+  const t = await getT();
   let result;
   try {
     result = await listGenericVariants(genericId, { limit: 10 });
@@ -216,23 +217,23 @@ async function Alternatives({
   return (
     <Card>
       <CardHeader
-        title="Other brands with the same ingredient"
-        description={`Alternatives containing ${genericName} — useful when this one is out of stock.`}
+        title={t("catalogue.altTitle")}
+        description={t("catalogue.altHint", { name: genericName })}
       />
       {others.length === 0 ? (
         <EmptyState
           icon={Pill}
-          title="No alternatives stocked"
-          description="This is the only brand in the catalogue built on this ingredient."
+          title={t("catalogue.altEmpty")}
+          description={t("catalogue.altEmptyHint")}
         />
       ) : (
         <Table>
           <thead>
             <tr>
-              <Th>Medicine</Th>
-              <Th className="hidden sm:table-cell">Company</Th>
-              <Th className="text-right">Price</Th>
-              <Th className="text-right">In stock</Th>
+              <Th>{t("th.medicine")}</Th>
+              <Th className="hidden sm:table-cell">{t("th.company")}</Th>
+              <Th className="text-right">{t("th.price")}</Th>
+              <Th className="text-right">{t("th.inStock")}</Th>
             </tr>
           </thead>
           <tbody>
@@ -278,10 +279,11 @@ function Detail({ label, value }: { label: string; value: string }) {
   );
 }
 
-function AlternativesSkeleton() {
+async function AlternativesSkeleton() {
+  const t = await getT();
   return (
     <Card>
-      <CardHeader title="Other brands with the same ingredient" />
+      <CardHeader title={t("catalogue.altTitle")} />
       <div className="space-y-3 p-5">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="h-10 animate-pulse rounded-lg bg-background" />

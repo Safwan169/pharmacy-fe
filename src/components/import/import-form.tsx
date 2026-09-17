@@ -6,6 +6,7 @@ import { importCatalogue, type ImportState } from "@/lib/actions/import";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import { useT } from "@/i18n/client";
 
 // A "use server" file may only export async functions, so the starting state
 // lives here rather than beside the action.
@@ -17,25 +18,24 @@ export function ImportForm() {
     initialState,
   );
   const [fileName, setFileName] = useState<string | null>(null);
+  const t = useT();
 
   return (
     <form action={formAction} className="space-y-4">
       {state.status === "success" && (
-        <Alert tone="success" title="Import finished">
+        <Alert tone="success" title={t("import.finished")}>
           <p>{state.message}</p>
           {state.result && (
             <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:grid-cols-4">
-              <Figure label="Medicines" value={state.result.variantsTotal} />
-              <Figure label="Brands" value={state.result.productsTotal} />
-              <Figure label="Companies" value={state.result.manufacturersTotal} />
-              <Figure label="Ingredients" value={state.result.genericsTotal} />
+              <Figure label={t("import.medicines")} value={state.result.variantsTotal} />
+              <Figure label={t("import.brands")} value={state.result.productsTotal} />
+              <Figure label={t("import.companies")} value={state.result.manufacturersTotal} />
+              <Figure label={t("import.ingredients")} value={state.result.genericsTotal} />
             </dl>
           )}
           {state.result && state.result.rowsSkipped > 0 && (
             <p className="mt-3">
-              {state.result.rowsSkipped.toLocaleString()} row
-              {state.result.rowsSkipped === 1 ? " was" : "s were"} skipped because
-              the file couldn&apos;t be read properly. Everything else was imported.
+              {t("import.skipped", { count: state.result.rowsSkipped.toLocaleString() })}
             </p>
           )}
         </Alert>
@@ -62,12 +62,10 @@ export function ImportForm() {
           )}
         </span>
         <span className="mt-3 text-sm font-medium">
-          {fileName ?? "Choose a CSV file"}
+          {fileName ?? t("import.choose")}
         </span>
         <span className="mt-1 text-xs text-muted">
-          {fileName
-            ? "Click to pick a different file"
-            : "Click to browse. Up to 25 MB."}
+          {fileName ? t("import.pickDifferent") : t("import.browse")}
         </span>
         <input
           id="file"
@@ -84,10 +82,10 @@ export function ImportForm() {
         {pending ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-            Importing — this can take a while…
+            {t("import.importing")}
           </>
         ) : (
-          "Start import"
+          t("import.start")
         )}
       </Button>
     </form>
@@ -103,6 +101,7 @@ export function ImportForm() {
  */
 function ImportProgress({ fileName }: { fileName: string | null }) {
   const [seconds, setSeconds] = useState(0);
+  const t = useT();
 
   useEffect(() => {
     const timer = setInterval(() => setSeconds((n) => n + 1), 1000);
@@ -114,7 +113,7 @@ function ImportProgress({ fileName }: { fileName: string | null }) {
       // A live region would re-announce every tick, so the clock is silent to
       // screen readers and the status below carries the meaning instead.
       role="status"
-      aria-label="Importing your file. This can take several minutes."
+      aria-label={t("import.progressLabel")}
       className="rounded-xl border border-primary/30 bg-primary/5 px-5 py-4"
     >
       <div className="flex items-center gap-3">
@@ -129,11 +128,11 @@ function ImportProgress({ fileName }: { fileName: string | null }) {
               aria-hidden
             />
             <span className="truncate">
-              Importing{fileName ? ` ${fileName}` : ""}…
+              {t("import.importingFile", { file: fileName ?? "" })}
             </span>
           </p>
           <p className="mt-0.5 text-xs text-muted">
-            A large catalogue can take several minutes. Keep this tab open.
+            {t("import.keepOpen")}
           </p>
         </div>
 

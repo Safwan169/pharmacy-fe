@@ -13,19 +13,22 @@ import { getExpired, getExpiring } from "@/lib/api/sales";
 import { ApiError } from "@/lib/api/client";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { EXPIRY_WINDOWS, type ExpiringItem, type ExpiryWindow } from "@/types";
+import { getT } from "@/i18n/server";
+import type { MessageKey, Translate } from "@/i18n";
 
 export const metadata = { title: "Expiry" };
 
 type Tab = ExpiryWindow | "expired";
 
-const TABS: { value: Tab; label: string }[] = [
-  { value: "expired", label: "Expired" },
-  { value: 30, label: "Within 30 days" },
-  { value: 60, label: "Within 60 days" },
-  { value: 90, label: "Within 90 days" },
+const TABS: { value: Tab; label: MessageKey }[] = [
+  { value: "expired", label: "expiry.expired" },
+  { value: 30, label: "expiry.within30" },
+  { value: 60, label: "expiry.within60" },
+  { value: 90, label: "expiry.within90" },
 ];
 
 export default async function ExpiringPage({ searchParams }: PageProps<"/stock/expiring">) {
+  const t = await getT();
   const params = await searchParams;
   const raw = typeof params.tab === "string" ? params.tab : "30";
   const tab: Tab =
@@ -38,15 +41,15 @@ export default async function ExpiringPage({ searchParams }: PageProps<"/stock/e
   return (
     <>
       <PageHeader
-        title="Expiry dates"
-        description="Batches that are past their date or getting close. Sell the closest first, or write off what's expired."
+        title={t("expiry.title")}
+        description={t("expiry.description")}
       />
       <StockNav />
 
       <div
         className="mb-5 inline-flex rounded-lg border border-border bg-surface p-1"
         role="group"
-        aria-label="Choose a window"
+        aria-label={t("expiry.chooseWindow")}
       >
         {TABS.map(({ value, label }) => {
           const active = value === tab;
@@ -60,7 +63,7 @@ export default async function ExpiringPage({ searchParams }: PageProps<"/stock/e
                 active ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground",
               )}
             >
-              {label}
+              {t(label)}
             </Link>
           );
         })}
@@ -74,6 +77,7 @@ export default async function ExpiringPage({ searchParams }: PageProps<"/stock/e
 }
 
 async function ExpiryList({ tab }: { tab: Tab }) {
+  const t = await getT();
   let items: ExpiringItem[];
   try {
     items = tab === "expired" ? await getExpired() : await getExpiring(tab);
@@ -89,12 +93,8 @@ async function ExpiryList({ tab }: { tab: Tab }) {
       <Card>
         <EmptyState
           icon={CalendarClock}
-          title={tab === "expired" ? "Nothing has expired" : "Nothing expiring in this window"}
-          description={
-            tab === "expired"
-              ? "Every batch on the shelf is still within its date."
-              : "Check a longer window to plan ahead."
-          }
+          title={tab === "expired" ? t("expiry.noneExpired") : t("expiry.noneInWindow")}
+          description={tab === "expired" ? t("expiry.noneExpiredHint") : t("expiry.noneInWindowHint")}
         />
       </Card>
     );
@@ -106,18 +106,18 @@ async function ExpiryList({ tab }: { tab: Tab }) {
     <Card>
       <div className="flex items-center justify-between px-5 py-3 text-sm text-muted">
         <span>
-          {items.length} {items.length === 1 ? "batch" : "batches"}
+          {t(items.length === 1 ? "expiry.batchCount" : "expiry.batchesCount", { count: items.length })}
         </span>
-        {totalValue > 0 && <span>Worth about {formatCurrency(totalValue)} at cost</span>}
+        {totalValue > 0 && <span>{t("expiry.worthAtCost", { amount: formatCurrency(totalValue) })}</span>}
       </div>
       <Table>
         <thead>
           <tr>
-            <Th>Medicine</Th>
-            <Th className="hidden md:table-cell">Batch</Th>
-            <Th>Expires</Th>
-            <Th className="text-right">Left</Th>
-            <Th className="hidden text-right sm:table-cell">At cost</Th>
+            <Th>{t("th.medicine")}</Th>
+            <Th className="hidden md:table-cell">{t("th.batch")}</Th>
+            <Th>{t("expiry.expires")}</Th>
+            <Th className="text-right">{t("th.left")}</Th>
+            <Th className="hidden text-right sm:table-cell">{t("expiry.atCost")}</Th>
             <Th />
           </tr>
         </thead>
@@ -136,7 +136,7 @@ async function ExpiryList({ tab }: { tab: Tab }) {
               <Td className="hidden font-mono text-xs md:table-cell">{item.batch_no ?? "—"}</Td>
               <Td>
                 <p>{formatDate(item.expiry_date)}</p>
-                <DaysBadge days={item.days_left} />
+                <DaysBadge days={item.days_left} t={t} />
               </Td>
               <Td className="text-right tabular-nums">
                 {item.quantity.toLocaleString()}{" "}
@@ -158,18 +158,14 @@ async function ExpiryList({ tab }: { tab: Tab }) {
   );
 }
 
-function DaysBadge({ days }: { days: number }) {
+function DaysBadge({ days, t }: { days: number; t: Translate }) {
   if (days < 0) {
-    return (
-      <Badge tone="danger">
-        {-days} {-days === 1 ? "day" : "days"} ago
-      </Badge>
-    );
+    return <Badge tone="danger">{t("expiry.daysAgo", { days: -days })}</Badge>;
   }
-  if (days === 0) return <Badge tone="danger">Today</Badge>;
+  if (days === 0) return <Badge tone="danger">{t("period.today")}</Badge>;
   return (
     <Badge tone={days <= 30 ? "danger" : "warning"}>
-      {days} {days === 1 ? "day" : "days"} left
+      {t("expiry.daysLeft", { days })}
     </Badge>
   );
 }

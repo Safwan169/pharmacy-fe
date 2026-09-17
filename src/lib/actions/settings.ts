@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import type { BackupFile, ShopSettings } from "@/types";
+import { getT } from "@/i18n/server";
 
 export interface SettingsState {
   status: "idle" | "success" | "error";
@@ -20,14 +21,15 @@ const KEYS: (keyof ShopSettings)[] = [
 ];
 
 export async function saveSettings(_prev: SettingsState, formData: FormData): Promise<SettingsState> {
+  const t = await getT();
   const body: Partial<ShopSettings> = {};
   for (const key of KEYS) {
     const value = formData.get(key);
     if (typeof value === "string") body[key] = value.trim();
   }
-  if (!body.shop_name) return { status: "error", message: "Enter the shop's name — it goes on every receipt." };
+  if (!body.shop_name) return { status: "error", message: t("settingsAction.nameRequired") };
   if (body.low_stock_threshold && !/^\d{1,6}$/.test(body.low_stock_threshold)) {
-    return { status: "error", message: "The low-stock number must be a whole number, or left blank." };
+    return { status: "error", message: t("settingsAction.lowStockInteger") };
   }
   try {
     await apiFetch<ShopSettings>("/settings", { method: "PATCH", auth: true, body });
@@ -37,7 +39,7 @@ export async function saveSettings(_prev: SettingsState, formData: FormData): Pr
   }
   revalidatePath("/settings");
   revalidatePath("/dashboard");
-  return { status: "success", message: "Saved. New receipts will use these details." };
+  return { status: "success", message: t("settingsAction.saved") };
 }
 
 export interface BackupState {
@@ -47,10 +49,11 @@ export interface BackupState {
 
 /** Runs pg_dump on the API server and lists the new file. */
 export async function runBackup(_prev: BackupState): Promise<BackupState> {
+  const t = await getT();
   try {
     const file = await apiFetch<BackupFile>("/admin/backup", { method: "POST", auth: true });
     revalidatePath("/settings");
-    return { status: "success", message: `Backed up to ${file.name} (${(file.size_bytes / 1024).toFixed(0)} KB).` };
+    return { status: "success", message: t("settingsAction.backedUp", { name: file.name, size: (file.size_bytes / 1024).toFixed(0) }) };
   } catch (error) {
     if (error instanceof ApiError) return { status: "error", message: error.message };
     throw error;

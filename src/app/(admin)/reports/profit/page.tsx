@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Form from "next/form";
 import { PageHeader } from "@/components/layout/page-header";
 import { PrintButton, ReportsNav } from "@/components/reports/reports-nav";
 import { StatCard } from "@/components/dashboard/stat-card";
@@ -10,6 +11,7 @@ import { getProfit } from "@/lib/api/reports";
 import { ApiError } from "@/lib/api/client";
 import { requireOwner } from "@/lib/current-user";
 import { formatCurrency, formatDate, formatNumber, todayInDhaka } from "@/lib/utils";
+import { getT } from "@/i18n/server";
 
 export const metadata = { title: "Profit" };
 
@@ -17,6 +19,7 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export default async function ProfitPage({ searchParams }: PageProps<"/reports/profit">) {
   await requireOwner();
+  const t = await getT();
   const params = await searchParams;
   const today = todayInDhaka();
   const to = typeof params.to === "string" && DATE.test(params.to) ? params.to : today;
@@ -26,22 +29,22 @@ export default async function ProfitPage({ searchParams }: PageProps<"/reports/p
   try {
     report = await getProfit(from, to);
   } catch (error) {
-    return <Alert tone="error">{error instanceof ApiError ? error.message : "Please refresh to try again."}</Alert>;
+    return <Alert tone="error">{error instanceof ApiError ? error.message : t("common.refresh")}</Alert>;
   }
-  const t = report.total;
+  const total = report.total;
 
   return (
     <>
       <PageHeader
-        title="Profit"
-        description="Revenue after discounts and refunds, less what the sold stock cost you."
+        title={t("reports.profit")}
+        description={t("profit.description")}
         action={
           <span className="flex gap-2">
             <a
               href={`/api/reports/csv?report=profit&from=${from}&to=${to}`}
               className="inline-flex h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-background print:hidden"
             >
-              CSV
+              {t("common.csv")}
             </a>
             <PrintButton />
           </span>
@@ -49,40 +52,39 @@ export default async function ProfitPage({ searchParams }: PageProps<"/reports/p
       />
       <ReportsNav />
 
-      <form className="mb-5 flex flex-wrap items-center gap-2 print:hidden" action="/reports/profit">
-        <input type="date" name="from" defaultValue={from} max={today} className="h-10 rounded-lg border border-border bg-surface px-3 text-sm" aria-label="From" />
-        <span className="text-sm text-muted">to</span>
-        <input type="date" name="to" defaultValue={to} max={today} className="h-10 rounded-lg border border-border bg-surface px-3 text-sm" aria-label="To" />
-        <button type="submit" className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-background">Show</button>
-      </form>
+      <Form className="mb-5 flex flex-wrap items-center gap-2 print:hidden" action="/reports/profit">
+        <input type="date" name="from" defaultValue={from} max={today} className="h-10 rounded-lg border border-border bg-surface px-3 text-sm" aria-label={t("common.from")} />
+        <span className="text-sm text-muted">{t("common.to")}</span>
+        <input type="date" name="to" defaultValue={to} max={today} className="h-10 rounded-lg border border-border bg-surface px-3 text-sm" aria-label={t("common.toDate")} />
+        <button type="submit" className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-background">{t("common.show")}</button>
+      </Form>
 
-      {t.uncosted_lines > 0 && (
+      {total.uncosted_lines > 0 && (
         <Alert tone="warning" className="mb-5">
-          {formatNumber(t.uncosted_lines)} sold {t.uncosted_lines === 1 ? "line came" : "lines came"} from stock with no recorded cost, so profit is overstated by that much. Receive stock through
-          Stock → Receive to record costs.
+          {t("profit.uncosted", { count: formatNumber(total.uncosted_lines) })}
         </Alert>
       )}
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Revenue" value={formatCurrency(t.revenue)} hint={`${formatDate(from)} – ${formatDate(to)}`} icon={Banknote} />
-        <StatCard label="Cost of goods" value={formatCurrency(t.cogs)} icon={Banknote} />
-        <StatCard label="Gross profit" value={formatCurrency(t.gross_profit)} hint={t.margin_pct === null ? undefined : `${t.margin_pct}% margin`} icon={TrendingUp} tone={t.gross_profit < 0 ? "danger" : "default"} />
+        <StatCard label={t("profit.revenue")} value={formatCurrency(total.revenue)} hint={`${formatDate(from)} – ${formatDate(to)}`} icon={Banknote} />
+        <StatCard label={t("profit.cogs")} value={formatCurrency(total.cogs)} icon={Banknote} />
+        <StatCard label={t("profit.gross")} value={formatCurrency(total.gross_profit)} hint={total.margin_pct === null ? undefined : t("profit.margin", { pct: total.margin_pct })} icon={TrendingUp} tone={total.gross_profit < 0 ? "danger" : "default"} />
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
         <Card>
-          <CardHeader title="By day" />
+          <CardHeader title={t("profit.byDay")} />
           {report.by_day.length === 0 ? (
-            <p className="p-5 text-sm text-muted">No sales in this range.</p>
+            <p className="p-5 text-sm text-muted">{t("profit.noSales")}</p>
           ) : (
             <Table>
               <thead>
                 <tr>
-                  <Th>Day</Th>
-                  <Th className="text-right">Revenue</Th>
-                  <Th className="hidden text-right sm:table-cell">Cost</Th>
-                  <Th className="text-right">Profit</Th>
-                  <Th className="hidden text-right sm:table-cell"><Percent className="inline h-3 w-3" aria-label="Margin" /></Th>
+                  <Th>{t("common.day")}</Th>
+                  <Th className="text-right">{t("profit.revenue")}</Th>
+                  <Th className="hidden text-right sm:table-cell">{t("th.cost")}</Th>
+                  <Th className="text-right">{t("reports.profit")}</Th>
+                  <Th className="hidden text-right sm:table-cell"><Percent className="inline h-3 w-3" aria-label={t("profit.marginLabel")} /></Th>
                 </tr>
               </thead>
               <tbody>
@@ -103,16 +105,16 @@ export default async function ProfitPage({ searchParams }: PageProps<"/reports/p
         </Card>
 
         <Card>
-          <CardHeader title="Most profitable medicines" />
+          <CardHeader title={t("profit.topMedicines")} />
           {report.by_product.length === 0 ? (
-            <p className="p-5 text-sm text-muted">Nothing sold.</p>
+            <p className="p-5 text-sm text-muted">{t("profit.nothingSold")}</p>
           ) : (
             <Table>
               <thead>
                 <tr>
-                  <Th>Medicine</Th>
-                  <Th className="hidden text-right sm:table-cell">Revenue</Th>
-                  <Th className="text-right">Profit</Th>
+                  <Th>{t("th.medicine")}</Th>
+                  <Th className="hidden text-right sm:table-cell">{t("profit.revenue")}</Th>
+                  <Th className="text-right">{t("reports.profit")}</Th>
                 </tr>
               </thead>
               <tbody>
@@ -120,7 +122,7 @@ export default async function ProfitPage({ searchParams }: PageProps<"/reports/p
                   <tr key={p.variant_id}>
                     <Td>
                       <Link href={`/catalogue/${p.variant_id}`} className="hover:underline">{p.name}</Link>
-                      <p className="text-xs text-muted">{formatNumber(p.quantity_base)} units</p>
+                      <p className="text-xs text-muted">{formatNumber(p.quantity_base)} {t("common.units")}</p>
                     </Td>
                     <Td className="hidden text-right tabular-nums text-muted sm:table-cell">{formatCurrency(p.revenue)}</Td>
                     <Td className={`text-right font-medium tabular-nums ${p.gross_profit < 0 ? "text-danger" : ""}`}>{formatCurrency(p.gross_profit)}</Td>

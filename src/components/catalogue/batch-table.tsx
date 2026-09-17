@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { StockBatch } from "@/types";
-import { pluralise } from "./status-badges";
+import { pluralise } from "@/lib/utils";
+import { useT } from "@/i18n/client";
 
 const initialState: WriteOffState = { status: "idle" };
 
@@ -20,12 +21,13 @@ function daysUntil(date: string): number {
 }
 
 export function ExpiryBadge({ expiryDate }: { expiryDate: string | null }) {
-  if (expiryDate === null) return <Badge tone="neutral">No date</Badge>;
+  const t = useT();
+  if (expiryDate === null) return <Badge tone="neutral">{t("expiry.noDate")}</Badge>;
   const days = daysUntil(expiryDate);
-  if (days < 0) return <Badge tone="danger">Expired</Badge>;
-  if (days <= 30) return <Badge tone="danger">{days === 0 ? "Expires today" : `${days} days left`}</Badge>;
-  if (days <= 90) return <Badge tone="warning">{days} days left</Badge>;
-  return <Badge tone="success">OK</Badge>;
+  if (days < 0) return <Badge tone="danger">{t("expiry.expired")}</Badge>;
+  if (days <= 30) return <Badge tone="danger">{days === 0 ? t("expiry.today") : t("expiry.daysLeft", { days })}</Badge>;
+  if (days <= 90) return <Badge tone="warning">{t("expiry.daysLeft", { days })}</Badge>;
+  return <Badge tone="success">{t("expiry.ok")}</Badge>;
 }
 
 /**
@@ -44,11 +46,12 @@ export function BatchTable({
   canWriteOff?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(writeOffBatch, initialState);
+  const t = useT();
 
   if (batches.length === 0) {
     return (
       <p className="p-5 text-sm text-muted">
-        No batches yet. Stock received with a batch number and expiry date will appear here.
+        {t("batches.empty")}
       </p>
     );
   }
@@ -68,11 +71,11 @@ export function BatchTable({
       <Table>
         <thead>
           <tr>
-            <Th>Batch</Th>
-            <Th>Expiry</Th>
-            <Th className="text-right">Left</Th>
-            <Th className="hidden text-right sm:table-cell">Cost each</Th>
-            <Th className="text-right">Status</Th>
+            <Th>{t("th.batch")}</Th>
+            <Th>{t("th.expiry")}</Th>
+            <Th className="text-right">{t("th.left")}</Th>
+            <Th className="hidden text-right sm:table-cell">{t("th.costEach")}</Th>
+            <Th className="text-right">{t("th.status")}</Th>
             <Th />
           </tr>
         </thead>
@@ -82,7 +85,7 @@ export function BatchTable({
             return (
               <tr key={batch.id} className={batch.quantity === 0 ? "opacity-60" : undefined}>
                 <Td className="font-mono text-xs">{batch.batchNo ?? "—"}</Td>
-                <Td>{batch.expiryDate ? formatDate(batch.expiryDate) : "Not recorded"}</Td>
+                <Td>{batch.expiryDate ? formatDate(batch.expiryDate) : t("catalogue.notRecorded")}</Td>
                 <Td className="text-right tabular-nums">
                   {batch.quantity.toLocaleString()}{" "}
                   <span className="text-xs text-muted">{pluralise(baseUnit, batch.quantity)}</span>
@@ -92,7 +95,7 @@ export function BatchTable({
                 </Td>
                 <Td className="text-right">
                   {batch.quantity === 0 ? (
-                    <Badge tone="neutral">Empty</Badge>
+                    <Badge tone="neutral">{t("batches.emptyBatch")}</Badge>
                   ) : (
                     <ExpiryBadge expiryDate={batch.expiryDate} />
                   )}
@@ -108,7 +111,7 @@ export function BatchTable({
                         disabled={pending}
                         className="text-xs font-medium text-danger hover:underline disabled:opacity-50"
                       >
-                        Write off
+                        {t("batches.writeOff")}
                       </button>
                     </form>
                   )}

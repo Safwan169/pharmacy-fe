@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { quickAddCustomer, searchCustomers } from "@/lib/actions/customers";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { Customer, PaymentMethod } from "@/types";
+import { useT } from "@/i18n/client";
 
 export interface PaymentChoice {
   method: PaymentMethod;
@@ -30,6 +31,7 @@ export function PaymentPanel({
 }) {
   const [tendered, setTendered] = useState("");
   const [trx, setTrx] = useState("");
+  const t = useT();
 
   function pick(method: PaymentMethod) {
     onChange({ method, customer: method === "due" ? value.customer : undefined });
@@ -54,18 +56,18 @@ export function PaymentPanel({
 
   return (
     <div className="space-y-3">
-      <p className="text-sm font-medium">How are they paying?</p>
-      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Payment method">
-        <MethodButton active={value.method === "cash"} onClick={() => pick("cash")} icon={Banknote} label="Cash" />
+      <p className="text-sm font-medium">{t("payment.how")}</p>
+      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t("payment.method")}>
+        <MethodButton active={value.method === "cash"} onClick={() => pick("cash")} icon={Banknote} label={t("payment.cash")} />
         <MethodButton active={value.method === "bkash"} onClick={() => pick("bkash")} icon={Smartphone} label="bKash" />
-        <MethodButton active={value.method === "due"} onClick={() => pick("due")} icon={UserRound} label="Due" />
+        <MethodButton active={value.method === "due"} onClick={() => pick("due")} icon={UserRound} label={t("payment.due")} />
       </div>
 
       {value.method === "cash" && (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <label htmlFor="tendered" className="w-24 shrink-0 text-xs text-muted">
-              Cash given
+              {t("payment.cashGiven")}
             </label>
             <Input
               id="tendered"
@@ -91,8 +93,8 @@ export function PaymentPanel({
           {change !== null && (
             <p className={cn("text-sm", change < 0 ? "text-danger" : "text-success")}>
               {change < 0
-                ? `Short by ${formatCurrency(-change)}`
-                : `Change to give back: ${formatCurrency(change)}`}
+                ? t("payment.shortBy", { amount: formatCurrency(-change) })
+                : t("payment.changeBack", { amount: formatCurrency(change) })}
             </p>
           )}
         </div>
@@ -103,7 +105,7 @@ export function PaymentPanel({
           <label htmlFor="trx" className="w-24 shrink-0 text-xs text-muted">
             TrxID
           </label>
-          <Input id="trx" value={trx} onChange={(e) => setTrx(e.target.value.toUpperCase())} placeholder="Optional" maxLength={30} className="font-mono uppercase" />
+          <Input id="trx" value={trx} onChange={(e) => setTrx(e.target.value.toUpperCase())} placeholder={t("common.optional")} maxLength={30} className="font-mono uppercase" />
         </div>
       )}
 
@@ -167,6 +169,7 @@ function CustomerPicker({ value, onChange }: { value: Customer | null; onChange:
   const [error, setError] = useState<string | undefined>();
   const [pending, start] = useTransition();
   const requestId = useRef(0);
+  const t = useT();
 
   useEffect(() => {
     const id = ++requestId.current;
@@ -184,11 +187,11 @@ function CustomerPicker({ value, onChange }: { value: Customer | null; onChange:
           <span className="font-medium">{value.name}</span>
           {value.phone && <span className="ml-2 text-muted">{value.phone}</span>}
           {value.dueBalance > 0 && (
-            <span className="ml-2 text-xs text-warning">already owes {formatCurrency(value.dueBalance)}</span>
+            <span className="ml-2 text-xs text-warning">{t("payment.alreadyOwes", { amount: formatCurrency(value.dueBalance) })}</span>
           )}
         </span>
         <button type="button" onClick={() => onChange(undefined)} className="text-xs text-primary hover:underline">
-          Change
+          {t("payment.change")}
         </button>
       </div>
     );
@@ -197,9 +200,9 @@ function CustomerPicker({ value, onChange }: { value: Customer | null; onChange:
   if (adding) {
     return (
       <div className="space-y-2 rounded-lg border border-border p-3">
-        <p className="text-xs font-medium">New customer</p>
-        <Input placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={100} autoFocus />
-        <Input placeholder="Phone" inputMode="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} maxLength={20} />
+        <p className="text-xs font-medium">{t("payment.newCustomer")}</p>
+        <Input placeholder={t("th.name")} value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={100} autoFocus />
+        <Input placeholder={t("th.phone")} inputMode="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} maxLength={20} />
         {error && <p className="text-xs text-danger">{error}</p>}
         <div className="flex gap-2">
           <button
@@ -217,10 +220,10 @@ function CustomerPicker({ value, onChange }: { value: Customer | null; onChange:
             }
             className="h-9 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground disabled:opacity-50"
           >
-            {pending ? "Adding…" : "Add"}
+            {pending ? t("payment.adding") : t("payment.add")}
           </button>
           <button type="button" onClick={() => setAdding(false)} className="h-9 px-3 text-xs text-muted hover:text-foreground">
-            Cancel
+            {t("common.cancel")}
           </button>
         </div>
       </div>
@@ -230,7 +233,7 @@ function CustomerPicker({ value, onChange }: { value: Customer | null; onChange:
   return (
     <div className="relative">
       <Input
-        placeholder="Customer phone or name…"
+        placeholder={t("payment.customerSearch")}
         value={term}
         onChange={(e) => {
           setTerm(e.target.value);
@@ -257,7 +260,7 @@ function CustomerPicker({ value, onChange }: { value: Customer | null; onChange:
                   {c.name}
                   {c.phone && <span className="ml-2 text-xs text-muted">{c.phone}</span>}
                 </span>
-                {c.dueBalance > 0 && <span className="text-xs text-warning">{formatCurrency(c.dueBalance)} due</span>}
+                {c.dueBalance > 0 && <span className="text-xs text-warning">{formatCurrency(c.dueBalance)} {t("payment.dueSuffix")}</span>}
               </button>
             </li>
           ))}
@@ -275,7 +278,7 @@ function CustomerPicker({ value, onChange }: { value: Customer | null; onChange:
               className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-sm font-medium text-primary hover:bg-background"
             >
               <Plus className="h-3.5 w-3.5" aria-hidden />
-              {term.trim() ? `Add “${term.trim()}” as a new customer` : "Add a new customer"}
+              {term.trim() ? t("payment.addNamed", { name: term.trim() }) : t("payment.addNew")}
             </button>
           </li>
         </ul>

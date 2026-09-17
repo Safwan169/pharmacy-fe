@@ -17,7 +17,7 @@ export const pricingSchema = z
   .refine(
     (v) => v.price !== "" || v.stock_quantity !== "",
     {
-      message: "Enter a price or a stock quantity — otherwise there's nothing to save.",
+      message: "v.priceOrStock",
       path: ["price"],
     },
   );
@@ -29,17 +29,17 @@ export const unitRowSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(1, "Give this unit a name, like strip or box.")
-    .max(30, "Keep the unit name under 30 letters.")
-    .regex(/^[a-z][a-z0-9 _-]*$/i, "Unit names can only use letters, numbers, spaces and dashes."),
+    .min(1, "v.unitName")
+    .max(30, "v.unitNameLong")
+    .regex(/^[a-z][a-z0-9 _-]*$/i, "v.unitNameChars"),
   qty_in_base: z
-    .number({ message: "Enter how many are in one of these." })
-    .int("Use a whole number.")
-    .min(1, "At least 1."),
+    .number({ message: "v.unitQty" })
+    .int("v.unitQtyInteger")
+    .min(1, "v.unitQtyMin"),
   price: z
-    .number({ message: "Enter a price using numbers only." })
-    .min(0, "A price can't be negative.")
-    .max(99_999_999.99, "That price looks too high.")
+    .number({ message: "v.priceNumbers" })
+    .min(0, "v.priceNegative")
+    .max(99_999_999.99, "v.priceTooHigh")
     .nullable(),
   is_sellable: z.boolean(),
   is_default: z.boolean(),
@@ -47,23 +47,13 @@ export const unitRowSchema = z.object({
 
 export const unitsSchema = z
   .array(unitRowSchema)
-  .min(1, "Add at least one unit.")
-  .max(6, "Six units is the most a medicine can have.")
-  .refine((rows) => rows.filter((r) => r.is_default).length === 1, {
-    message: "Pick exactly one unit as the one the counter shows first.",
-  })
-  .refine((rows) => rows.some((r) => r.qty_in_base === 1), {
-    message: "Keep the single-unit row (quantity 1), even if you don't sell singles.",
-  })
-  .refine((rows) => new Set(rows.map((r) => r.name.trim().toLowerCase())).size === rows.length, {
-    message: "Two units have the same name. Rename one of them.",
-  })
-  .refine((rows) => new Set(rows.map((r) => r.qty_in_base)).size === rows.length, {
-    message: "Two units have the same size. Change one of them.",
-  })
-  .refine((rows) => rows.every((r) => !r.is_default || r.is_sellable), {
-    message: "The unit the counter shows first must be sellable.",
-  });
+  .min(1, "v.unitsMin")
+  .max(6, "v.unitsMax")
+  .refine((rows) => rows.filter((r) => r.is_default).length === 1, { message: "v.unitsOneDefault" })
+  .refine((rows) => rows.some((r) => r.qty_in_base === 1), { message: "v.unitsKeepBase" })
+  .refine((rows) => new Set(rows.map((r) => r.name.trim().toLowerCase())).size === rows.length, { message: "v.unitsSameName" })
+  .refine((rows) => new Set(rows.map((r) => r.qty_in_base)).size === rows.length, { message: "v.unitsSameSize" })
+  .refine((rows) => rows.every((r) => !r.is_default || r.is_sellable), { message: "v.unitsDefaultSellable" });
 
 export type UnitRowInput = z.infer<typeof unitRowSchema>;
 
@@ -82,13 +72,13 @@ export const discountSchema = z
     value: z
       .string()
       .trim()
-      .refine((v) => v === "" || !Number.isNaN(Number(v)), "Enter the discount using numbers only.")
-      .refine((v) => v === "" || Number(v) >= 0, "A discount can't be negative."),
+      .refine((v) => v === "" || !Number.isNaN(Number(v)), "pos.discountNumbers")
+      .refine((v) => v === "" || Number(v) >= 0, "pos.discountNegative"),
   })
   .refine(
     (v) => v.type !== "percentage" || v.value === "" || Number(v.value) <= 100,
     {
-      message: "A percentage discount can't be more than 100%.",
+      message: "pos.discountOver100",
       path: ["value"],
     },
   );

@@ -1,5 +1,8 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, pluralise } from "@/lib/utils";
+import { useT } from "@/i18n/client";
 
 /**
  * The catalogue's two nullable numbers, shown so their meaning can't be
@@ -21,10 +24,11 @@ export function PriceCell({
   /** The unit that price is for — "strip". Shown small next to the amount. */
   unit?: string;
 }) {
+  const t = useT();
   if (price === null) {
     return (
       <Badge tone="warning" className="font-normal">
-        Not priced yet
+        {t("badge.notPriced")}
       </Badge>
     );
   }
@@ -44,21 +48,22 @@ export function StockCell({
   /** The base unit the count is in — "tablet". */
   unit?: string;
 }) {
+  const t = useT();
   if (stock === null) {
     return (
       <Badge tone="neutral" className="font-normal">
-        Not counted yet
+        {t("badge.notCounted")}
       </Badge>
     );
   }
   if (stock === 0) {
-    return <Badge tone="danger">Out of stock</Badge>;
+    return <Badge tone="danger">{t("stock.outOfStock")}</Badge>;
   }
   const label = unit ? ` ${pluralise(unit, stock)}` : "";
   if (stock < LOW_STOCK_THRESHOLD) {
     return (
       <Badge tone="warning">
-        {stock}{label} left — running low
+        {stock}{label} {t("badge.runningLow")}
       </Badge>
     );
   }
@@ -68,12 +73,6 @@ export function StockCell({
       {label && <span className="ml-1 text-xs text-muted">{label}</span>}
     </span>
   );
-}
-
-export function pluralise(unit: string, count: number): string {
-  if (count === 1) return unit;
-  if (/(s|x|ch|sh)$/i.test(unit)) return `${unit}es`;
-  return `${unit}s`;
 }
 
 /** Whether the SKU is sellable at the counter, and why not when it isn't. */
@@ -86,8 +85,9 @@ export function SellableBadge({
   price: number | null;
   stock: number | null;
 }) {
-  if (!isActive) return <Badge tone="neutral">Withdrawn from sale</Badge>;
-  if (price === null) return <Badge tone="warning">Needs a price</Badge>;
-  if (stock === null || stock === 0) return <Badge tone="danger">No stock to sell</Badge>;
-  return <Badge tone="success">On sale</Badge>;
+  const t = useT();
+  if (!isActive) return <Badge tone="neutral">{t("badge.withdrawn")}</Badge>;
+  if (price === null) return <Badge tone="warning">{t("badge.needsPrice")}</Badge>;
+  if (stock === null || stock === 0) return <Badge tone="danger">{t("badge.noStock")}</Badge>;
+  return <Badge tone="success">{t("badge.onSale")}</Badge>;
 }

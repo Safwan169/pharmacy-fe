@@ -1,7 +1,10 @@
+"use client";
+
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { PaginationMeta } from "@/types";
 import { cn } from "@/lib/utils";
+import { useT } from "@/i18n/client";
 
 /**
  * Page links that keep every current filter. Rendered as anchors rather than
@@ -17,6 +20,7 @@ export function Pagination({
   /** The current query string, minus `page`. */
   params: Record<string, string | undefined>;
 }) {
+  const t = useT();
   if (meta.totalPages <= 1) return null;
 
   const href = (page: number) => {
@@ -34,13 +38,13 @@ export function Pagination({
 
   return (
     <nav
-      aria-label="Pages"
+      aria-label={t("pagination.pages")}
       className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3"
     >
       <p className="text-xs text-muted">
-        Showing <span className="font-medium text-foreground">{first.toLocaleString()}</span>
+        {t("pagination.showing")} <span className="font-medium text-foreground">{first.toLocaleString()}</span>
         {"–"}
-        <span className="font-medium text-foreground">{last.toLocaleString()}</span> of{" "}
+        <span className="font-medium text-foreground">{last.toLocaleString()}</span> {t("pagination.of")}{" "}
         <span className="font-medium text-foreground">{meta.total.toLocaleString()}</span>
       </p>
 
@@ -48,10 +52,10 @@ export function Pagination({
         <PageLink
           href={href(meta.page - 1)}
           disabled={meta.page <= 1}
-          label="Previous page"
+          label={t("pagination.previousPage")}
         >
           <ChevronLeft className="h-4 w-4" aria-hidden />
-          Previous
+          {t("pagination.previous")}
         </PageLink>
 
         <span className="px-2 text-xs text-muted">
@@ -61,9 +65,9 @@ export function Pagination({
         <PageLink
           href={href(meta.page + 1)}
           disabled={meta.page >= meta.totalPages}
-          label="Next page"
+          label={t("pagination.nextPage")}
         >
-          Next
+          {t("pagination.next")}
           <ChevronRight className="h-4 w-4" aria-hidden />
         </PageLink>
       </div>

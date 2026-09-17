@@ -33,6 +33,7 @@ import { formatCurrency, cn } from "@/lib/utils";
 import type { DiscountType, Sale } from "@/types";
 import { SaleReceipt } from "./sale-receipt";
 import { PaymentPanel, type PaymentChoice } from "./payment-panel";
+import { useT } from "@/i18n/client";
 
 interface BasketLine {
   variantId: number;
@@ -63,6 +64,7 @@ export function CounterTerminal() {
     null,
   );
   const addNonce = useRef(0);
+  const t = useT();
 
   const problemIds = useMemo(
     () =>
@@ -157,20 +159,20 @@ export function CounterTerminal() {
 
   const discountError = (() => {
     if (!discountValue) return undefined;
-    if (Number.isNaN(parsedDiscount)) return "Enter the discount using numbers only.";
-    if (parsedDiscount < 0) return "A discount can't be negative.";
+    if (Number.isNaN(parsedDiscount)) return t("pos.discountNumbers");
+    if (parsedDiscount < 0) return t("pos.discountNegative");
     if (discountType === "percentage" && parsedDiscount > 100) {
-      return "A percentage discount can't be more than 100%.";
+      return t("pos.discountOver100");
     }
     return undefined;
   })();
 
   const paymentError = (() => {
     if (payment.method === "cash" && payment.amountTendered !== undefined && payment.amountTendered < total) {
-      return "The cash given is less than the total.";
+      return t("pos.cashShort");
     }
     if (payment.method === "due" && !payment.customer) {
-      return "Pick the customer this is on account for.";
+      return t("pos.pickCustomer");
     }
     return undefined;
   })();
@@ -228,7 +230,7 @@ export function CounterTerminal() {
           reader hears when something lands in the basket. */}
       <p aria-live="polite" className="sr-only">
         {addedLine
-          ? `${addedLine.name} added to the basket. ${addedLine.quantity} in the basket.`
+          ? t("pos.addedAnnounce", { name: addedLine.name, count: addedLine.quantity })
           : ""}
       </p>
 
@@ -239,17 +241,17 @@ export function CounterTerminal() {
       <div className="lg:sticky lg:top-2 lg:col-span-2 lg:self-start">
         <Card className="max-h-[calc(100vh-6rem)] overflow-y-auto lg:max-h-[calc(100vh-7rem)]">
           <CardHeader
-            title="Basket"
+            title={t("pos.basket")}
             description={
               basket.length === 0
-                ? "Nothing added yet"
-                : `${basket.length} ${basket.length === 1 ? "item" : "items"}`
+                ? t("pos.nothingAdded")
+                : t(basket.length === 1 ? "pos.itemCount" : "pos.itemsCount", { count: basket.length })
             }
           />
 
           {result?.status === "rejected" && (
             <div className="px-5 pt-5 pb-5">
-              <Alert tone="error" title="Sale not completed">
+              <Alert tone="error" title={t("pos.notCompleted")}>
                 <p>{result.summary}</p>
                 <ul className="mt-2 list-disc space-y-1 pl-4">
                   {result.problems.map((problem) => (
@@ -269,8 +271,8 @@ export function CounterTerminal() {
           {basket.length === 0 ? (
             <EmptyState
               icon={ShoppingCart}
-              title="The basket is empty"
-              description="Search for a medicine on the left and select it to add it here."
+              title={t("pos.basketEmpty")}
+              description={t("pos.basketEmptyHint")}
             />
           ) : (
             <>
@@ -299,20 +301,20 @@ export function CounterTerminal() {
                             {flagged && (
                               <CircleAlert
                                 className="mr-1 inline h-3.5 w-3.5 text-danger"
-                                aria-label="Needs attention"
+                                aria-label={t("pos.needsAttention")}
                               />
                             )}
                             {line.name}
                           </p>
                           <p className="text-xs text-muted">
-                            {line.dosageForm} · {formatCurrency(line.unitPrice)} per {line.unitName}
-                            {line.qtyInBase > 1 ? ` of ${line.qtyInBase}` : ""}
+                            {line.dosageForm} · {formatCurrency(line.unitPrice)} / {line.unitName}
+                            {line.qtyInBase > 1 ? ` ×${line.qtyInBase}` : ""}
                           </p>
                         </div>
                         <button
                           type="button"
                           onClick={() => removeItem(line.variantId)}
-                          aria-label={`Remove ${line.name} from the basket`}
+                          aria-label={t("pos.removeLine", { name: line.name })}
                           className="rounded-md p-1 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
                         >
                           <Trash2 className="h-4 w-4" aria-hidden />
@@ -322,7 +324,7 @@ export function CounterTerminal() {
                       <div className="mt-2 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-1">
                           <QuantityButton
-                            label={`Reduce quantity of ${line.name}`}
+                            label={t("pos.reduceQty", { name: line.name })}
                             onClick={() => setQuantity(line.variantId, line.quantity - 1)}
                             disabled={line.quantity <= 1}
                           >
@@ -332,7 +334,7 @@ export function CounterTerminal() {
                             type="text"
                             inputMode="numeric"
                             value={line.quantity}
-                            aria-label={`Quantity of ${line.name}`}
+                            aria-label={t("pos.qtyOf", { name: line.name })}
                             onChange={(e) => {
                               const next = Number(e.target.value.replace(/\D/g, ""));
                               if (next >= 1) setQuantity(line.variantId, next);
@@ -340,7 +342,7 @@ export function CounterTerminal() {
                             className="h-7 w-12 rounded-md border border-border bg-surface text-center text-sm tabular-nums focus:border-primary focus:outline-2 focus:outline-primary/30"
                           />
                           <QuantityButton
-                            label={`Increase quantity of ${line.name}`}
+                            label={t("pos.increaseQty", { name: line.name })}
                             onClick={() => setQuantity(line.variantId, line.quantity + 1)}
                           >
                             <Plus className="h-3.5 w-3.5" aria-hidden />
@@ -354,9 +356,7 @@ export function CounterTerminal() {
 
                       {line.quantity * line.qtyInBase > line.stockAtAdd && (
                         <p className="mt-1.5 text-xs text-warning">
-                          Only {Math.floor(line.stockAtAdd / line.qtyInBase)} {line.unitName}
-                          {Math.floor(line.stockAtAdd / line.qtyInBase) === 1 ? "" : "s"} were on the
-                          shelf when this was added. The sale will be refused if there aren&apos;t enough.
+                          {t("pos.stockWarning", { count: Math.floor(line.stockAtAdd / line.qtyInBase), unit: line.unitName })}
                         </p>
                       )}
                     </li>
@@ -370,14 +370,14 @@ export function CounterTerminal() {
                     htmlFor="discount"
                     className="text-sm font-medium text-foreground"
                   >
-                    Discount{" "}
-                    <span className="font-normal text-muted">(optional)</span>
+                    {t("pos.discount")}{" "}
+                    <span className="font-normal text-muted">({t("common.optional").toLowerCase()})</span>
                   </label>
                   <div className="mt-1.5 flex gap-2">
                     <select
                       value={discountType}
                       onChange={(e) => setDiscountType(e.target.value as DiscountType)}
-                      aria-label="Discount type"
+                      aria-label={t("pos.discountType")}
                       className="h-10 cursor-pointer rounded-lg border border-border bg-surface px-2 text-sm focus:border-primary focus:outline-2 focus:outline-primary/30"
                     >
                       <option value="percentage">%</option>
@@ -401,17 +401,17 @@ export function CounterTerminal() {
 
                 <dl className="space-y-1.5 text-sm">
                   <div className="flex justify-between">
-                    <dt className="text-muted">Subtotal</dt>
+                    <dt className="text-muted">{t("pos.subtotal")}</dt>
                     <dd className="tabular-nums">{formatCurrency(subtotal)}</dd>
                   </div>
                   {discountAmount > 0 && (
                     <div className="flex justify-between text-success">
-                      <dt>Discount</dt>
+                      <dt>{t("pos.discount")}</dt>
                       <dd className="tabular-nums">−{formatCurrency(discountAmount)}</dd>
                     </div>
                   )}
                   <div className="flex justify-between border-t border-border pt-1.5 text-base font-semibold">
-                    <dt>Total to pay</dt>
+                    <dt>{t("pos.totalToPay")}</dt>
                     <dd className="tabular-nums">{formatCurrency(total)}</dd>
                   </div>
                 </dl>
@@ -428,10 +428,10 @@ export function CounterTerminal() {
                   className="h-11 w-full"
                 >
                   {submitting
-                    ? "Saving…"
+                    ? t("common.saving")
                     : payment.method === "due"
-                      ? `Record on account · ${formatCurrency(total)}`
-                      : `Take payment · ${formatCurrency(total)}`}
+                      ? `${t("pos.recordOnAccount")} · ${formatCurrency(total)}`
+                      : `${t("pos.takePayment")} · ${formatCurrency(total)}`}
                 </Button>
                
               </CardBody>
@@ -483,6 +483,7 @@ function ItemSearch({
     results: CounterSearchResult[];
   }>({ status: "idle", results: [] });
   const requestId = useRef(0);
+  const t = useT();
 
   function handleChange(value: string) {
     setTerm(value);
@@ -527,8 +528,8 @@ function ItemSearch({
   return (
     <Card>
       <CardHeader
-        title="Find a medicine"
-        description="Search by brand name or ingredient, then select it to add it to the basket."
+        title={t("pos.find")}
+        description={t("pos.findHint")}
       />
       <CardBody className="space-y-3">
         <div className="relative">
@@ -541,32 +542,31 @@ function ItemSearch({
             value={term}
             autoFocus
             onChange={(e) => handleChange(e.target.value)}
-            placeholder="Start typing — for example “Napa” or “Paracetamol”"
-            aria-label="Search for a medicine"
+            placeholder={t("pos.searchPlaceholder")}
+            aria-label={t("pos.searchLabel")}
             className="h-11 w-full rounded-lg border border-border bg-surface pr-10 pl-9 text-sm placeholder:text-muted/70 focus:border-primary focus:outline-2 focus:outline-primary/30"
           />
           {searching && (
             <Loader2
               className="absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 animate-spin text-muted"
-              aria-label="Searching"
+              aria-label={t("filters.searching")}
             />
           )}
         </div>
 
         {failed && (
           <Alert tone="error">
-            The search didn&apos;t work. Check your connection and try typing again.
+            {t("pos.searchFailed")}
           </Alert>
         )}
 
         {query.length > 0 && query.length < 2 && (
-          <p className="text-sm text-muted">Keep typing — at least 2 letters.</p>
+          <p className="text-sm text-muted">{t("pos.keepTyping")}</p>
         )}
 
         {status === "done" && results.length === 0 && (
           <p className="rounded-lg bg-background p-4 text-sm text-muted">
-            Nothing found for “{query}”. Check the spelling, or try part of the
-            name instead.
+            {t("pos.nothingFound", { query })}
           </p>
         )}
 
@@ -594,13 +594,12 @@ function ItemSearch({
                   </div>
                   <div className="shrink-0 text-right">
                     {!priced ? (
-                      <Badge tone="warning">No price set</Badge>
+                      <Badge tone="warning">{t("pos.noPrice")}</Badge>
                     ) : stock === 0 ? (
-                      <Badge tone="danger">Out of stock</Badge>
+                      <Badge tone="danger">{t("stock.outOfStock")}</Badge>
                     ) : (
                       <p className="text-xs text-muted">
-                        {stock} {item.baseUnit}
-                        {stock === 1 ? "" : "s"} in stock
+                        {stock} {item.baseUnit} {t("pos.inStock")}
                       </p>
                     )}
                   </div>
@@ -616,7 +615,7 @@ function ItemSearch({
                           type="button"
                           onClick={() => enough && onSelect(item, unit)}
                           disabled={!enough}
-                          title={enough ? undefined : `Not enough in stock for a full ${unit.name}`}
+                          title={enough ? undefined : t("pos.notEnoughFor", { unit: unit.name })}
                           className={cn(
                             "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors",
                             enough
@@ -642,7 +641,7 @@ function ItemSearch({
                     className="animate-added-badge pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground shadow-sm"
                   >
                     <Check className="mr-0.5 inline h-3 w-3" aria-hidden />
-                    Added
+                    {t("pos.added")}
                   </span>
                 )}
               </li>

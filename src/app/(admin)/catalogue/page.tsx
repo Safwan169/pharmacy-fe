@@ -7,6 +7,7 @@ import { VariantFilters } from "@/components/catalogue/variant-filters";
 import { VariantTable } from "@/components/catalogue/variant-table";
 import { listGenerics, listManufacturers, listVariants } from "@/lib/api/catalogue";
 import { ApiError } from "@/lib/api/client";
+import { getT } from "@/i18n/server";
 
 export const metadata = { title: "Catalogue" };
 
@@ -14,14 +15,15 @@ export const metadata = { title: "Catalogue" };
 const FILTER_OPTIONS_LIMIT = 100;
 
 export default async function CataloguePage({ searchParams }: PageProps<"/catalogue">) {
+  const t = await getT();
   const params = await searchParams;
   const filters = readFilters(params);
 
   return (
     <>
       <PageHeader
-        title="Catalogue"
-        description="Every medicine in the shop. Search, then open one to set its price or stock."
+        title={t("catalogue.title")}
+        description={t("catalogue.description")}
       />
 
       <Suspense fallback={<div className="mb-4 h-24 animate-pulse rounded-lg bg-surface" />}>
@@ -55,16 +57,17 @@ async function Results({
   filters: ReturnType<typeof readFilters>;
   params: Awaited<PageProps<"/catalogue">["searchParams"]>;
 }) {
+  const t = await getT();
   let result;
   try {
     result = await listVariants(filters);
   } catch (error) {
     return (
       <div className="p-5">
-        <Alert tone="error" title="We couldn't load the catalogue">
+        <Alert tone="error" title={t("catalogue.loadError")}>
           {error instanceof ApiError
             ? error.message
-            : "Please refresh the page to try again."}
+            : t("common.refresh")}
         </Alert>
       </div>
     );
@@ -76,11 +79,11 @@ async function Results({
     <>
       <VariantTable
         variants={result.data}
-        emptyTitle={searching ? "No medicines match that search" : "No medicines to show"}
+        emptyTitle={searching ? t("catalogue.emptySearchTitle") : t("catalogue.emptyTitle")}
         emptyDescription={
           searching
-            ? "Check the spelling, or try part of the name instead — searching “para” will find “Paracetamol”."
-            : "Nothing matches these filters. Try clearing one of them, or import the catalogue if the shop is new."
+            ? t("catalogue.emptySearchHint")
+            : t("catalogue.emptyHint")
         }
       />
       <Pagination

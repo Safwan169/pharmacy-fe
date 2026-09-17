@@ -11,7 +11,9 @@ import { getSale } from "@/lib/api/sales";
 import { getCurrentUser } from "@/lib/current-user";
 import { ApiError } from "@/lib/api/client";
 import { formatCurrency, formatDateTime, todayInDhaka } from "@/lib/utils";
-import { PAYMENT_METHOD_LABELS, REFUND_METHOD_LABELS, SALE_STATUS_LABELS, type PaymentMethod } from "@/types";
+import type { PaymentMethod } from "@/types";
+import { getT } from "@/i18n/server";
+import { PAYMENT_METHOD_KEYS, REFUND_METHOD_KEYS, SALE_STATUS_KEYS } from "@/i18n";
 
 const STATUS_TONE = {
   completed: "success",
@@ -43,6 +45,7 @@ export async function generateMetadata({ params }: PageProps<"/sales/[id]">) {
 export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]">) {
   const { id } = await params;
   const saleId = Number(id);
+  const t = await getT();
 
   if (!Number.isInteger(saleId) || saleId < 1) notFound();
 
@@ -67,12 +70,12 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        Back to sales
+        {t("sale.back")}
       </Link>
 
       <PageHeader
         title={sale.invoiceNumber}
-        description={`Sold on ${formatDateTime(sale.createdAt)}`}
+        description={t("sale.soldOn", { date: formatDateTime(sale.createdAt) })}
         action={
           <span className="flex gap-2">
             <a
@@ -81,45 +84,44 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
               rel="noopener"
               className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-medium transition-colors hover:bg-background"
             >
-              Receipt
+              {t("sale.receipt")}
             </a>
             <a
               href={`/api/invoices/${sale.id}`}
               className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
               <Download className="h-4 w-4" aria-hidden />
-              A4 invoice
+              {t("receipt.a4")}
             </a>
           </span>
         }
       />
 
       <div className="mb-4 flex items-center gap-2">
-        <Badge tone={STATUS_TONE[sale.status]}>{SALE_STATUS_LABELS[sale.status]}</Badge>
+        <Badge tone={STATUS_TONE[sale.status]}>{t(SALE_STATUS_KEYS[sale.status])}</Badge>
       </div>
 
       {sale.status === "voided" && (
-        <Alert tone="warning" title="This sale was voided" className="mb-5">
-          {sale.voidReason ? `Reason: ${sale.voidReason}. ` : ""}
-          {sale.voidedAt ? `Voided ${formatDateTime(sale.voidedAt)}` : ""}
-          {sale.voidedBy ? ` by ${sale.voidedBy.email}` : ""}. Stock went back on the shelf and nothing from it counts
-          towards earnings.
+        <Alert tone="warning" title={t("sale.voidedTitle")} className="mb-5">
+          {sale.voidReason ? `${t("sale.reason")}: ${sale.voidReason}. ` : ""}
+          {sale.voidedAt ? `${t("sale.voidedAt", { date: formatDateTime(sale.voidedAt) })}` : ""}
+          {sale.voidedBy ? ` ${t("sale.by", { who: sale.voidedBy.email })}` : ""}. {t("sale.voidedBody")}
         </Alert>
       )}
 
       <div className="grid gap-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader
-            title="What was sold"
-            description="Exactly as it was at the time of sale — later price changes don't affect this record."
+            title={t("sale.whatSold")}
+            description={t("sale.whatSoldHint")}
           />
           <Table>
             <thead>
               <tr>
-                <Th>Medicine</Th>
-                <Th className="text-right">Price each</Th>
-                <Th className="text-right">Quantity</Th>
-                <Th className="text-right">Line total</Th>
+                <Th>{t("th.medicine")}</Th>
+                <Th className="text-right">{t("th.priceEach")}</Th>
+                <Th className="text-right">{t("th.quantity")}</Th>
+                <Th className="text-right">{t("th.lineTotal")}</Th>
               </tr>
             </thead>
             <tbody>
@@ -139,7 +141,7 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
                     {item.quantity}
                     <span className="ml-1 text-xs text-muted">{item.unitNameSnapshot}</span>
                     {item.returnedQuantity > 0 && (
-                      <p className="text-xs text-warning">{item.returnedQuantity} returned</p>
+                      <p className="text-xs text-warning">{t("sale.returnedCount", { count: item.returnedQuantity })}</p>
                     )}
                   </Td>
                   <Td className="text-right font-medium tabular-nums">
@@ -152,18 +154,18 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
         </Card>
 
         <Card className="h-fit">
-          <CardHeader title="Payment" />
+          <CardHeader title={t("sale.payment")} />
           <CardBody>
             <dl className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <dt className="text-muted">Subtotal</dt>
+                <dt className="text-muted">{t("pos.subtotal")}</dt>
                 <dd className="tabular-nums">{formatCurrency(sale.subtotal)}</dd>
               </div>
 
               {sale.discountAmount > 0 ? (
                 <div className="flex justify-between text-success">
                   <dt>
-                    Discount
+                    {t("pos.discount")}
                     {sale.discountType === "percentage" && sale.discountValue !== null
                       ? ` (${sale.discountValue}%)`
                       : ""}
@@ -174,30 +176,30 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
                 </div>
               ) : (
                 <div className="flex justify-between">
-                  <dt className="text-muted">Discount</dt>
-                  <dd className="text-muted">None given</dd>
+                  <dt className="text-muted">{t("pos.discount")}</dt>
+                  <dd className="text-muted">{t("sale.noneGiven")}</dd>
                 </div>
               )}
 
               <div className="flex justify-between border-t border-border pt-2 text-base font-semibold">
-                <dt>Total paid</dt>
+                <dt>{t("sale.totalPaid")}</dt>
                 <dd className="tabular-nums">{formatCurrency(sale.totalAmount)}</dd>
               </div>
 
               {refunded > 0 && (
                 <div className="flex justify-between text-warning">
-                  <dt>Refunded since</dt>
+                  <dt>{t("sale.refundedSince")}</dt>
                   <dd className="tabular-nums">−{formatCurrency(refunded)}</dd>
                 </div>
               )}
 
               <div className="flex justify-between pt-2">
-                <dt className="text-muted">Paid by</dt>
-                <dd>{PAYMENT_METHOD_LABELS[sale.paymentMethod as PaymentMethod] ?? sale.paymentMethod}</dd>
+                <dt className="text-muted">{t("sale.paidBy")}</dt>
+                <dd>{PAYMENT_METHOD_KEYS[sale.paymentMethod as PaymentMethod] ? t(PAYMENT_METHOD_KEYS[sale.paymentMethod as PaymentMethod]) : sale.paymentMethod}</dd>
               </div>
               {sale.paymentMethod === "cash" && sale.amountTendered !== null && (
                 <div className="flex justify-between">
-                  <dt className="text-muted">Cash given / change</dt>
+                  <dt className="text-muted">{t("sale.cashChange")}</dt>
                   <dd className="tabular-nums">
                     {formatCurrency(sale.amountTendered)} / {formatCurrency(sale.changeGiven ?? 0)}
                   </dd>
@@ -211,7 +213,7 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
               )}
               {sale.customer && (
                 <div className="flex justify-between">
-                  <dt className="text-muted">Customer</dt>
+                  <dt className="text-muted">{t("receipt.customer")}</dt>
                   <dd>
                     <Link href={`/customers/${sale.customer.id}`} className="text-primary hover:underline">
                       {sale.customer.name}
@@ -221,14 +223,14 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
               )}
               {sale.dueAmount > 0 && (
                 <div className="flex justify-between text-warning">
-                  <dt>Still owed on this sale</dt>
+                  <dt>{t("sale.stillOwed")}</dt>
                   <dd className="tabular-nums">{formatCurrency(sale.dueAmount)}</dd>
                 </div>
               )}
 
               {sale.createdBy && (
                 <div className="flex justify-between">
-                  <dt className="text-muted">Served by</dt>
+                  <dt className="text-muted">{t("sale.servedBy")}</dt>
                   <dd className="truncate">{sale.createdBy.name || sale.createdBy.email}</dd>
                 </div>
               )}
@@ -243,7 +245,7 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
         </div>
         {returns.length > 0 && (
           <Card className="h-fit">
-            <CardHeader title="Returns" />
+            <CardHeader title={t("sale.returns")} />
             <ul className="divide-y divide-border">
               {returns.map((r) => (
                 <li key={r.id} className="px-5 py-3 text-sm">
@@ -252,13 +254,13 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
                     <span className="font-semibold tabular-nums">{formatCurrency(r.refundAmount)}</span>
                   </div>
                   <p className="text-xs text-muted">
-                    {formatDateTime(r.createdAt)} · {REFUND_METHOD_LABELS[r.refundMethod]}
+                    {formatDateTime(r.createdAt)} · {t(REFUND_METHOD_KEYS[r.refundMethod])}
                     {r.reason ? ` · ${r.reason}` : ""}
                   </p>
                   {(r.items ?? []).length > 0 && (
                     <p className="mt-1 text-xs text-muted">
                       {(r.items ?? [])
-                        .map((ri) => `${ri.quantity}× ${ri.saleItem?.brandNameSnapshot ?? "item"}${ri.restock ? "" : " (not restocked)"}`)
+                        .map((ri) => `${ri.quantity}× ${ri.saleItem?.brandNameSnapshot ?? t("sale.item")}${ri.restock ? "" : ` (${t("sale.notRestocked")})`}`)
                         .join(", ")}
                     </p>
                   )}

@@ -7,6 +7,7 @@ import { Table, Th, Td } from "@/components/ui/table";
 import { getReceipt } from "@/lib/api/stock";
 import { ApiError } from "@/lib/api/client";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
+import { getT } from "@/i18n/server";
 
 export async function generateMetadata({ params }: PageProps<"/stock/receipts/[id]">) {
   const { id } = await params;
@@ -16,6 +17,7 @@ export async function generateMetadata({ params }: PageProps<"/stock/receipts/[i
 export default async function ReceiptDetailPage({ params }: PageProps<"/stock/receipts/[id]">) {
   const { id } = await params;
   const receiptId = Number(id);
+  const t = await getT();
   if (!Number.isInteger(receiptId) || receiptId < 1) notFound();
 
   let receipt;
@@ -31,26 +33,26 @@ export default async function ReceiptDetailPage({ params }: PageProps<"/stock/re
     <>
       <Link href="/stock/receipts" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground">
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        Back to deliveries
+        {t("deliveries.back")}
       </Link>
 
       <PageHeader
         title={receipt.receiptNumber}
-        description={`Received ${formatDate(receipt.receivedAt)}${receipt.supplier ? ` from ${receipt.supplier.name}` : ""}`}
+        description={`${t("deliveries.receivedOn", { date: formatDate(receipt.receivedAt) })}${receipt.supplier ? ` ${t("deliveries.fromSupplier", { name: receipt.supplier.name })}` : ""}`}
       />
 
       <div className="grid gap-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader title="What arrived" description="Each line is now a batch on the shelf." />
+          <CardHeader title={t("deliveries.whatArrived")} description={t("deliveries.whatArrivedHint")} />
           <Table>
             <thead>
               <tr>
-                <Th>Medicine</Th>
-                <Th className="hidden sm:table-cell">Batch</Th>
-                <Th className="hidden sm:table-cell">Expiry</Th>
-                <Th className="text-right">Qty</Th>
-                <Th className="text-right">Cost each</Th>
-                <Th className="text-right">Line</Th>
+                <Th>{t("th.medicine")}</Th>
+                <Th className="hidden sm:table-cell">{t("th.batch")}</Th>
+                <Th className="hidden sm:table-cell">{t("th.expiry")}</Th>
+                <Th className="text-right">{t("th.qty")}</Th>
+                <Th className="text-right">{t("th.costEach")}</Th>
+                <Th className="text-right">{t("th.lineTotal")}</Th>
               </tr>
             </thead>
             <tbody>
@@ -68,7 +70,7 @@ export default async function ReceiptDetailPage({ params }: PageProps<"/stock/re
                   <Td className="text-right tabular-nums">
                     {item.quantity} <span className="text-xs text-muted">{item.unitName}</span>
                     {item.qtyInBase > 1 && (
-                      <p className="text-xs text-muted">= {item.baseQuantity.toLocaleString()} {item.variant?.baseUnit ?? "units"}</p>
+                      <p className="text-xs text-muted">= {item.baseQuantity.toLocaleString()} {item.variant?.baseUnit ?? t("common.units")}</p>
                     )}
                   </Td>
                   <Td className="text-right tabular-nums text-muted">{formatCurrency(item.unitCost)}</Td>
@@ -80,15 +82,15 @@ export default async function ReceiptDetailPage({ params }: PageProps<"/stock/re
         </Card>
 
         <Card className="h-fit">
-          <CardHeader title="Details" />
+          <CardHeader title={t("catalogue.details")} />
           <CardBody className="space-y-3 text-sm">
-            <Row label="Supplier" value={receipt.supplier?.name ?? "Not recorded"} />
-            <Row label="Their invoice" value={receipt.supplierInvoiceNo ?? "—"} />
-            <Row label="Entered" value={formatDateTime(receipt.createdAt)} />
-            <Row label="By" value={receipt.createdBy?.email ?? "—"} />
-            {receipt.note && <Row label="Note" value={receipt.note} />}
+            <Row label={t("deliveries.supplier")} value={receipt.supplier?.name ?? t("catalogue.notRecorded")} />
+            <Row label={t("deliveries.theirInvoice")} value={receipt.supplierInvoiceNo ?? "—"} />
+            <Row label={t("deliveries.entered")} value={formatDateTime(receipt.createdAt)} />
+            <Row label={t("receipt.by")} value={receipt.createdBy?.email ?? "—"} />
+            {receipt.note && <Row label={t("deliveries.note")} value={receipt.note} />}
             <div className="flex justify-between border-t border-border pt-3 text-base font-semibold">
-              <span>Total cost</span>
+              <span>{t("deliveries.totalCost")}</span>
               <span className="tabular-nums">{formatCurrency(receipt.totalCost)}</span>
             </div>
           </CardBody>

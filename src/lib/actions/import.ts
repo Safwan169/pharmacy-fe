@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import type { ImportResult } from "@/types";
+import { getT } from "@/i18n/server";
+import type { Translate } from "@/i18n";
 
 export interface ImportState {
   status: "idle" | "success" | "error";
@@ -23,23 +25,24 @@ export async function importCatalogue(
   _prev: ImportState,
   formData: FormData,
 ): Promise<ImportState> {
+  const t = await getT();
   const file = formData.get("file");
 
   if (!(file instanceof File) || file.size === 0) {
-    return { status: "error", message: "Choose a CSV file to upload first." };
+    return { status: "error", message: t("importAction.chooseFile") };
   }
 
   if (!file.name.toLowerCase().endsWith(".csv")) {
     return {
       status: "error",
-      message: "That file isn't a CSV. Export your catalogue as a .csv file and try again.",
+      message: t("importAction.notCsv"),
     };
   }
 
   if (file.size > MAX_BYTES) {
     return {
       status: "error",
-      message: "That file is larger than 25 MB. For a catalogue this big, ask your developer to run the import from the server instead.",
+      message: t("importAction.tooLarge"),
     };
   }
 
@@ -58,7 +61,7 @@ export async function importCatalogue(
 
     return {
       status: "success",
-      message: summarise(result),
+      message: summarise(result, t),
       result,
     };
   } catch (error) {
@@ -69,16 +72,14 @@ export async function importCatalogue(
   }
 }
 
-function summarise(result: ImportResult): string {
+function summarise(result: ImportResult, t: Translate): string {
   const added = result.variantsCreated;
   const updated = result.variantsUpdated;
   const parts: string[] = [];
 
-  if (added > 0) parts.push(`${added.toLocaleString()} new item${added === 1 ? "" : "s"} added`);
-  if (updated > 0) {
-    parts.push(`${updated.toLocaleString()} existing item${updated === 1 ? "" : "s"} refreshed`);
-  }
-  if (parts.length === 0) parts.push("nothing changed");
+  if (added > 0) parts.push(t("importAction.added", { count: added.toLocaleString() }));
+  if (updated > 0) parts.push(t("importAction.refreshed", { count: updated.toLocaleString() }));
+  if (parts.length === 0) parts.push(t("importAction.nothingChanged"));
 
-  return `Import finished — ${parts.join(" and ")}. Prices and stock were left exactly as they were.`;
+  return t("importAction.summary", { parts: parts.join(", ") });
 }

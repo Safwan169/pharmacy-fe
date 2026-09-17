@@ -18,6 +18,8 @@ import {
   BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/i18n/client";
+import type { MessageKey } from "@/i18n";
 
 /**
  * One entry per stage of the workflow the API is built around: price the
@@ -26,80 +28,81 @@ import { cn } from "@/lib/utils";
 export const navigation = [
   {
     href: "/dashboard",
-    label: "Dashboard",
+    label: "nav.dashboard" as MessageKey,
     icon: LayoutDashboard,
-    hint: "Sales figures and what needs restocking",
+    hint: "nav.dashboard.hint" as MessageKey,
     ownerOnly: true,
   },
   {
     href: "/pos",
-    label: "Counter",
+    label: "nav.pos" as MessageKey,
     icon: ShoppingCart,
-    hint: "Ring up a sale",
+    hint: "nav.pos.hint" as MessageKey,
   },
   {
     href: "/catalogue",
-    label: "Catalogue",
+    label: "nav.catalogue" as MessageKey,
     icon: Search,
-    hint: "Search every medicine",
+    hint: "nav.catalogue.hint" as MessageKey,
   },
   // {
   //   href: "/pricing",
-  //   label: "Pricing",
+  //   label: "nav.pricing",
   //   icon: Tags,
-  //   hint: "Set prices and stock",
+  //   hint: "nav.pricing.hint",
   // },
   {
     href: "/stock",
-    label: "Stock",
+    label: "nav.stock" as MessageKey,
     icon: Boxes,
-    hint: "Batches, expiry dates and stock history",
+    hint: "nav.stock.hint" as MessageKey,
     ownerOnly: true,
   },
   {
     href: "/sales",
-    label: "Sales",
+    label: "nav.sales" as MessageKey,
     icon: ReceiptText,
-    hint: "Past sales and invoices",
+    hint: "nav.sales.hint" as MessageKey,
   },
   {
     href: "/customers",
-    label: "Customers",
+    label: "nav.customers" as MessageKey,
     icon: Contact,
-    hint: "Who owes what, and taking payments",
+    hint: "nav.customers.hint" as MessageKey,
   },
   {
     href: "/import",
-    label: "Import",
+    label: "nav.import" as MessageKey,
     icon: Upload,
-    hint: "Load the catalogue from a CSV",
+    hint: "nav.import.hint" as MessageKey,
     ownerOnly: true,
   },
   {
     href: "/reports",
-    label: "Reports",
+    label: "nav.reports" as MessageKey,
     icon: BarChart3,
-    hint: "Daily closing, profit and stock value",
+    hint: "nav.reports.hint" as MessageKey,
     ownerOnly: true,
   },
   {
     href: "/users",
-    label: "Users",
+    label: "nav.users" as MessageKey,
     icon: Users,
-    hint: "Who can sign in",
+    hint: "nav.users.hint" as MessageKey,
     ownerOnly: true,
   },
   {
     href: "/settings",
-    label: "Settings",
+    label: "nav.settings" as MessageKey,
     icon: Settings,
-    hint: "Shop name, receipt text, thresholds",
+    hint: "nav.settings.hint" as MessageKey,
     ownerOnly: true,
   },
 ];
 
 export function SidebarNav({ onNavigate, role }: { onNavigate?: () => void; role: string }) {
   const pathname = usePathname();
+  const t = useT();
   const visible = navigation.filter((item) => !("ownerOnly" in item && item.ownerOnly) || role === "owner");
 
   return (
@@ -112,7 +115,7 @@ export function SidebarNav({ onNavigate, role }: { onNavigate?: () => void; role
             href={href}
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
-            title={hint}
+            title={t(hint)}
             className={cn(
               "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
               active
@@ -121,7 +124,7 @@ export function SidebarNav({ onNavigate, role }: { onNavigate?: () => void; role
             )}
           >
             <Icon className="h-4 w-4 shrink-0" aria-hidden />
-            {label}
+            {t(label)}
           </Link>
         );
       })}
@@ -159,13 +162,14 @@ export function MobileSidebar({
   onClose: () => void;
   role: string;
 }) {
+  const t = useT();
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 lg:hidden">
       <button
         type="button"
-        aria-label="Close menu"
+        aria-label={t("topbar.closeMenu")}
         onClick={onClose}
         className="absolute inset-0 bg-foreground/30"
       />
@@ -175,7 +179,7 @@ export function MobileSidebar({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close menu"
+            aria-label={t("topbar.closeMenu")}
             className="rounded-lg p-2 text-muted hover:bg-background hover:text-foreground"
           >
             <X className="h-4 w-4" aria-hidden />

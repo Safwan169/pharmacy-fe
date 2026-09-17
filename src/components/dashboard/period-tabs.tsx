@@ -1,11 +1,15 @@
+"use client";
+
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { SummaryPeriod } from "@/types";
+import { useT } from "@/i18n/client";
+import type { MessageKey } from "@/i18n";
 
-const TABS: { value: SummaryPeriod; label: string }[] = [
-  { value: "today", label: "Today" },
-  { value: "this_week", label: "This week" },
-  { value: "this_month", label: "This month" },
+const TABS: { value: SummaryPeriod; label: MessageKey }[] = [
+  { value: "today", label: "period.today" },
+  { value: "this_week", label: "period.thisWeek" },
+  { value: "this_month", label: "period.thisMonth" },
 ];
 
 /**
@@ -13,11 +17,12 @@ const TABS: { value: SummaryPeriod; label: string }[] = [
  * range survives a refresh and can be bookmarked or shared.
  */
 export function PeriodTabs({ current }: { current: SummaryPeriod }) {
+  const t = useT();
   return (
     <div
       className="mb-5 inline-flex rounded-lg border border-border bg-surface p-1"
       role="group"
-      aria-label="Choose a time period"
+      aria-label={t("period.choose")}
     >
       {TABS.map(({ value, label }) => {
         const active = value === current;
@@ -33,7 +38,7 @@ export function PeriodTabs({ current }: { current: SummaryPeriod }) {
                 : "text-muted hover:text-foreground",
             )}
           >
-            {label}
+            {t(label)}
           </Link>
         );
       })}
