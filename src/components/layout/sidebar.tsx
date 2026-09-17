@@ -13,6 +13,8 @@ import {
   Cross,
   X,
   Users,
+  Contact,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +62,12 @@ export const navigation = [
     hint: "Past sales and invoices",
   },
   {
+    href: "/customers",
+    label: "Customers",
+    icon: Contact,
+    hint: "Who owes what, and taking payments",
+  },
+  {
     href: "/import",
     label: "Import",
     icon: Upload,
@@ -71,6 +79,13 @@ export const navigation = [
     label: "Users",
     icon: Users,
     hint: "Who can sign in",
+    ownerOnly: true,
+  },
+  {
+    href: "/settings",
+    label: "Settings",
+    icon: Settings,
+    hint: "Shop name, receipt text, thresholds",
     ownerOnly: true,
   },
 ];

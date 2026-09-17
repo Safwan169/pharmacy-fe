@@ -3,11 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { checkoutRejectionSummary, humaniseCheckoutFailure } from "@/lib/messages";
-import type { CheckoutItemFailure, DiscountType, Sale } from "@/types";
+import type { CheckoutItemFailure, DiscountType, PaymentMethod, Sale } from "@/types";
 
 export interface CheckoutRequest {
   items: { variant_id: number; unit_id: number; quantity: number; name: string }[];
   discount?: { type: DiscountType; value: number };
+  payment_method: PaymentMethod;
+  amount_tendered?: number;
+  bkash_trx_id?: string;
+  customer_id?: number;
 }
 
 export type CheckoutResult =
@@ -49,6 +53,10 @@ export async function checkout(request: CheckoutRequest): Promise<CheckoutResult
           quantity,
         })),
         ...(request.discount ? { discount: request.discount } : {}),
+        payment_method: request.payment_method,
+        ...(request.amount_tendered !== undefined ? { amount_tendered: request.amount_tendered } : {}),
+        ...(request.bkash_trx_id ? { bkash_trx_id: request.bkash_trx_id } : {}),
+        ...(request.customer_id !== undefined ? { customer_id: request.customer_id } : {}),
       },
     });
 
@@ -57,6 +65,8 @@ export async function checkout(request: CheckoutRequest): Promise<CheckoutResult
     revalidatePath("/sales");
     revalidatePath("/catalogue");
     revalidatePath("/pricing");
+    revalidatePath("/customers");
+    revalidatePath("/customers/due");
 
     return { status: "success", sale };
   } catch (error) {
@@ -74,7 +84,16 @@ export async function checkout(request: CheckoutRequest): Promise<CheckoutResult
         };
       }
 
-      return { status: "error", message: error.message };
+      const reason = (error.body as { reason?: string } | null)?.reason;
+      const message =
+        reason === "tendered_short"
+          ? "The cash given is less than the total. Enter what they actually handed over."
+          : reason === "customer_required"
+            ? "A due sale needs a customer. Pick one or add them."
+            : reason === "customer_not_found"
+              ? "That customer no longer exists. Pick another."
+              : error.message;
+      return { status: "error", message };
     }
     throw error;
   }

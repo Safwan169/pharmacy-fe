@@ -241,6 +241,58 @@ export interface SaleItem {
   lineTotal: number;
 }
 
+export const PAYMENT_METHODS = ["cash", "bkash", "due"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  cash: "Cash",
+  bkash: "bKash",
+  due: "Due (pay later)",
+};
+
+export interface Customer {
+  id: number;
+  name: string;
+  phone: string | null;
+  address: string | null;
+  dueBalance: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface DueCustomer {
+  id: number;
+  name: string;
+  phone: string | null;
+  due_balance: number;
+  oldest_due_at: string | null;
+  open_sales: number;
+}
+
+export interface DuePayment {
+  id: number;
+  customerId: number;
+  customer?: Customer;
+  saleId: number | null;
+  receiptNumber: string;
+  amount: number;
+  method: "cash" | "bkash";
+  bkashTrxId: string | null;
+  note: string | null;
+  balanceAfter: number;
+  createdAt: string;
+}
+
+export interface ShopSettings {
+  shop_name: string;
+  shop_address: string;
+  shop_phone: string;
+  drug_license_no: string;
+  receipt_footer: string;
+  low_stock_threshold: string;
+  receipt_width_mm: string;
+}
+
 export const SALE_STATUSES = ["completed", "voided", "returned", "partial_return"] as const;
 export type SaleStatus = (typeof SALE_STATUSES)[number];
 
@@ -289,7 +341,14 @@ export interface Sale {
   discountValue: number | null;
   discountAmount: number;
   totalAmount: number;
-  paymentMethod: string;
+  paymentMethod: PaymentMethod | string;
+  customerId: number | null;
+  customer?: Customer | null;
+  amountTendered: number | null;
+  changeGiven: number | null;
+  bkashTrxId: string | null;
+  paidAmount: number;
+  dueAmount: number;
   createdById: number;
   createdBy?: { id: number; email: string; name?: string | null; role?: string };
   /** Only on `GET /sales/:id`; the list response omits line items. */

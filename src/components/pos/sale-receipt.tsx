@@ -1,11 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { CircleCheck, Download, Plus } from "lucide-react";
+import { CircleCheck, Download, Plus, Printer } from "lucide-react";
 import { Card, CardBody } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
-import type { Sale } from "@/types";
+import { PAYMENT_METHOD_LABELS, type PaymentMethod, type Sale } from "@/types";
+
+/** Opens the thermal receipt in a small window and asks it to print. */
+function printReceipt(saleId: number) {
+  const win = window.open(`/api/receipts/${saleId}`, "receipt", "width=420,height=640");
+  if (!win) return;
+  win.addEventListener("load", () => {
+    setTimeout(() => win.print(), 300);
+  });
+}
 
 /**
  * Shown the moment a sale goes through. Leads with the invoice number and the
@@ -69,19 +78,48 @@ export function SaleReceipt({
                 </div>
               )}
               <div className="flex justify-between border-t border-border pt-1.5 text-base font-semibold">
-                <dt>Paid</dt>
+                <dt>{sale.paymentMethod === "due" ? "On account" : "Paid"}</dt>
                 <dd className="tabular-nums">{formatCurrency(sale.totalAmount)}</dd>
               </div>
+              <div className="flex justify-between pt-1">
+                <dt className="text-muted">By</dt>
+                <dd>{PAYMENT_METHOD_LABELS[sale.paymentMethod as PaymentMethod] ?? sale.paymentMethod}</dd>
+              </div>
+              {sale.paymentMethod === "cash" && sale.amountTendered !== null && (
+                <>
+                  <div className="flex justify-between">
+                    <dt className="text-muted">Cash given</dt>
+                    <dd className="tabular-nums">{formatCurrency(sale.amountTendered)}</dd>
+                  </div>
+                  <div className="flex justify-between text-base font-semibold text-success">
+                    <dt>Change</dt>
+                    <dd className="tabular-nums">{formatCurrency(sale.changeGiven ?? 0)}</dd>
+                  </div>
+                </>
+              )}
+              {sale.paymentMethod === "due" && sale.customer && (
+                <div className="flex justify-between">
+                  <dt className="text-muted">Customer</dt>
+                  <dd>
+                    {sale.customer.name}
+                    <span className="ml-1 text-xs text-warning">owes {formatCurrency(sale.customer.dueBalance)}</span>
+                  </dd>
+                </div>
+              )}
             </dl>
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row">
+            <Button type="button" variant="secondary" onClick={() => printReceipt(sale.id)} className="h-10 flex-1">
+              <Printer className="h-4 w-4" aria-hidden />
+              Print receipt
+            </Button>
             <a
               href={`/api/invoices/${sale.id}`}
               className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-medium transition-colors hover:bg-background"
             >
               <Download className="h-4 w-4" aria-hidden />
-              Download invoice
+              A4 invoice
             </a>
             <Button onClick={onNewSale} className="h-10 flex-1">
               <Plus className="h-4 w-4" aria-hidden />

@@ -11,7 +11,7 @@ import { getSale } from "@/lib/api/sales";
 import { getCurrentUser } from "@/lib/current-user";
 import { ApiError } from "@/lib/api/client";
 import { formatCurrency, formatDateTime, todayInDhaka } from "@/lib/utils";
-import { REFUND_METHOD_LABELS, SALE_STATUS_LABELS } from "@/types";
+import { PAYMENT_METHOD_LABELS, REFUND_METHOD_LABELS, SALE_STATUS_LABELS, type PaymentMethod } from "@/types";
 
 const STATUS_TONE = {
   completed: "success",
@@ -74,13 +74,23 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
         title={sale.invoiceNumber}
         description={`Sold on ${formatDateTime(sale.createdAt)}`}
         action={
-          <a
-            href={`/api/invoices/${sale.id}`}
-            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            <Download className="h-4 w-4" aria-hidden />
-            Download invoice
-          </a>
+          <span className="flex gap-2">
+            <a
+              href={`/api/receipts/${sale.id}`}
+              target="_blank"
+              rel="noopener"
+              className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-medium transition-colors hover:bg-background"
+            >
+              Receipt
+            </a>
+            <a
+              href={`/api/invoices/${sale.id}`}
+              className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              A4 invoice
+            </a>
+          </span>
         }
       />
 
@@ -183,8 +193,38 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
 
               <div className="flex justify-between pt-2">
                 <dt className="text-muted">Paid by</dt>
-                <dd className="capitalize">{sale.paymentMethod}</dd>
+                <dd>{PAYMENT_METHOD_LABELS[sale.paymentMethod as PaymentMethod] ?? sale.paymentMethod}</dd>
               </div>
+              {sale.paymentMethod === "cash" && sale.amountTendered !== null && (
+                <div className="flex justify-between">
+                  <dt className="text-muted">Cash given / change</dt>
+                  <dd className="tabular-nums">
+                    {formatCurrency(sale.amountTendered)} / {formatCurrency(sale.changeGiven ?? 0)}
+                  </dd>
+                </div>
+              )}
+              {sale.bkashTrxId && (
+                <div className="flex justify-between">
+                  <dt className="text-muted">bKash TrxID</dt>
+                  <dd className="font-mono">{sale.bkashTrxId}</dd>
+                </div>
+              )}
+              {sale.customer && (
+                <div className="flex justify-between">
+                  <dt className="text-muted">Customer</dt>
+                  <dd>
+                    <Link href={`/customers/${sale.customer.id}`} className="text-primary hover:underline">
+                      {sale.customer.name}
+                    </Link>
+                  </dd>
+                </div>
+              )}
+              {sale.dueAmount > 0 && (
+                <div className="flex justify-between text-warning">
+                  <dt>Still owed on this sale</dt>
+                  <dd className="tabular-nums">{formatCurrency(sale.dueAmount)}</dd>
+                </div>
+              )}
 
               {sale.createdBy && (
                 <div className="flex justify-between">

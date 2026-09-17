@@ -32,6 +32,7 @@ import { checkout, type CheckoutResult } from "@/lib/actions/checkout";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { DiscountType, Sale } from "@/types";
 import { SaleReceipt } from "./sale-receipt";
+import { PaymentPanel, type PaymentChoice } from "./payment-panel";
 
 interface BasketLine {
   variantId: number;
@@ -52,6 +53,7 @@ export function CounterTerminal() {
   const [basket, setBasket] = useState<BasketLine[]>([]);
   const [discountType, setDiscountType] = useState<DiscountType>("percentage");
   const [discountValue, setDiscountValue] = useState("");
+  const [payment, setPayment] = useState<PaymentChoice>({ method: "cash" });
   const [result, setResult] = useState<CheckoutResult | null>(null);
   const [completed, setCompleted] = useState<Sale | null>(null);
   const [submitting, startCheckout] = useTransition();
@@ -163,8 +165,18 @@ export function CounterTerminal() {
     return undefined;
   })();
 
+  const paymentError = (() => {
+    if (payment.method === "cash" && payment.amountTendered !== undefined && payment.amountTendered < total) {
+      return "The cash given is less than the total.";
+    }
+    if (payment.method === "due" && !payment.customer) {
+      return "Pick the customer this is on account for.";
+    }
+    return undefined;
+  })();
+
   function submit() {
-    if (basket.length === 0 || discountError) return;
+    if (basket.length === 0 || discountError || paymentError) return;
 
     startCheckout(async () => {
       const response = await checkout({
@@ -178,6 +190,10 @@ export function CounterTerminal() {
           discountAmount > 0 && !Number.isNaN(parsedDiscount)
             ? { type: discountType, value: parsedDiscount }
             : undefined,
+        payment_method: payment.method,
+        amount_tendered: payment.method === "cash" ? payment.amountTendered : undefined,
+        bkash_trx_id: payment.method === "bkash" ? payment.bkashTrxId : undefined,
+        customer_id: payment.method === "due" ? payment.customer?.id : undefined,
       });
 
       setResult(response);
@@ -185,6 +201,7 @@ export function CounterTerminal() {
         setCompleted(response.sale);
         setBasket([]);
         setDiscountValue("");
+        setPayment({ method: "cash" });
       }
     });
   }
@@ -399,13 +416,22 @@ export function CounterTerminal() {
                   </div>
                 </dl>
 
+                <div className="border-t border-border pt-4">
+                  <PaymentPanel total={total} value={payment} onChange={setPayment} />
+                  {paymentError && <p className="mt-2 text-xs text-danger">{paymentError}</p>}
+                </div>
+
                 <Button
                   type="button"
                   onClick={submit}
-                  disabled={submitting || !!discountError}
+                  disabled={submitting || !!discountError || !!paymentError}
                   className="h-11 w-full"
                 >
-                  {submitting ? "Taking payment…" : `Take payment · ${formatCurrency(total)}`}
+                  {submitting
+                    ? "Saving…"
+                    : payment.method === "due"
+                      ? `Record on account · ${formatCurrency(total)}`
+                      : `Take payment · ${formatCurrency(total)}`}
                 </Button>
                
               </CardBody>
