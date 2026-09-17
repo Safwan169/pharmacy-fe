@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { apiFetch, ApiError } from "@/lib/api/client";
-import type { ShopSettings } from "@/types";
+import type { BackupFile, ShopSettings } from "@/types";
 
 export interface SettingsState {
   status: "idle" | "success" | "error";
@@ -38,4 +38,21 @@ export async function saveSettings(_prev: SettingsState, formData: FormData): Pr
   revalidatePath("/settings");
   revalidatePath("/dashboard");
   return { status: "success", message: "Saved. New receipts will use these details." };
+}
+
+export interface BackupState {
+  status: "idle" | "success" | "error";
+  message?: string;
+}
+
+/** Runs pg_dump on the API server and lists the new file. */
+export async function runBackup(_prev: BackupState): Promise<BackupState> {
+  try {
+    const file = await apiFetch<BackupFile>("/admin/backup", { method: "POST", auth: true });
+    revalidatePath("/settings");
+    return { status: "success", message: `Backed up to ${file.name} (${(file.size_bytes / 1024).toFixed(0)} KB).` };
+  } catch (error) {
+    if (error instanceof ApiError) return { status: "error", message: error.message };
+    throw error;
+  }
 }

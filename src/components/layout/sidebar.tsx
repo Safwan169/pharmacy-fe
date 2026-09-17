@@ -15,6 +15,7 @@ import {
   Users,
   Contact,
   Settings,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +73,13 @@ export const navigation = [
     label: "Import",
     icon: Upload,
     hint: "Load the catalogue from a CSV",
+    ownerOnly: true,
+  },
+  {
+    href: "/reports",
+    label: "Reports",
+    icon: BarChart3,
+    hint: "Daily closing, profit and stock value",
     ownerOnly: true,
   },
   {

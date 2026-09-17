@@ -233,3 +233,19 @@ body {
     animation: none;
   }
 }
+
+/* Reports print on plain paper: drop the chrome, keep the content. */
+@media print {
+  aside,
+  header,
+  nav {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  body {
+    background: #fff;
+  }
+}

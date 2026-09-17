@@ -293,6 +293,54 @@ export interface ShopSettings {
   receipt_width_mm: string;
 }
 
+export interface DailyClosing {
+  date: string;
+  sales_count: number;
+  gross_sales: number;
+  discounts: number;
+  refunds: number;
+  net_sales: number;
+  by_method: { cash: number; bkash: number; due: number };
+  refunds_by_method: { cash: number; bkash: number; due_adjust: number };
+  due_collected: { cash: number; bkash: number };
+  cash_in_drawer_expected: number;
+  voided_count: number;
+  top_items: { variant_id: number; name: string; unit: string; quantity: number; amount: number }[];
+  cashier_breakdown: { user_id: number; name: string; sales_count: number; amount: number }[];
+}
+
+export interface ProfitDay {
+  date: string;
+  revenue: number;
+  cogs: number;
+  gross_profit: number;
+  margin_pct: number | null;
+  uncosted_lines: number;
+}
+
+export interface ProfitReport {
+  from: string;
+  to: string;
+  total: ProfitDay;
+  by_day: ProfitDay[];
+  by_product: { variant_id: number; name: string; quantity_base: number; revenue: number; cogs: number; gross_profit: number }[];
+}
+
+export interface StockValue {
+  value_at_cost: number;
+  value_at_price: number;
+  expired_value_at_cost: number;
+  uncosted_units: number;
+  batches_in_stock: number;
+  variants_in_stock: number;
+}
+
+export interface BackupFile {
+  name: string;
+  size_bytes: number;
+  created_at: string;
+}
+
 export const SALE_STATUSES = ["completed", "voided", "returned", "partial_return"] as const;
 export type SaleStatus = (typeof SALE_STATUSES)[number];
 

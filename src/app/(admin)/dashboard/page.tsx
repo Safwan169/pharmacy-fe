@@ -1,7 +1,7 @@
 import { requireOwner } from "@/lib/current-user";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Banknote, Boxes, CalendarClock, PackageCheck, ReceiptText } from "lucide-react";
+import { Banknote, Boxes, CalendarClock, PackageCheck, ReceiptText, Warehouse } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { PeriodTabs } from "@/components/dashboard/period-tabs";
@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { getExpired, getExpiring, getLowStock, getSummary } from "@/lib/api/sales";
+import { getStockValue } from "@/lib/api/reports";
 import { ApiError } from "@/lib/api/client";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import { SUMMARY_PERIODS, type SummaryPeriod } from "@/types";
@@ -69,8 +70,24 @@ async function ExpirySection() {
   } catch {
     return null;
   }
+  let stockValue = null;
+  try {
+    stockValue = await getStockValue();
+  } catch {
+    stockValue = null;
+  }
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-3">
+      {stockValue && (
+        <Link href="/reports" className="block">
+          <StatCard
+            label="Stock on the shelf, at cost"
+            value={formatCurrency(stockValue.value_at_cost)}
+            hint={`Worth ${formatCurrency(stockValue.value_at_price)} at selling price${stockValue.uncosted_units > 0 ? ` · ${formatNumber(stockValue.uncosted_units)} units have no cost` : ""}`}
+            icon={Warehouse}
+          />
+        </Link>
+      )}
       <Link href="/stock/expiring?tab=expired" className="block">
         <StatCard
           label="Expired on the shelf"
