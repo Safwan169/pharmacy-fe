@@ -13,6 +13,7 @@ import type {
 export function listSales(
   params: {
     search?: string;
+    status?: string;
     from?: string;
     to?: string;
     page?: number;

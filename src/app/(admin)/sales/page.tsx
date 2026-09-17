@@ -11,6 +11,15 @@ import { SalesFilters } from "@/components/sales/sales-filters";
 import { listSales } from "@/lib/api/sales";
 import { ApiError } from "@/lib/api/client";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { SALE_STATUSES, SALE_STATUS_LABELS, type SaleStatus } from "@/types";
+
+const STATUS_TONE = {
+  completed: "success",
+  voided: "danger",
+  returned: "warning",
+  partial_return: "warning",
+} as const;
 
 export const metadata = { title: "Sales" };
 
@@ -86,6 +95,7 @@ async function SalesList({
             <Th className="hidden text-right sm:table-cell">Before discount</Th>
             <Th className="hidden text-right sm:table-cell">Discount</Th>
             <Th className="text-right">Paid</Th>
+            <Th>Status</Th>
             <Th><span className="sr-only">Actions</span></Th>
           </tr>
         </thead>
@@ -113,8 +123,13 @@ async function SalesList({
                   <span className="text-muted">None</span>
                 )}
               </Td>
-              <Td className="text-right font-semibold tabular-nums">
+              <Td className={`text-right font-semibold tabular-nums ${sale.status === "voided" ? "text-muted line-through" : ""}`}>
                 {formatCurrency(sale.totalAmount)}
+              </Td>
+              <Td>
+                {sale.status !== "completed" && (
+                  <Badge tone={STATUS_TONE[sale.status]}>{SALE_STATUS_LABELS[sale.status]}</Badge>
+                )}
               </Td>
               <Td className="text-right">
                 <a
@@ -144,6 +159,7 @@ function readFilters(params: Record<string, string | string[] | undefined>) {
 
   return {
     search: one("search"),
+    status: SALE_STATUSES.includes(one("status") as SaleStatus) ? one("status") : undefined,
     from: one("from"),
     to: one("to"),
     page: Number.isInteger(page) && page > 0 ? page : 1,

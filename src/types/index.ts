@@ -222,7 +222,49 @@ export interface SaleItem {
   unitPrice: number;
   /** In the sold unit. */
   quantity: number;
+  /** How many of `quantity` have come back. */
+  returnedQuantity: number;
   lineTotal: number;
+}
+
+export const SALE_STATUSES = ["completed", "voided", "returned", "partial_return"] as const;
+export type SaleStatus = (typeof SALE_STATUSES)[number];
+
+export const SALE_STATUS_LABELS: Record<SaleStatus, string> = {
+  completed: "Completed",
+  voided: "Voided",
+  returned: "Returned",
+  partial_return: "Part returned",
+};
+
+export const REFUND_METHODS = ["cash", "bkash", "due_adjust"] as const;
+export type RefundMethod = (typeof REFUND_METHODS)[number];
+
+export const REFUND_METHOD_LABELS: Record<RefundMethod, string> = {
+  cash: "Cash",
+  bkash: "bKash",
+  due_adjust: "Take off their due balance",
+};
+
+export interface SaleReturnItem {
+  id: number;
+  saleItemId: number;
+  saleItem?: SaleItem;
+  quantity: number;
+  baseQuantity: number;
+  refundAmount: number;
+  restock: boolean;
+}
+
+export interface SaleReturn {
+  id: number;
+  saleId: number;
+  returnNumber: string;
+  refundAmount: number;
+  refundMethod: RefundMethod;
+  reason: string | null;
+  items?: SaleReturnItem[];
+  createdAt: string;
 }
 
 export interface Sale {
@@ -238,6 +280,12 @@ export interface Sale {
   createdBy?: UserProfile;
   /** Only on `GET /sales/:id`; the list response omits line items. */
   items?: SaleItem[];
+  status: SaleStatus;
+  voidedAt: string | null;
+  voidedBy?: { id: number; email: string } | null;
+  voidReason: string | null;
+  /** Only on `GET /sales/:id`. */
+  returns?: SaleReturn[];
   createdAt: string;
 }
 
@@ -254,6 +302,7 @@ export interface LowStockItem {
 export interface DashboardSummary {
   period: { from: string; to: string };
   total_earning: number;
+  total_refunds: number;
   total_units_sold: number;
   total_transactions: number;
   distinct_products_sold: number;

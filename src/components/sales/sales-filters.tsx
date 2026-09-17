@@ -59,7 +59,7 @@ export function SalesFilters() {
       ? "The start date is after the end date. Swap them around."
       : undefined;
 
-  const hasFilters = Boolean(search || from || to);
+  const hasFilters = Boolean(search || from || to || searchParams.get("status"));
   const today = todayInDhaka();
 
   return (
@@ -100,6 +100,24 @@ export function SalesFilters() {
           max={today}
           onChange={(value) => apply({ to: value })}
         />
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="status" className="text-xs font-medium text-muted">
+            Status
+          </label>
+          <select
+            id="status"
+            value={searchParams.get("status") ?? ""}
+            onChange={(e) => apply({ status: e.target.value })}
+            className="h-9 rounded-lg border border-border bg-surface px-2 text-sm"
+          >
+            <option value="">All</option>
+            <option value="completed">Completed</option>
+            <option value="voided">Voided</option>
+            <option value="partial_return">Part returned</option>
+            <option value="returned">Returned</option>
+          </select>
+        </div>
 
         {hasFilters && (
           <button
