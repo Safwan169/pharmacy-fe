@@ -62,10 +62,13 @@ export function VariantTable({
               {variant.product.manufacturer?.name ?? "—"}
             </Td>
             <Td className="text-right">
-              <PriceCell price={variant.price} />
+              <PriceCell
+                price={variant.price}
+                unit={variant.units?.find((u) => u.isDefault)?.name}
+              />
             </Td>
             <Td className="text-right">
-              <StockCell stock={variant.stockQuantity} />
+              <StockCell stock={variant.stockQuantity} unit={variant.baseUnit} />
             </Td>
             <Td>
               <SellableBadge

@@ -156,7 +156,7 @@ async function LowStockSection() {
                     <Badge tone="danger">Out of stock</Badge>
                   ) : (
                     <span className="font-medium tabular-nums text-warning">
-                      {item.stock_quantity} left
+                      {item.stock_quantity} {item.base_unit} left
                     </span>
                   )}
                 </Td>

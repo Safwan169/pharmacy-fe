@@ -13,7 +13,14 @@ import { formatCurrency } from "@/lib/utils";
 
 const LOW_STOCK_THRESHOLD = 5;
 
-export function PriceCell({ price }: { price: number | null }) {
+export function PriceCell({
+  price,
+  unit,
+}: {
+  price: number | null;
+  /** The unit that price is for — "strip". Shown small next to the amount. */
+  unit?: string;
+}) {
   if (price === null) {
     return (
       <Badge tone="warning" className="font-normal">
@@ -21,10 +28,22 @@ export function PriceCell({ price }: { price: number | null }) {
       </Badge>
     );
   }
-  return <span className="font-medium tabular-nums">{formatCurrency(price)}</span>;
+  return (
+    <span className="font-medium tabular-nums">
+      {formatCurrency(price)}
+      {unit && <span className="ml-1 text-xs font-normal text-muted">/ {unit}</span>}
+    </span>
+  );
 }
 
-export function StockCell({ stock }: { stock: number | null }) {
+export function StockCell({
+  stock,
+  unit,
+}: {
+  stock: number | null;
+  /** The base unit the count is in — "tablet". */
+  unit?: string;
+}) {
   if (stock === null) {
     return (
       <Badge tone="neutral" className="font-normal">
@@ -35,14 +54,26 @@ export function StockCell({ stock }: { stock: number | null }) {
   if (stock === 0) {
     return <Badge tone="danger">Out of stock</Badge>;
   }
+  const label = unit ? ` ${pluralise(unit, stock)}` : "";
   if (stock < LOW_STOCK_THRESHOLD) {
     return (
       <Badge tone="warning">
-        {stock} left — running low
+        {stock}{label} left — running low
       </Badge>
     );
   }
-  return <span className="tabular-nums">{stock.toLocaleString()}</span>;
+  return (
+    <span className="tabular-nums">
+      {stock.toLocaleString()}
+      {label && <span className="ml-1 text-xs text-muted">{label}</span>}
+    </span>
+  );
+}
+
+export function pluralise(unit: string, count: number): string {
+  if (count === 1) return unit;
+  if (/(s|x|ch|sh)$/i.test(unit)) return `${unit}es`;
+  return `${unit}s`;
 }
 
 /** Whether the SKU is sellable at the counter, and why not when it isn't. */

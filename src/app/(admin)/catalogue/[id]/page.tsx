@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PricingForm } from "@/components/catalogue/pricing-form";
 import { AvailabilityControl } from "@/components/catalogue/availability-control";
 import { SellableBadge, PriceCell, StockCell } from "@/components/catalogue/status-badges";
-import { getVariant, listGenericVariants } from "@/lib/api/catalogue";
+import { getUnitTemplate, getVariant, listGenericVariants } from "@/lib/api/catalogue";
 import { ApiError } from "@/lib/api/client";
 import { formatDateTime } from "@/lib/utils";
 
@@ -41,6 +41,19 @@ export default async function VariantDetailPage({
   }
 
   const name = `${variant.product.brandName}${variant.strength ? ` ${variant.strength}` : ""}`;
+
+  // A SKU that has never been set up gets a suggested ladder to start from.
+  let template = null;
+  if ((variant.units ?? []).length === 0) {
+    try {
+      template = await getUnitTemplate({
+        dosage_form: variant.dosageForm,
+        pack_size: variant.packSize,
+      });
+    } catch {
+      template = null;
+    }
+  }
 
   return (
     <>
@@ -118,13 +131,15 @@ export default async function VariantDetailPage({
         <div className="space-y-5">
           <Card>
             <CardHeader
-              title="Price and stock"
-              description="What the customer pays, and how many you have."
+              title="How it's sold, price and stock"
+              description="Which units the counter can sell, what each costs, and how many you have."
             />
             <CardBody>
               <PricingForm
                 variantId={variant.id}
-                price={variant.price}
+                baseUnit={variant.baseUnit}
+                units={variant.units ?? []}
+                template={template}
                 stock={variant.stockQuantity}
               />
             </CardBody>
@@ -207,10 +222,13 @@ async function Alternatives({
                   {alt.product.manufacturer?.name ?? "—"}
                 </Td>
                 <Td className="text-right">
-                  <PriceCell price={alt.price} />
+                  <PriceCell
+                    price={alt.price}
+                    unit={alt.units?.find((u) => u.isDefault)?.name}
+                  />
                 </Td>
                 <Td className="text-right">
-                  <StockCell stock={alt.stockQuantity} />
+                  <StockCell stock={alt.stockQuantity} unit={alt.baseUnit} />
                 </Td>
               </tr>
             ))}

@@ -2,13 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { apiFetch, ApiError } from "@/lib/api/client";
-import { pricingSchema } from "@/lib/validations";
+import { pricingSchema, unitsSchema } from "@/lib/validations";
 import type { ProductVariant } from "@/types";
 
 export interface PricingState {
   status: "idle" | "success" | "error";
   message?: string;
-  errors?: { price?: string; stock_quantity?: string };
+  errors?: { price?: string; stock_quantity?: string; units?: string };
 }
 
 /**
@@ -27,28 +27,66 @@ export async function updatePricing(
     return { status: "error", message: "We couldn't tell which item to update. Please reload the page." };
   }
 
+  // The unit ladder arrives as JSON from the client editor; stock as a plain field.
+  const rawUnits = formData.get("units");
+  const unitsChanged = formData.get("units_changed") === "1";
+  const body: {
+    price?: number;
+    stock_quantity?: number;
+    units?: Array<{
+      name: string;
+      qty_in_base: number;
+      price: number | null;
+      is_sellable: boolean;
+      is_default: boolean;
+    }>;
+  } = {};
+
+  if (unitsChanged && typeof rawUnits === "string" && rawUnits !== "") {
+    let decoded: unknown;
+    try {
+      decoded = JSON.parse(rawUnits);
+    } catch {
+      return { status: "error", message: "The unit list couldn't be read. Reload the page and try again." };
+    }
+    const units = unitsSchema.safeParse(decoded);
+    if (!units.success) {
+      return { status: "error", errors: { units: units.error.issues[0]?.message } };
+    }
+    body.units = units.data;
+  }
+
   const parsed = pricingSchema.safeParse({
-    price: formData.get("price") ?? "",
+    price: "",
     stock_quantity: formData.get("stock_quantity") ?? "",
   });
 
-  if (!parsed.success) {
+  if (!parsed.success && body.units === undefined) {
     const { fieldErrors } = parsed.error.flatten();
     return {
       status: "error",
       errors: {
-        price: fieldErrors.price?.[0],
         stock_quantity: fieldErrors.stock_quantity?.[0],
+        units: fieldErrors.price?.[0]
+          ? "Set the units and prices, or enter a stock count — otherwise there's nothing to save."
+          : undefined,
       },
     };
   }
-
-  const body: { price?: number; stock_quantity?: number } = {};
-  if (parsed.data.price !== "" && parsed.data.price !== undefined) {
-    body.price = parsed.data.price;
-  }
-  if (parsed.data.stock_quantity !== "" && parsed.data.stock_quantity !== undefined) {
+  if (parsed.success && parsed.data.stock_quantity !== "" && parsed.data.stock_quantity !== undefined) {
     body.stock_quantity = parsed.data.stock_quantity;
+  } else if (!parsed.success) {
+    const { fieldErrors } = parsed.error.flatten();
+    if (fieldErrors.stock_quantity?.[0]) {
+      return { status: "error", errors: { stock_quantity: fieldErrors.stock_quantity[0] } };
+    }
+  }
+
+  if (body.units === undefined && body.stock_quantity === undefined) {
+    return {
+      status: "error",
+      errors: { units: "Change the units or prices, or enter a stock count — otherwise there's nothing to save." },
+    };
   }
 
   try {
@@ -76,12 +114,12 @@ export async function updatePricing(
 }
 
 /** Confirms exactly what changed, so nobody has to guess whether it saved. */
-function describeSaved(body: { price?: number; stock_quantity?: number }): string {
-  const hasPrice = body.price !== undefined;
+function describeSaved(body: { price?: number; stock_quantity?: number; units?: unknown }): string {
+  const hasPrice = body.price !== undefined || body.units !== undefined;
   const hasStock = body.stock_quantity !== undefined;
 
-  if (hasPrice && hasStock) return "Saved. Price and stock are both up to date.";
-  if (hasPrice) return "Saved. The new price is now in use.";
+  if (hasPrice && hasStock) return "Saved. Units, prices and stock are all up to date.";
+  if (hasPrice) return "Saved. The new units and prices are now in use at the counter.";
   return "Saved. The stock count is up to date.";
 }
 

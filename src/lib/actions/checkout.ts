@@ -6,7 +6,7 @@ import { checkoutRejectionSummary, humaniseCheckoutFailure } from "@/lib/message
 import type { CheckoutItemFailure, DiscountType, Sale } from "@/types";
 
 export interface CheckoutRequest {
-  items: { variant_id: number; quantity: number; name: string }[];
+  items: { variant_id: number; unit_id: number; quantity: number; name: string }[];
   discount?: { type: DiscountType; value: number };
 }
 
@@ -43,8 +43,9 @@ export async function checkout(request: CheckoutRequest): Promise<CheckoutResult
       method: "POST",
       auth: true,
       body: {
-        items: request.items.map(({ variant_id, quantity }) => ({
+        items: request.items.map(({ variant_id, unit_id, quantity }) => ({
           variant_id,
+          unit_id,
           quantity,
         })),
         ...(request.discount ? { discount: request.discount } : {}),

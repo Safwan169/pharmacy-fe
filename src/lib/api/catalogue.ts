@@ -7,6 +7,7 @@ import type {
   Paginated,
   Product,
   ProductVariant,
+  UnitTemplate,
 } from "@/types";
 
 export interface VariantFilters {
@@ -28,6 +29,16 @@ export function listVariants(filters: VariantFilters = {}) {
 
 export function getVariant(id: number) {
   return apiFetch<ProductVariant>(`/variants/${id}`);
+}
+
+/** Suggested unit ladder for a SKU that hasn't been set up yet. */
+export function getUnitTemplate(params: { dosage_form: string; pack_size?: number | null }) {
+  return apiFetch<UnitTemplate>(
+    `/variants/unit-templates${buildQuery({
+      dosage_form: params.dosage_form,
+      ...(params.pack_size ? { pack_size: params.pack_size } : {}),
+    })}`,
+  );
 }
 
 export function listManufacturers(params: { search?: string; limit?: number } = {}) {

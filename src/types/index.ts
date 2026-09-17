@@ -60,10 +60,41 @@ export interface ProductVariant {
   dosageForm: string;
   strength: string | null;
   slug: string | null;
+  /** Price of the default sellable unit. Null until an admin sets units. */
   price: number | null;
+  /** Count in `baseUnit`. */
   stockQuantity: number | null;
   priceUpdatedAt: string | null;
   isActive: boolean;
+  /** The smallest thing counted — tablet, bottle, vial… */
+  baseUnit: string;
+  packSize: number | null;
+  /** Sellable-unit ladder, in display order. Empty until set up. */
+  units: VariantUnit[];
+}
+
+/** "strip of 10 at ৳12". `qtyInBase` is what one of these takes off stock. */
+export interface VariantUnit {
+  id: number;
+  variantId: number;
+  name: string;
+  qtyInBase: number;
+  price: number | null;
+  isSellable: boolean;
+  isDefault: boolean;
+  sortOrder: number;
+}
+
+export interface UnitTemplateRow {
+  name: string;
+  qty_in_base: number;
+  is_sellable: boolean;
+  is_default: boolean;
+}
+
+export interface UnitTemplate {
+  base_unit: string;
+  units: UnitTemplateRow[];
 }
 
 export interface UserProfile {
@@ -81,7 +112,12 @@ export interface SaleItem {
   brandNameSnapshot: string;
   dosageFormSnapshot: string;
   strengthSnapshot: string | null;
+  /** The unit it was sold in, e.g. "strip". */
+  unitNameSnapshot: string;
+  qtyInBase: number;
+  baseQtyDeducted: number;
   unitPrice: number;
+  /** In the sold unit. */
   quantity: number;
   lineTotal: number;
 }
@@ -109,6 +145,7 @@ export interface LowStockItem {
   strength: string | null;
   manufacturer: string;
   stock_quantity: number;
+  base_unit: string;
 }
 
 export interface DashboardSummary {
@@ -126,6 +163,8 @@ export const CHECKOUT_FAILURE_REASONS = [
   "not_found",
   "inactive",
   "not_priced",
+  "unit_not_found",
+  "unit_not_sellable",
   "insufficient_stock",
   "duplicate_item",
   "stock_changed",
@@ -134,6 +173,7 @@ export type CheckoutFailureReason = (typeof CHECKOUT_FAILURE_REASONS)[number];
 
 export interface CheckoutItemFailure {
   variant_id: number;
+  unit_id?: number;
   reason: CheckoutFailureReason;
   message: string;
   requested_quantity?: number;

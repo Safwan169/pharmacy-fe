@@ -23,7 +23,11 @@ import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { searchForCounter, type CounterSearchResult } from "@/lib/actions/search";
+import {
+  searchForCounter,
+  type CounterSearchResult,
+  type CounterUnit,
+} from "@/lib/actions/search";
 import { checkout, type CheckoutResult } from "@/lib/actions/checkout";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { DiscountType, Sale } from "@/types";
@@ -33,9 +37,14 @@ interface BasketLine {
   variantId: number;
   name: string;
   dosageForm: string;
+  /** The unit being sold — strip, box, bottle. */
+  unitId: number;
+  unitName: string;
+  qtyInBase: number;
   unitPrice: number;
-  /** Stock at the time it was added — a guard rail, not the final word. */
+  /** Base-unit stock at the time it was added — a guard rail, not the final word. */
   stockAtAdd: number;
+  /** In the sold unit. */
   quantity: number;
 }
 
@@ -61,16 +70,26 @@ export function CounterTerminal() {
     [result],
   );
 
-  const addItem = useCallback((item: CounterSearchResult) => {
+  const addItem = useCallback((item: CounterSearchResult, unit: CounterUnit) => {
     // Adding the same item twice must merge into one line: the API rejects a
-    // basket that lists a variant more than once.
+    // basket that lists a variant more than once. Picking a different unit
+    // for an item already in the basket switches that line to the new unit.
     setBasket((current) => {
       const existing = current.find((line) => line.variantId === item.id);
       if (existing) {
         return current.map((line) =>
-          line.variantId === item.id
-            ? { ...line, quantity: line.quantity + 1 }
-            : line,
+          line.variantId !== item.id
+            ? line
+            : line.unitId === unit.id
+              ? { ...line, quantity: line.quantity + 1 }
+              : {
+                  ...line,
+                  unitId: unit.id,
+                  unitName: unit.name,
+                  qtyInBase: unit.qtyInBase,
+                  unitPrice: unit.price,
+                  quantity: 1,
+                },
         );
       }
       return [
@@ -79,7 +98,10 @@ export function CounterTerminal() {
           variantId: item.id,
           name: item.name,
           dosageForm: item.dosageForm,
-          unitPrice: item.price ?? 0,
+          unitId: unit.id,
+          unitName: unit.name,
+          qtyInBase: unit.qtyInBase,
+          unitPrice: unit.price,
           stockAtAdd: item.stock ?? 0,
           quantity: 1,
         },
@@ -148,8 +170,9 @@ export function CounterTerminal() {
       const response = await checkout({
         items: basket.map((line) => ({
           variant_id: line.variantId,
+          unit_id: line.unitId,
           quantity: line.quantity,
-          name: line.name,
+          name: `${line.name} (${line.unitName})`,
         })),
         discount:
           discountAmount > 0 && !Number.isNaN(parsedDiscount)
@@ -265,7 +288,8 @@ export function CounterTerminal() {
                             {line.name}
                           </p>
                           <p className="text-xs text-muted">
-                            {line.dosageForm} · {formatCurrency(line.unitPrice)} each
+                            {line.dosageForm} · {formatCurrency(line.unitPrice)} per {line.unitName}
+                            {line.qtyInBase > 1 ? ` of ${line.qtyInBase}` : ""}
                           </p>
                         </div>
                         <button
@@ -311,10 +335,11 @@ export function CounterTerminal() {
                         </span>
                       </div>
 
-                      {line.quantity > line.stockAtAdd && (
+                      {line.quantity * line.qtyInBase > line.stockAtAdd && (
                         <p className="mt-1.5 text-xs text-warning">
-                          Only {line.stockAtAdd} were on the shelf when this was
-                          added. The sale will be refused if there aren&apos;t enough.
+                          Only {Math.floor(line.stockAtAdd / line.qtyInBase)} {line.unitName}
+                          {Math.floor(line.stockAtAdd / line.qtyInBase) === 1 ? "" : "s"} were on the
+                          shelf when this was added. The sale will be refused if there aren&apos;t enough.
                         </p>
                       )}
                     </li>
@@ -421,7 +446,7 @@ function ItemSearch({
   onSelect,
   justAdded,
 }: {
-  onSelect: (item: CounterSearchResult) => void;
+  onSelect: (item: CounterSearchResult, unit: CounterUnit) => void;
   justAdded: { id: number; nonce: number } | null;
 }) {
   const [term, setTerm] = useState("");
@@ -521,27 +546,18 @@ function ItemSearch({
 
         <ul className="divide-y divide-border">
           {results.map((item) => {
-            const sellable = item.price !== null && (item.stock ?? 0) > 0;
+            const stock = item.stock ?? 0;
+            const priced = item.units.length > 0;
+            const sellable = priced && stock > 0;
             const added = justAdded?.id === item.id;
             return (
               // Re-keying on the nonce remounts the row, which restarts the
               // flash when the same item is added twice in a row.
               <li
                 key={added ? `${item.id}-${justAdded.nonce}` : item.id}
-                className="relative"
+                className={cn("relative px-1 py-3", added && "animate-add-flash")}
               >
-                <button
-                  type="button"
-                  onClick={() => sellable && onSelect(item)}
-                  disabled={!sellable}
-                  className={cn(
-                    "flex w-full items-center justify-between gap-3 rounded-md px-1 py-3 text-left transition-colors",
-                    sellable
-                      ? "cursor-pointer hover:bg-background active:bg-primary/10"
-                      : "cursor-not-allowed opacity-70",
-                    added && "animate-add-flash",
-                  )}
-                >
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{item.name}</p>
                     <p className="truncate text-xs text-muted">
@@ -550,22 +566,49 @@ function ItemSearch({
                       {item.manufacturer ? ` · ${item.manufacturer}` : ""}
                     </p>
                   </div>
-
                   <div className="shrink-0 text-right">
-                    {item.price === null ? (
+                    {!priced ? (
                       <Badge tone="warning">No price set</Badge>
-                    ) : (item.stock ?? 0) === 0 ? (
+                    ) : stock === 0 ? (
                       <Badge tone="danger">Out of stock</Badge>
                     ) : (
-                      <>
-                        <p className="text-sm font-semibold tabular-nums">
-                          {formatCurrency(item.price)}
-                        </p>
-                        <p className="text-xs text-muted">{item.stock} in stock</p>
-                      </>
+                      <p className="text-xs text-muted">
+                        {stock} {item.baseUnit}
+                        {stock === 1 ? "" : "s"} in stock
+                      </p>
                     )}
                   </div>
-                </button>
+                </div>
+
+                {sellable && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {item.units.map((unit) => {
+                      const enough = stock >= unit.qtyInBase;
+                      return (
+                        <button
+                          key={unit.id}
+                          type="button"
+                          onClick={() => enough && onSelect(item, unit)}
+                          disabled={!enough}
+                          title={enough ? undefined : `Not enough in stock for a full ${unit.name}`}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors",
+                            enough
+                              ? "cursor-pointer border-border bg-surface hover:border-primary hover:bg-primary/5 active:bg-primary/10"
+                              : "cursor-not-allowed border-border opacity-50",
+                            unit.isDefault && enough && "border-primary/60",
+                          )}
+                        >
+                          <span className="font-medium">{unit.name}</span>
+                          {unit.qtyInBase > 1 && (
+                            <span className="text-muted">×{unit.qtyInBase}</span>
+                          )}
+                          <span className="tabular-nums">{formatCurrency(unit.price)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {added && (
                   <span

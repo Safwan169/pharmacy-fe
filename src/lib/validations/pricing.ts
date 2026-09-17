@@ -24,6 +24,49 @@ export const pricingSchema = z
 
 export type PricingInput = z.infer<typeof pricingSchema>;
 
+/** One rung of the unit ladder as the form posts it (already numbers). */
+export const unitRowSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Give this unit a name, like strip or box.")
+    .max(30, "Keep the unit name under 30 letters.")
+    .regex(/^[a-z][a-z0-9 _-]*$/i, "Unit names can only use letters, numbers, spaces and dashes."),
+  qty_in_base: z
+    .number({ message: "Enter how many are in one of these." })
+    .int("Use a whole number.")
+    .min(1, "At least 1."),
+  price: z
+    .number({ message: "Enter a price using numbers only." })
+    .min(0, "A price can't be negative.")
+    .max(99_999_999.99, "That price looks too high.")
+    .nullable(),
+  is_sellable: z.boolean(),
+  is_default: z.boolean(),
+});
+
+export const unitsSchema = z
+  .array(unitRowSchema)
+  .min(1, "Add at least one unit.")
+  .max(6, "Six units is the most a medicine can have.")
+  .refine((rows) => rows.filter((r) => r.is_default).length === 1, {
+    message: "Pick exactly one unit as the one the counter shows first.",
+  })
+  .refine((rows) => rows.some((r) => r.qty_in_base === 1), {
+    message: "Keep the single-unit row (quantity 1), even if you don't sell singles.",
+  })
+  .refine((rows) => new Set(rows.map((r) => r.name.trim().toLowerCase())).size === rows.length, {
+    message: "Two units have the same name. Rename one of them.",
+  })
+  .refine((rows) => new Set(rows.map((r) => r.qty_in_base)).size === rows.length, {
+    message: "Two units have the same size. Change one of them.",
+  })
+  .refine((rows) => rows.every((r) => !r.is_default || r.is_sellable), {
+    message: "The unit the counter shows first must be sellable.",
+  });
+
+export type UnitRowInput = z.infer<typeof unitRowSchema>;
+
 export const DISCOUNT_TYPE_LABELS = {
   percentage: "Percentage (%)",
   flat: "Fixed amount",

@@ -3,14 +3,27 @@
 import { listVariants } from "@/lib/api/catalogue";
 import type { ProductVariant } from "@/types";
 
+export interface CounterUnit {
+  id: number;
+  name: string;
+  qtyInBase: number;
+  price: number;
+  isDefault: boolean;
+}
+
 export interface CounterSearchResult {
   id: number;
   name: string;
   dosageForm: string;
   manufacturer: string;
   generic: string | null;
+  /** Default-unit price, for the badge only. */
   price: number | null;
+  /** In the base unit. */
   stock: number | null;
+  baseUnit: string;
+  /** Sellable, priced units only — what the counter can actually ring up. */
+  units: CounterUnit[];
 }
 
 /**
@@ -43,5 +56,15 @@ function toResult(variant: ProductVariant): CounterSearchResult {
     generic: variant.generic?.name ?? null,
     price: variant.price,
     stock: variant.stockQuantity,
+    baseUnit: variant.baseUnit,
+    units: (variant.units ?? [])
+      .filter((u) => u.isSellable && u.price !== null)
+      .map((u) => ({
+        id: u.id,
+        name: u.name,
+        qtyInBase: u.qtyInBase,
+        price: u.price as number,
+        isDefault: u.isDefault,
+      })),
   };
 }

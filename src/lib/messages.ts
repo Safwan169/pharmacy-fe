@@ -160,11 +160,13 @@ export function humaniseCheckoutFailure(
   const messages: Record<CheckoutFailureReason, string> = {
     not_found: `${name} is no longer in the catalogue. Remove it from the basket.`,
     inactive: `${name} has been withdrawn from sale. Remove it from the basket.`,
-    not_priced: `${name} doesn't have a price yet, so it can't be sold. Set a price first.`,
+    not_priced: `${name} doesn't have a price for that unit yet, so it can't be sold. Set a price first.`,
+    unit_not_found: `${name} is no longer sold in that unit. Remove it and add it again.`,
+    unit_not_sellable: `${name} isn't sold in that unit. Remove it and pick a different unit.`,
     insufficient_stock:
       failure.available_quantity === 0
-        ? `${name} is out of stock. Remove it from the basket.`
-        : `Only ${failure.available_quantity} of ${name} left in stock — you asked for ${failure.requested_quantity}. Lower the quantity.`,
+        ? `Not enough ${name} in stock for even one of that unit. Try a smaller unit, or remove it.`
+        : `Only ${failure.available_quantity} of ${name} left in that unit — you asked for ${failure.requested_quantity}. Lower the quantity.`,
     duplicate_item: `${name} is in the basket twice. Combine it into one line with the total quantity.`,
     stock_changed: `${name} was sold to someone else while you were checking out. Nothing was charged — please try again.`,
   };

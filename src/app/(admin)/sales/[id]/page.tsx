@@ -86,7 +86,10 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
                   <Td className="text-right tabular-nums text-muted">
                     {formatCurrency(item.unitPrice)}
                   </Td>
-                  <Td className="text-right tabular-nums">{item.quantity}</Td>
+                  <Td className="text-right tabular-nums">
+                    {item.quantity}
+                    <span className="ml-1 text-xs text-muted">{item.unitNameSnapshot}</span>
+                  </Td>
                   <Td className="text-right font-medium tabular-nums">
                     {formatCurrency(item.lineTotal)}
                   </Td>
