@@ -12,6 +12,7 @@ import { AvailabilityControl } from "@/components/catalogue/availability-control
 import { BatchTable } from "@/components/catalogue/batch-table";
 import { SellableBadge, PriceCell, StockCell } from "@/components/catalogue/status-badges";
 import { getUnitTemplate, getVariant, listGenericVariants } from "@/lib/api/catalogue";
+import { getCurrentUser } from "@/lib/current-user";
 import { ApiError } from "@/lib/api/client";
 import { formatDateTime } from "@/lib/utils";
 
@@ -42,6 +43,7 @@ export default async function VariantDetailPage({
   }
 
   const name = `${variant.product.brandName}${variant.strength ? ` ${variant.strength}` : ""}`;
+  const isOwner = (await getCurrentUser()).role === "owner";
 
   // A SKU that has never been set up gets a suggested ladder to start from.
   let template = null;
@@ -123,20 +125,23 @@ export default async function VariantDetailPage({
               title="Batches on the shelf"
               description="Where the stock came from and when each lot expires. The counter sells the soonest-expiring batch first."
               action={
-                <span className="flex gap-3 text-xs font-medium">
-                  <Link href={`/stock/receive`} className="text-primary hover:underline">
-                    Receive stock
-                  </Link>
-                  <Link href={`/stock/movements?variant=${variant.id}`} className="text-primary hover:underline">
-                    History
-                  </Link>
-                </span>
+                isOwner ? (
+                  <span className="flex gap-3 text-xs font-medium">
+                    <Link href={`/stock/receive`} className="text-primary hover:underline">
+                      Receive stock
+                    </Link>
+                    <Link href={`/stock/movements?variant=${variant.id}`} className="text-primary hover:underline">
+                      History
+                    </Link>
+                  </span>
+                ) : undefined
               }
             />
             <BatchTable
               variantId={variant.id}
               baseUnit={variant.baseUnit}
               batches={variant.batches ?? []}
+              canWriteOff={isOwner}
             />
           </Card>
 
@@ -151,6 +156,7 @@ export default async function VariantDetailPage({
           )}
         </div>
 
+        {isOwner && (
         <div className="space-y-5">
           <Card>
             <CardHeader
@@ -182,6 +188,7 @@ export default async function VariantDetailPage({
             </CardBody>
           </Card>
         </div>
+        )}
       </div>
     </>
   );

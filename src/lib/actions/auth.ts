@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { createSession, destroySession } from "@/lib/session";
+import { homeFor } from "@/lib/current-user";
+import type { UserProfile } from "@/types";
 import { loginSchema } from "@/lib/validations";
 
 export interface LoginState {
@@ -43,11 +45,14 @@ export async function login(
       // The API deliberately doesn't say whether it was the email or the
       // password, so neither do we — naming one would help an attacker
       // confirm which admin emails exist.
+      const reason = (error.body as { reason?: string } | null)?.reason;
       return {
         message:
-          error.status === 401
-            ? "That email and password don't match. Please check them and try again."
-            : error.message,
+          reason === "inactive_user"
+            ? "This account has been deactivated. Ask the owner to reactivate it."
+            : error.status === 401
+              ? "That email and password don't match. Please check them and try again."
+              : error.message,
       };
     }
     throw error;
@@ -55,13 +60,22 @@ export async function login(
 
   await createSession(token);
 
+  // Cashiers land on the counter, owners on the dashboard.
+  let home = "/dashboard";
+  try {
+    const me = await apiFetch<UserProfile>("/auth/me", { auth: true });
+    home = homeFor(me.role);
+  } catch {
+    home = "/dashboard";
+  }
+
   // Return them to the page they were trying to reach, but only if it's a path
   // on this site — an absolute URL here would be an open redirect.
   const next = formData.get("next");
   const target =
     typeof next === "string" && next.startsWith("/") && !next.startsWith("//")
       ? next
-      : "/dashboard";
+      : home;
 
   redirect(target);
 }

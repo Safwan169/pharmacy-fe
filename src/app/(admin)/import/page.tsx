@@ -1,3 +1,4 @@
+import { requireOwner } from "@/lib/current-user";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardHeader, CardBody } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
@@ -5,7 +6,8 @@ import { ImportForm } from "@/components/import/import-form";
 
 export const metadata = { title: "Import" };
 
-export default function ImportPage() {
+export default async function ImportPage() {
+  await requireOwner();
   return (
     <>
       <PageHeader

@@ -151,6 +151,10 @@ export function humaniseApiMessage(status: number, payload: unknown): string {
  * The API returns a per-line reason so the counter staff can fix the basket
  * without a second lookup — each of these says what happened AND what to do.
  */
+export function forbiddenMessage(): string {
+  return "Only the owner can do this. Ask them to sign in.";
+}
+
 export function humaniseCheckoutFailure(
   failure: CheckoutItemFailure,
   itemName?: string,

@@ -8,6 +8,7 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { SaleActions } from "@/components/sales/sale-actions";
 import { getSale } from "@/lib/api/sales";
+import { getCurrentUser } from "@/lib/current-user";
 import { ApiError } from "@/lib/api/client";
 import { formatCurrency, formatDateTime, todayInDhaka } from "@/lib/utils";
 import { REFUND_METHOD_LABELS, SALE_STATUS_LABELS } from "@/types";
@@ -57,6 +58,7 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
   const returns = sale.returns ?? [];
   const refunded = returns.reduce((sum, r) => sum + r.refundAmount, 0);
   const isToday = dhakaDate(sale.createdAt) === todayInDhaka();
+  const isOwner = (await getCurrentUser()).role === "owner";
 
   return (
     <>
@@ -187,7 +189,7 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
               {sale.createdBy && (
                 <div className="flex justify-between">
                   <dt className="text-muted">Served by</dt>
-                  <dd className="truncate">{sale.createdBy.email}</dd>
+                  <dd className="truncate">{sale.createdBy.name || sale.createdBy.email}</dd>
                 </div>
               )}
             </dl>
@@ -197,7 +199,7 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
 
       <div className="mt-5 grid gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <SaleActions sale={sale} isToday={isToday} />
+          <SaleActions sale={sale} isToday={isToday} canVoid={isOwner} />
         </div>
         {returns.length > 0 && (
           <Card className="h-fit">

@@ -36,10 +36,12 @@ export function BatchTable({
   variantId,
   baseUnit,
   batches,
+  canWriteOff = true,
 }: {
   variantId: number;
   baseUnit: string;
   batches: StockBatch[];
+  canWriteOff?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(writeOffBatch, initialState);
 
@@ -96,7 +98,7 @@ export function BatchTable({
                   )}
                 </Td>
                 <Td className="text-right">
-                  {expired && batch.quantity > 0 && (
+                  {canWriteOff && expired && batch.quantity > 0 && (
                     <form action={formAction}>
                       <input type="hidden" name="batch_id" value={batch.id} />
                       <input type="hidden" name="variant_id" value={variantId} />

@@ -4,12 +4,15 @@ import { useState } from "react";
 import { LogOut, Menu } from "lucide-react";
 import { logout } from "@/lib/actions/auth";
 import { MobileSidebar } from "./sidebar";
+import { ChangePassword } from "./change-password";
 import type { UserProfile } from "@/types";
 
 export function Topbar({ user }: { user: UserProfile | null }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const initials = user?.email.slice(0, 2).toUpperCase() ?? "--";
+  const display = user?.name?.trim() || user?.email || "Signed in";
+  const initials = display.slice(0, 2).toUpperCase();
+  const roleLabel = user?.role === "owner" ? "Owner" : user?.role === "cashier" ? "Cashier" : (user?.role ?? "");
 
   return (
     <>
@@ -29,10 +32,12 @@ export function Topbar({ user }: { user: UserProfile | null }) {
               {initials}
             </span>
             <div className="hidden sm:block">
-              <p className="text-xs font-medium">{user?.email ?? "Signed in"}</p>
-              <p className="text-xs text-muted capitalize">{user?.role ?? "admin"}</p>
+              <p className="text-xs font-medium">{display}</p>
+              <p className="text-xs text-muted">{roleLabel}</p>
             </div>
           </div>
+
+          <ChangePassword />
 
           <form action={logout} className="border-l border-border pl-3">
             <button
@@ -46,7 +51,7 @@ export function Topbar({ user }: { user: UserProfile | null }) {
         </div>
       </header>
 
-      <MobileSidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
+      <MobileSidebar open={menuOpen} onClose={() => setMenuOpen(false)} role={user?.role ?? "cashier"} />
     </>
   );
 }

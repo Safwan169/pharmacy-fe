@@ -1,3 +1,4 @@
+import { requireOwner } from "@/lib/current-user";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Truck } from "lucide-react";
@@ -16,6 +17,7 @@ import { ApiError } from "@/lib/api/client";
 export const metadata = { title: "Suppliers" };
 
 export default async function SuppliersPage({ searchParams }: PageProps<"/suppliers">) {
+  await requireOwner();
   const params = await searchParams;
   const search = typeof params.search === "string" ? params.search : undefined;
   const status = typeof params.status === "string" ? params.status : "active";

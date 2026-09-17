@@ -1,3 +1,4 @@
+import { requireOwner } from "@/lib/current-user";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Banknote, Boxes, CalendarClock, PackageCheck, ReceiptText } from "lucide-react";
@@ -23,6 +24,7 @@ const PERIOD_LABELS: Record<SummaryPeriod, string> = {
 };
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
+  await requireOwner();
   const params = await searchParams;
   const requested = typeof params.period === "string" ? params.period : "today";
   const period: SummaryPeriod = SUMMARY_PERIODS.includes(requested as SummaryPeriod)

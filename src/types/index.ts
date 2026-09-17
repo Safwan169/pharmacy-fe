@@ -199,10 +199,24 @@ export interface UnitTemplate {
   units: UnitTemplateRow[];
 }
 
+export const ROLES = ["owner", "cashier"] as const;
+export type Role = (typeof ROLES)[number];
+
 export interface UserProfile {
   id: number;
   email: string;
-  role: string;
+  name: string | null;
+  role: Role | string;
+}
+
+/** A row from `GET /users` (owner only). */
+export interface ManagedUser {
+  id: number;
+  email: string;
+  name: string | null;
+  role: Role | string;
+  is_active: boolean;
+  created_at: string;
 }
 
 export const DISCOUNT_TYPES = ["flat", "percentage"] as const;
@@ -277,7 +291,7 @@ export interface Sale {
   totalAmount: number;
   paymentMethod: string;
   createdById: number;
-  createdBy?: UserProfile;
+  createdBy?: { id: number; email: string; name?: string | null; role?: string };
   /** Only on `GET /sales/:id`; the list response omits line items. */
   items?: SaleItem[];
   status: SaleStatus;

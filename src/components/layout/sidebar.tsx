@@ -12,6 +12,7 @@ import {
   Boxes,
   Cross,
   X,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ export const navigation = [
     label: "Dashboard",
     icon: LayoutDashboard,
     hint: "Sales figures and what needs restocking",
+    ownerOnly: true,
   },
   {
     href: "/pos",
@@ -49,6 +51,7 @@ export const navigation = [
     label: "Stock",
     icon: Boxes,
     hint: "Batches, expiry dates and stock history",
+    ownerOnly: true,
   },
   {
     href: "/sales",
@@ -61,15 +64,24 @@ export const navigation = [
     label: "Import",
     icon: Upload,
     hint: "Load the catalogue from a CSV",
+    ownerOnly: true,
+  },
+  {
+    href: "/users",
+    label: "Users",
+    icon: Users,
+    hint: "Who can sign in",
+    ownerOnly: true,
   },
 ];
 
-export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+export function SidebarNav({ onNavigate, role }: { onNavigate?: () => void; role: string }) {
   const pathname = usePathname();
+  const visible = navigation.filter((item) => !("ownerOnly" in item && item.ownerOnly) || role === "owner");
 
   return (
     <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-      {navigation.map(({ href, label, icon: Icon, hint }) => {
+      {visible.map(({ href, label, icon: Icon, hint }) => {
         const active = pathname === href || pathname.startsWith(`${href}/`);
         return (
           <Link
@@ -105,11 +117,11 @@ function Brand() {
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ role }: { role: string }) {
   return (
     <aside className="hidden w-60 shrink-0 border-r border-border bg-surface lg:flex lg:flex-col">
       <Brand />
-      <SidebarNav />
+      <SidebarNav role={role} />
     </aside>
   );
 }
@@ -118,9 +130,11 @@ export function Sidebar() {
 export function MobileSidebar({
   open,
   onClose,
+  role,
 }: {
   open: boolean;
   onClose: () => void;
+  role: string;
 }) {
   if (!open) return null;
 
@@ -144,7 +158,7 @@ export function MobileSidebar({
             <X className="h-4 w-4" aria-hidden />
           </button>
         </div>
-        <SidebarNav onNavigate={onClose} />
+        <SidebarNav onNavigate={onClose} role={role} />
       </div>
     </div>
   );

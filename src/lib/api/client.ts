@@ -115,6 +115,9 @@ export async function apiFetch<T>(
   if (response.status === 401 && redirectOnUnauthorized) {
     redirect("/login");
   }
+  if (response.status === 403) {
+    throw new ApiError(403, "Only the owner can do this. Ask them to sign in.", await readBody(response));
+  }
 
   if (response.status === 204) {
     return undefined as T;

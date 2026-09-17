@@ -13,9 +13,9 @@ import { REFUND_METHOD_LABELS, type RefundMethod, type Sale, type SaleItem } fro
 const voidInitial: VoidState = { status: "idle" };
 
 /** The two ways to undo a sale, shown only when each is allowed. */
-export function SaleActions({ sale, isToday }: { sale: Sale; isToday: boolean }) {
+export function SaleActions({ sale, isToday, canVoid: roleAllowsVoid }: { sale: Sale; isToday: boolean; canVoid: boolean }) {
   const items = sale.items ?? [];
-  const canVoid = sale.status === "completed" && isToday;
+  const canVoid = roleAllowsVoid && sale.status === "completed" && isToday;
   const canReturn =
     (sale.status === "completed" || sale.status === "partial_return") &&
     items.some((i) => i.quantity - i.returnedQuantity > 0);
