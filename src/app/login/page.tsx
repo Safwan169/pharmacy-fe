@@ -48,7 +48,10 @@ export default async function LoginPage() {
           </div>
 
           <Suspense fallback={<div className="h-72" />}>
-            <LoginForm />
+            <LoginForm
+              defaultEmail={process.env.DEFAULT_LOGIN_EMAIL ?? ""}
+              defaultPassword={process.env.DEFAULT_LOGIN_PASSWORD ?? ""}
+            />
           </Suspense>
         </section>
 

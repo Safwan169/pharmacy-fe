@@ -10,7 +10,18 @@ import { useT } from "@/i18n/client";
 
 const initialState: LoginState = {};
 
-export function LoginForm() {
+/**
+ * `defaultEmail`/`defaultPassword` pre-fill the boxes for a shop that wants
+ * one-click sign-in on its own counter PC. Both come from server-side env, so
+ * nothing is baked into the bundle; leave them unset anywhere public.
+ */
+export function LoginForm({
+  defaultEmail = "",
+  defaultPassword = "",
+}: {
+  defaultEmail?: string;
+  defaultPassword?: string;
+}) {
   const [state, formAction, pending] = useActionState(login, initialState);
   const next = useSearchParams().get("next");
   const t = useT();
@@ -28,6 +39,7 @@ export function LoginForm() {
           type="email"
           autoComplete="email"
           autoFocus
+          defaultValue={defaultEmail}
           placeholder="you@pharmacy.com"
           aria-describedby={state.errors?.email ? "email-error" : undefined}
           className="h-12 rounded-xl shadow-xs"
@@ -41,6 +53,7 @@ export function LoginForm() {
           name="password"
           type="password"
           autoComplete="current-password"
+          defaultValue={defaultPassword}
           placeholder={t("login.passwordPlaceholder")}
           className="h-12 rounded-xl shadow-xs"
           invalid={!!state.errors?.password}
