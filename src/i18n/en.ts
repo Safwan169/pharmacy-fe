@@ -837,6 +837,7 @@ export const en = {
   "pricingAction.reorderInteger": "The reorder level must be a whole number, or left blank.",
   "pricingAction.savedReorder": "Saved. The reorder level is updated.",
   "catalogue.reorderDefault": "Shop default",
+  "pricing.baseLocked": "Counting unit — always 1. Other units are multiples of it.",
 } as const;
 
 export type MessageKey = keyof typeof en;

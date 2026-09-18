@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Lock, Plus, Trash2 } from "lucide-react";
 import { updatePricing, type PricingState } from "@/lib/actions/pricing";
 import { Field, Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -167,23 +167,34 @@ export function PricingForm({
                   row.isDefault && "border-primary/50 bg-primary/5",
                 )}
               >
-                <div className="grid grid-cols-[1fr_5rem] gap-2">
-                  <Input
-                    aria-label={t("pricing.unitName")}
-                    value={row.name}
-                    placeholder="strip"
-                    onChange={(e) => update(row.key, { name: e.target.value })}
-                    disabled={isBase && rows.length > 1}
-                  />
-                  <Input
-                    aria-label={t("pricing.howMany", { unit: pluralise(baseUnit, 2) })}
-                    inputMode="numeric"
-                    value={row.qtyInBase}
-                    placeholder="10"
-                    onChange={(e) => update(row.key, { qtyInBase: e.target.value.replace(/\D/g, "") })}
-                    disabled={isBase && rows.length > 1}
-                  />
-                </div>
+                {isBase && rows.length > 1 ? (
+                  // The counting unit is fixed: its name is the base unit and
+                  // its size is always 1. Shown as text so it can't be mistaken
+                  // for a box that refuses to type.
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="font-medium">{row.name}</span>
+                    <span className="inline-flex items-center gap-1 text-xs text-muted">
+                      <Lock className="h-3 w-3" aria-hidden />
+                      {t("pricing.baseLocked")}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-[1fr_5rem] gap-2">
+                    <Input
+                      aria-label={t("pricing.unitName")}
+                      value={row.name}
+                      placeholder="strip"
+                      onChange={(e) => update(row.key, { name: e.target.value })}
+                    />
+                    <Input
+                      aria-label={t("pricing.howMany", { unit: pluralise(baseUnit, 2) })}
+                      inputMode="numeric"
+                      value={row.qtyInBase}
+                      placeholder="10"
+                      onChange={(e) => update(row.key, { qtyInBase: e.target.value.replace(/\D/g, "") })}
+                    />
+                  </div>
+                )}
                 <div className="mt-2 flex items-center gap-2">
                   <div className="relative flex-1">
                     <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted">

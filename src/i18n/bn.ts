@@ -839,4 +839,5 @@ export const bn: Record<MessageKey, string> = {
   "pricingAction.reorderInteger": "রিঅর্ডার সীমা পূর্ণ সংখ্যা হতে হবে, বা খালি রাখুন।",
   "pricingAction.savedReorder": "সেভ হয়েছে। রিঅর্ডার সীমা আপডেট।",
   "catalogue.reorderDefault": "দোকানের ডিফল্ট",
+  "pricing.baseLocked": "গোনার একক — সবসময় ১। বাকি ইউনিটগুলো এর গুণিতক।",
 };
