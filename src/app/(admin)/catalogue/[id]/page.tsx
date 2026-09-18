@@ -29,8 +29,10 @@ export async function generateMetadata({ params }: PageProps<"/catalogue/[id]">)
 
 export default async function VariantDetailPage({
   params,
+  searchParams,
 }: PageProps<"/catalogue/[id]">) {
   const { id } = await params;
+  const justCreated = (await searchParams).created === "1";
   const variantId = Number(id);
   const t = await getT();
 
@@ -82,6 +84,12 @@ export default async function VariantDetailPage({
         }
       />
 
+      {justCreated && (
+        <Alert tone="success" title={t("newMedicine.createdTitle")} className="mb-5">
+          {t("newMedicine.createdBody")}
+        </Alert>
+      )}
+
       {!variant.isActive && (
         <Alert tone="warning" title={t("catalogue.withdrawnTitle")} className="mb-5">
           {t("catalogue.withdrawnBody")}
@@ -115,6 +123,10 @@ export default async function VariantDetailPage({
                     ? formatDateTime(variant.priceUpdatedAt)
                     : t("catalogue.neverPriced")
                 }
+              />
+              <Detail
+                label={t("pricing.reorderLabel")}
+                value={variant.reorderLevel === null ? t("catalogue.reorderDefault") : `${variant.reorderLevel} ${variant.baseUnit}`}
               />
               <Detail label={t("catalogue.reference")} value={`#${variant.id}`} />
             </CardBody>
@@ -170,6 +182,7 @@ export default async function VariantDetailPage({
                 units={variant.units ?? []}
                 template={template}
                 stock={variant.stockQuantity}
+                reorderLevel={variant.reorderLevel}
               />
             </CardBody>
           </Card>

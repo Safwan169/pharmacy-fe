@@ -41,6 +41,21 @@ export function getUnitTemplate(params: { dosage_form: string; pack_size?: numbe
   );
 }
 
+export interface NewVariantInput {
+  brand_name: string;
+  manufacturer_name: string;
+  generic_name?: string;
+  type?: "allopathic" | "herbal";
+  dosage_form: string;
+  strength?: string;
+  pack_size?: number;
+}
+
+/** Adds a medicine the imported catalogue doesn't have. Owner only. */
+export function createVariant(body: NewVariantInput) {
+  return apiFetch<ProductVariant>("/variants", { method: "POST", auth: true, body });
+}
+
 export function listManufacturers(params: { search?: string; limit?: number } = {}) {
   return apiFetch<Paginated<Manufacturer>>(`/manufacturers${buildQuery(params)}`);
 }

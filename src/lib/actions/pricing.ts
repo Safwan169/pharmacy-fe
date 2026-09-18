@@ -11,7 +11,7 @@ import type { Translate } from "@/i18n";
 export interface PricingState {
   status: "idle" | "success" | "error";
   message?: string;
-  errors?: { price?: string; stock_quantity?: string; units?: string };
+  errors?: { price?: string; stock_quantity?: string; units?: string; reorder_level?: string };
 }
 
 /**
@@ -38,6 +38,7 @@ export async function updatePricing(
     price?: number;
     stock_quantity?: number;
     stock_note?: string;
+    reorder_level?: number | null;
     units?: Array<{
       name: string;
       qty_in_base: number;
@@ -87,7 +88,16 @@ export async function updatePricing(
     }
   }
 
-  if (body.units === undefined && body.stock_quantity === undefined) {
+  // Blank means "use the shop-wide number"; it is only sent when it changed.
+  const reorderRaw = String(formData.get("reorder_level") ?? "").trim();
+  const reorderWas = String(formData.get("reorder_level_was") ?? "").trim();
+  if (reorderRaw !== reorderWas) {
+    if (reorderRaw === "") body.reorder_level = null;
+    else if (/^\d{1,7}$/.test(reorderRaw)) body.reorder_level = Number(reorderRaw);
+    else return { status: "error", errors: { reorder_level: t("pricingAction.reorderInteger") } };
+  }
+
+  if (body.units === undefined && body.stock_quantity === undefined && body.reorder_level === undefined) {
     return {
       status: "error",
       errors: { units: t("pricingAction.nothingToSave") },
@@ -119,13 +129,17 @@ export async function updatePricing(
 }
 
 /** Confirms exactly what changed, so nobody has to guess whether it saved. */
-function describeSaved(body: { price?: number; stock_quantity?: number; units?: unknown }, t: Translate): string {
+function describeSaved(
+  body: { price?: number; stock_quantity?: number; units?: unknown; reorder_level?: number | null },
+  t: Translate,
+): string {
   const hasPrice = body.price !== undefined || body.units !== undefined;
   const hasStock = body.stock_quantity !== undefined;
 
   if (hasPrice && hasStock) return t("pricingAction.savedBoth");
   if (hasPrice) return t("pricingAction.savedUnits");
-  return t("pricingAction.savedStock");
+  if (hasStock) return t("pricingAction.savedStock");
+  return t("pricingAction.savedReorder");
 }
 
 export interface WriteOffState {

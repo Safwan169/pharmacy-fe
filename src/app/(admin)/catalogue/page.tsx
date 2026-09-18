@@ -7,6 +7,9 @@ import { VariantFilters } from "@/components/catalogue/variant-filters";
 import { VariantTable } from "@/components/catalogue/variant-table";
 import { listGenerics, listManufacturers, listVariants } from "@/lib/api/catalogue";
 import { ApiError } from "@/lib/api/client";
+import { LinkButton } from "@/components/ui/link-button";
+import { getCurrentUser } from "@/lib/current-user";
+import { Plus } from "lucide-react";
 import { getT } from "@/i18n/server";
 
 export const metadata = { title: "Catalogue" };
@@ -16,6 +19,7 @@ const FILTER_OPTIONS_LIMIT = 100;
 
 export default async function CataloguePage({ searchParams }: PageProps<"/catalogue">) {
   const t = await getT();
+  const isOwner = (await getCurrentUser()).role === "owner";
   const params = await searchParams;
   const filters = readFilters(params);
 
@@ -24,6 +28,14 @@ export default async function CataloguePage({ searchParams }: PageProps<"/catalo
       <PageHeader
         title={t("catalogue.title")}
         description={t("catalogue.description")}
+        action={
+          isOwner ? (
+            <LinkButton href="/catalogue/new">
+              <Plus className="h-4 w-4" aria-hidden />
+              {t("newMedicine.button")}
+            </LinkButton>
+          ) : undefined
+        }
       />
 
       <Suspense fallback={<div className="mb-4 h-24 animate-pulse rounded-lg bg-surface" />}>

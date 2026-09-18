@@ -65,6 +65,8 @@ export interface ProductVariant {
   /** Count in `baseUnit`. */
   stockQuantity: number | null;
   priceUpdatedAt: string | null;
+  /** Restock below this many base units; null = shop-wide setting. */
+  reorderLevel: number | null;
   isActive: boolean;
   /** The smallest thing counted — tablet, bottle, vial… */
   baseUnit: string;

@@ -39,12 +39,14 @@ export function PricingForm({
   units,
   template,
   stock,
+  reorderLevel,
 }: {
   variantId: number;
   baseUnit: string;
   units: VariantUnit[];
   template: UnitTemplate | null;
   stock: number | null;
+  reorderLevel: number | null;
 }) {
   const [state, formAction, pending] = useActionState(updatePricing, initialState);
   const t = useT();
@@ -277,6 +279,25 @@ export function PricingForm({
         hint={t("pricing.noteHint")}
       >
         <Input id="stock_note" name="stock_note" type="text" maxLength={255} autoComplete="off" />
+      </Field>
+
+      <Field
+        label={t("pricing.reorderLabel")}
+        htmlFor="reorder_level"
+        error={state.errors?.reorder_level}
+        hint={t("pricing.reorderHint", { unit: pluralise(baseUnit, 2) })}
+      >
+        <input type="hidden" name="reorder_level_was" value={reorderLevel ?? ""} />
+        <Input
+          id="reorder_level"
+          name="reorder_level"
+          type="text"
+          inputMode="numeric"
+          defaultValue={reorderLevel ?? ""}
+          placeholder={t("catalogue.reorderDefault")}
+          autoComplete="off"
+          invalid={!!state.errors?.reorder_level}
+        />
       </Field>
 
       <Button type="submit" disabled={pending} className="w-full">
