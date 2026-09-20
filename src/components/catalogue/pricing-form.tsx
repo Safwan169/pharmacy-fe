@@ -23,6 +23,11 @@ interface Row {
   price: string;
   isSellable: boolean;
   isDefault: boolean;
+  /**
+   * The counting unit's row. Decided once, when the rows are built — never
+   * from the typed size, or typing "10" would lock the row at "1".
+   */
+  isBase: boolean;
 }
 
 /**
@@ -60,6 +65,7 @@ export function PricingForm({
           price: u.price === null ? "" : String(u.price),
           isSellable: u.isSellable,
           isDefault: u.isDefault,
+          isBase: u.qtyInBase === 1,
         }))
       : (template?.units ?? [{ name: baseUnit, qty_in_base: 1, is_sellable: true, is_default: true }]).map(
           (u, i) => ({
@@ -69,6 +75,7 @@ export function PricingForm({
             price: "",
             isSellable: u.is_sellable,
             isDefault: u.is_default,
+            isBase: u.qty_in_base === 1,
           }),
         ),
   );
@@ -100,7 +107,7 @@ export function PricingForm({
     setUnitsChanged(true);
     setRows((current) => [
       ...current,
-      { key: nextKey(), name: "", qtyInBase: "", price: "", isSellable: true, isDefault: false },
+      { key: nextKey(), name: "", qtyInBase: "", price: "", isSellable: true, isDefault: false, isBase: false },
     ]);
   }
 
@@ -158,7 +165,7 @@ export function PricingForm({
 
         <div className="mt-3 space-y-2">
           {rows.map((row) => {
-            const isBase = Number(row.qtyInBase) === 1;
+            const isBase = row.isBase;
             return (
               <div
                 key={row.key}
