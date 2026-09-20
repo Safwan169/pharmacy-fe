@@ -238,8 +238,8 @@ export function CounterTerminal() {
         <ItemSearch onSelect={addItem} justAdded={justAdded} />
       </div>
 
-      <div className="lg:sticky lg:top-2 lg:col-span-2 lg:self-start">
-        <Card className="max-h-[calc(100vh-6rem)] overflow-y-auto lg:max-h-[calc(100vh-7rem)]">
+      <div id="basket" className="scroll-mt-4 pb-16 lg:pb-0 lg:sticky lg:top-2 lg:col-span-2 lg:self-start">
+        <Card className="lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
           <CardHeader
             title={t("pos.basket")}
             description={
@@ -433,12 +433,26 @@ export function CounterTerminal() {
                       ? `${t("pos.recordOnAccount")} · ${formatCurrency(total)}`
                       : `${t("pos.takePayment")} · ${formatCurrency(total)}`}
                 </Button>
-               
               </CardBody>
             </>
           )}
         </Card>
       </div>
+
+      {/* On a phone the basket sits below the results; this keeps the total
+          and a jump link in reach while scrolling through medicines. */}
+      {basket.length > 0 && (
+        <a
+          href="#basket"
+          className="fixed inset-x-4 bottom-4 z-40 flex items-center justify-between rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-lg lg:hidden"
+        >
+          <span>
+            <ShoppingCart className="mr-2 inline h-4 w-4" aria-hidden />
+            {t(basket.length === 1 ? "pos.itemCount" : "pos.itemsCount", { count: basket.length })}
+          </span>
+          <span className="tabular-nums">{formatCurrency(total)} →</span>
+        </a>
+      )}
     </div>
   );
 }
