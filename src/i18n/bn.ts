@@ -840,4 +840,7 @@ export const bn: Record<MessageKey, string> = {
   "pricingAction.savedReorder": "সেভ হয়েছে। রিঅর্ডার সীমা আপডেট।",
   "catalogue.reorderDefault": "দোকানের ডিফল্ট",
   "pricing.baseLocked": "গোনার একক — সবসময় ১। বাকি ইউনিটগুলো এর গুণিতক।",
+  "pricing.auto": "অটো",
+  "pricing.recalc": "{unit} এর দাম থেকে আবার হিসাব করুন",
+  "pricing.offRate": "আপনার লেখা {rate} / {unit} থেকে অনেক দূরে — দেখে নিন",
 };

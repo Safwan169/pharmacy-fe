@@ -838,6 +838,9 @@ export const en = {
   "pricingAction.savedReorder": "Saved. The reorder level is updated.",
   "catalogue.reorderDefault": "Shop default",
   "pricing.baseLocked": "Counting unit — always 1. Other units are multiples of it.",
+  "pricing.auto": "auto",
+  "pricing.recalc": "Recalculate from the {unit} price",
+  "pricing.offRate": "far from the {rate} / {unit} you typed — check this",
 } as const;
 
 export type MessageKey = keyof typeof en;

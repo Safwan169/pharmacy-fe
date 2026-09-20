@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { Lock, Plus, Trash2 } from "lucide-react";
+import { Lock, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { updatePricing, type PricingState } from "@/lib/actions/pricing";
 import { Field, Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,30 @@ interface Row {
    * from the typed size, or typing "10" would lock the row at "1".
    */
   isBase: boolean;
+  /**
+   * True once the shop typed this price itself. Untouched rows follow the
+   * per-unit rate of whichever price was typed last, so one number prices
+   * the whole ladder; a typed one is left alone until its ↻ is pressed.
+   */
+  priceManual: boolean;
+}
+
+/** Pro-rata price for `qty` base units, rounded up to the nearest ৳0.50. */
+function priceFor(perBase: number, qty: number): string {
+  return (Math.ceil(perBase * qty * 2) / 2).toFixed(2);
+}
+
+/** Fills every non-manual row from `source`'s per-unit rate. */
+function propagate(rows: Row[], source: Row): Row[] {
+  const price = Number(source.price);
+  const qty = Number(source.qtyInBase);
+  if (!(price > 0) || !(qty > 0)) return rows;
+  const perBase = price / qty;
+  return rows.map((r) =>
+    r.key === source.key || r.priceManual || !(Number(r.qtyInBase) > 0)
+      ? r
+      : { ...r, price: priceFor(perBase, Number(r.qtyInBase)) },
+  );
 }
 
 /**
@@ -66,6 +90,7 @@ export function PricingForm({
           isSellable: u.isSellable,
           isDefault: u.isDefault,
           isBase: u.qtyInBase === 1,
+          priceManual: u.price !== null,
         }))
       : (template?.units ?? [{ name: baseUnit, qty_in_base: 1, is_sellable: true, is_default: true }]).map(
           (u, i) => ({
@@ -76,6 +101,7 @@ export function PricingForm({
             isSellable: u.is_sellable,
             isDefault: u.is_default,
             isBase: u.qty_in_base === 1,
+            priceManual: false,
           }),
         ),
   );
@@ -107,27 +133,48 @@ export function PricingForm({
     setUnitsChanged(true);
     setRows((current) => [
       ...current,
-      { key: nextKey(), name: "", qtyInBase: "", price: "", isSellable: true, isDefault: false, isBase: false },
+      { key: nextKey(), name: "", qtyInBase: "", price: "", isSellable: true, isDefault: false, isBase: false, priceManual: false },
     ]);
   }
 
-  /** Fill the blank prices from the one just typed, pro rata, rounded up to ৳0.50. */
-  function suggestFrom(key: number) {
-    const source = rows.find((r) => r.key === key);
-    const price = Number(source?.price);
-    const qty = Number(source?.qtyInBase);
-    if (!source || !(price > 0) || !(qty > 0)) return;
-    const perBase = price / qty;
+  /** A typed price is the shop's own; the untouched rows re-price from it at once. */
+  function setPrice(key: number, price: string) {
     setUnitsChanged(true);
-    setRows((current) =>
-      current.map((r) => {
-        if (r.key === key || r.price !== "" || !(Number(r.qtyInBase) > 0)) return r;
-        const raw = perBase * Number(r.qtyInBase);
-        const rounded = Math.ceil(raw * 2) / 2;
-        return { ...r, price: rounded.toFixed(2) };
-      }),
-    );
+    setRows((current) => {
+      const next = current.map((r) => (r.key === key ? { ...r, price, priceManual: price !== "" } : r));
+      const source = next.find((r) => r.key === key);
+      return source ? propagate(next, source) : next;
+    });
   }
+
+  /** Changing a row's size re-prices it (if it follows) and everything that follows it. */
+  function setQty(key: number, qtyInBase: string) {
+    setUnitsChanged(true);
+    setRows((current) => {
+      const next = current.map((r) => (r.key === key ? { ...r, qtyInBase } : r));
+      const anchor = anchorRow(next, key);
+      return anchor ? propagate(next, anchor) : next;
+    });
+  }
+
+  /** Puts one row back on auto: it takes the rate of the typed price it's closest to. */
+  function recalc(key: number) {
+    setUnitsChanged(true);
+    setRows((current) => {
+      const next = current.map((r) => (r.key === key ? { ...r, priceManual: false } : r));
+      const anchor = anchorRow(next, key);
+      return anchor ? propagate(next, anchor) : next;
+    });
+  }
+
+  /** The typed price the auto rows follow: the counting unit first, else the first typed one. */
+  function anchorRow(list: Row[], except: number): Row | undefined {
+    const typed = list.filter((r) => r.key !== except && r.priceManual && Number(r.price) > 0 && Number(r.qtyInBase) > 0);
+    return typed.find((r) => r.isBase) ?? typed[0];
+  }
+
+  const anchor = anchorRow(rows, -1);
+  const anchorRate = anchor ? Number(anchor.price) / Number(anchor.qtyInBase) : null;
 
   const payload = JSON.stringify(
     rows.map((r) => ({
@@ -198,7 +245,7 @@ export function PricingForm({
                       inputMode="numeric"
                       value={row.qtyInBase}
                       placeholder="10"
-                      onChange={(e) => update(row.key, { qtyInBase: e.target.value.replace(/\D/g, "") })}
+                      onChange={(e) => setQty(row.key, e.target.value.replace(/\D/g, ""))}
                     />
                   </div>
                 )}
@@ -213,10 +260,20 @@ export function PricingForm({
                       value={row.price}
                       placeholder="0.00"
                       className="pl-7"
-                      onChange={(e) => update(row.key, { price: e.target.value })}
-                      onBlur={() => suggestFrom(row.key)}
+                      onChange={(e) => setPrice(row.key, e.target.value)}
                     />
                   </div>
+                  {row.priceManual && anchor && anchor.key !== row.key && (
+                    <button
+                      type="button"
+                      onClick={() => recalc(row.key)}
+                      title={t("pricing.recalc", { unit: anchor.name })}
+                      aria-label={t("pricing.recalc", { unit: anchor.name })}
+                      className="rounded-md p-1 text-muted hover:bg-background hover:text-foreground"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+                    </button>
+                  )}
                   <label className="flex items-center gap-1 text-xs">
                     <input
                       type="checkbox"
@@ -247,11 +304,19 @@ export function PricingForm({
                     </button>
                   )}
                 </div>
-                {row.price !== "" && Number(row.qtyInBase) > 1 && Number(row.price) > 0 && (
-                  <p className="mt-1 text-xs text-muted">
-                    {formatCurrency(Number(row.price) / Number(row.qtyInBase))} / {baseUnit}
-                  </p>
-                )}
+                {row.price !== "" && Number(row.qtyInBase) > 1 && Number(row.price) > 0 && (() => {
+                  const rate = Number(row.price) / Number(row.qtyInBase);
+                  // A per-unit rate far off the typed one is almost always a slip
+                  // (৳30 for a box of 30 when a capsule is ৳7), so say so.
+                  const off = anchorRate !== null && anchor?.key !== row.key && Math.abs(rate - anchorRate) / anchorRate > 0.3;
+                  return (
+                    <p className={cn("mt-1 text-xs", off ? "text-warning" : "text-muted")}>
+                      {formatCurrency(rate)} / {baseUnit}
+                      {!row.priceManual && <span className="ml-1">· {t("pricing.auto")}</span>}
+                      {off && <span className="ml-1">· {t("pricing.offRate", { rate: formatCurrency(anchorRate), unit: baseUnit })}</span>}
+                    </p>
+                  );
+                })()}
               </div>
             );
           })}
