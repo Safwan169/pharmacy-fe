@@ -33,6 +33,8 @@ import { formatCurrency, cn } from "@/lib/utils";
 import type { DiscountType, Sale } from "@/types";
 import { SaleReceipt } from "./sale-receipt";
 import { PaymentPanel, type PaymentChoice } from "./payment-panel";
+import { loadHeldSales, newHeldSale, saveHeldSales, type HeldSale } from "./held-sales";
+import { PauseCircle, PlayCircle } from "lucide-react";
 import { useT } from "@/i18n/client";
 
 interface BasketLine {
@@ -65,6 +67,47 @@ export function CounterTerminal() {
   );
   const addNonce = useRef(0);
   const t = useT();
+  // Parked baskets. Read once on mount (localStorage isn't there on the server).
+  const [held, setHeld] = useState<HeldSale[]>([]);
+  const [showHeld, setShowHeld] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration from storage
+    setHeld(loadHeldSales());
+  }, []);
+
+  function holdSale() {
+    if (basket.length === 0) return;
+    const label = window.prompt(t("hold.promptLabel"), payment.customer?.name ?? "") ?? "";
+    const entry = newHeldSale(label.trim() || t("hold.unnamed", { n: held.length + 1 }), basket, discountType, discountValue);
+    const next = [entry, ...held];
+    setHeld(next);
+    saveHeldSales(next);
+    setBasket([]);
+    setDiscountValue("");
+    setPayment({ method: "cash" });
+    setResult(null);
+  }
+
+  function resumeSale(entry: HeldSale) {
+    // Anything in the basket now is parked in its place, so nothing is lost.
+    const rest = held.filter((h) => h.id !== entry.id);
+    const next = basket.length > 0
+      ? [newHeldSale(t("hold.unnamed", { n: rest.length + 1 }), basket, discountType, discountValue), ...rest]
+      : rest;
+    setHeld(next);
+    saveHeldSales(next);
+    setBasket(entry.lines);
+    setDiscountType(entry.discountType);
+    setDiscountValue(entry.discountValue);
+    setResult(null);
+    setShowHeld(false);
+  }
+
+  function discardHeld(id: string) {
+    const next = held.filter((h) => h.id !== id);
+    setHeld(next);
+    saveHeldSales(next);
+  }
 
   const problemIds = useMemo(
     () =>
@@ -247,7 +290,56 @@ export function CounterTerminal() {
                 ? t("pos.nothingAdded")
                 : t(basket.length === 1 ? "pos.itemCount" : "pos.itemsCount", { count: basket.length })
             }
+            action={
+              <span className="flex gap-1">
+                {basket.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={holdSale}
+                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted hover:bg-background hover:text-foreground"
+                  >
+                    <PauseCircle className="h-3.5 w-3.5" aria-hidden />
+                    {t("hold.hold")}
+                  </button>
+                )}
+                {held.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowHeld((v) => !v)}
+                    className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2 py-1 text-xs font-medium text-warning hover:bg-warning/25"
+                  >
+                    <PlayCircle className="h-3.5 w-3.5" aria-hidden />
+                    {t("hold.held", { count: held.length })}
+                  </button>
+                )}
+              </span>
+            }
           />
+
+          {showHeld && held.length > 0 && (
+            <ul className="divide-y divide-border border-b border-border bg-background/60">
+              {held.map((h) => (
+                <li key={h.id} className="flex items-center justify-between gap-2 px-5 py-2 text-sm">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{h.label}</p>
+                    <p className="text-xs text-muted">
+                      {t(h.lines.length === 1 ? "pos.itemCount" : "pos.itemsCount", { count: h.lines.length })} ·{" "}
+                      {formatCurrency(h.lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0))} ·{" "}
+                      {new Date(h.heldAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+                  <span className="flex shrink-0 gap-2">
+                    <button type="button" onClick={() => resumeSale(h)} className="text-xs font-medium text-primary hover:underline">
+                      {t("hold.resume")}
+                    </button>
+                    <button type="button" onClick={() => discardHeld(h.id)} className="text-xs text-muted hover:text-danger">
+                      {t("hold.discard")}
+                    </button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
 
           {result?.status === "rejected" && (
             <div className="px-5 pt-5 pb-5">

@@ -116,6 +116,18 @@ export interface Supplier {
   dueBalance: number;
 }
 
+export interface AuditEntry {
+  id: number;
+  userId: number | null;
+  user?: { id: number; email: string; name: string | null } | null;
+  action: string;
+  entityType: string;
+  entityId: number | null;
+  summary: string;
+  details: Record<string, unknown> | null;
+  createdAt: string;
+}
+
 export interface DueSupplier {
   id: number;
   name: string;

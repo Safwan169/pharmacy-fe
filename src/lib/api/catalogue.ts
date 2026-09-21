@@ -56,6 +56,28 @@ export function createVariant(body: NewVariantInput) {
   return apiFetch<ProductVariant>("/variants", { method: "POST", auth: true, body });
 }
 
+export interface BulkPriceInput {
+  manufacturer_id?: number;
+  generic_id?: number;
+  search?: string;
+  percent?: number;
+  amount?: number;
+  round_to?: number;
+  dry_run: boolean;
+}
+
+export interface BulkPricePreview {
+  dry_run: boolean;
+  variants: number;
+  unit_prices: number;
+  sample: { variant_id: number; name: string; unit: string; old_price: number; new_price: number }[];
+}
+
+/** Preview (dry_run) or apply a price change across many medicines. Owner only. */
+export function bulkPrice(body: BulkPriceInput) {
+  return apiFetch<BulkPricePreview>("/variants/bulk-price", { method: "POST", auth: true, body });
+}
+
 export function listManufacturers(params: { search?: string; limit?: number } = {}) {
   return apiFetch<Paginated<Manufacturer>>(`/manufacturers${buildQuery(params)}`);
 }

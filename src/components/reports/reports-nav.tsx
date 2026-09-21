@@ -10,6 +10,7 @@ const TABS: { href: string; label: MessageKey }[] = [
   { href: "/reports/daily-closing", label: "reports.dailyClosing" },
   { href: "/reports/profit", label: "reports.profit" },
   { href: "/reports", label: "reports.stockValue" },
+  { href: "/audit", label: "audit.title" },
 ];
 
 export function ReportsNav() {

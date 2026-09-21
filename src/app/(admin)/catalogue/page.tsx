@@ -30,10 +30,13 @@ export default async function CataloguePage({ searchParams }: PageProps<"/catalo
         description={t("catalogue.description")}
         action={
           isOwner ? (
-            <LinkButton href="/catalogue/new">
-              <Plus className="h-4 w-4" aria-hidden />
-              {t("newMedicine.button")}
-            </LinkButton>
+            <span className="flex gap-2">
+              <LinkButton href="/catalogue/bulk-price" variant="secondary">{t("bulk.button")}</LinkButton>
+              <LinkButton href="/catalogue/new">
+                <Plus className="h-4 w-4" aria-hidden />
+                {t("newMedicine.button")}
+              </LinkButton>
+            </span>
           ) : undefined
         }
       />

@@ -16,6 +16,7 @@ import { getCurrentUser } from "@/lib/current-user";
 import { ApiError } from "@/lib/api/client";
 import { formatDateTime } from "@/lib/utils";
 import { getT } from "@/i18n/server";
+import { listAudit } from "@/lib/api/reports";
 
 export async function generateMetadata({ params }: PageProps<"/catalogue/[id]">) {
   const { id } = await params;
@@ -157,6 +158,12 @@ export default async function VariantDetailPage({
             />
           </Card>
 
+          {isOwner && (
+            <Suspense fallback={null}>
+              <ChangeHistory variantId={variant.id} />
+            </Suspense>
+          )}
+
           {variant.genericId && (
             <Suspense fallback={<AlternativesSkeleton />}>
               <Alternatives
@@ -289,6 +296,33 @@ function Detail({ label, value }: { label: string; value: string }) {
       <p className="text-xs font-medium tracking-wide text-muted uppercase">{label}</p>
       <p className="mt-1 text-sm text-foreground">{value}</p>
     </div>
+  );
+}
+
+/** The last few price, unit and stock changes to this medicine, and who made them. */
+async function ChangeHistory({ variantId }: { variantId: number }) {
+  const t = await getT();
+  let entries;
+  try {
+    entries = (await listAudit({ entity_type: "variant", entity_id: variantId, limit: 8 })).data;
+  } catch {
+    return null;
+  }
+  if (entries.length === 0) return null;
+  return (
+    <Card>
+      <CardHeader title={t("audit.historyTitle")} description={t("audit.historyHint")} />
+      <ul className="divide-y divide-border text-sm">
+        {entries.map((e) => (
+          <li key={e.id} className="flex flex-wrap justify-between gap-x-4 gap-y-1 px-5 py-2.5">
+            <span className="min-w-0 flex-1">{e.summary.replace(/^[^:]+: /, "")}</span>
+            <span className="shrink-0 text-xs text-muted">
+              {formatDateTime(e.createdAt)} · {e.user?.name || e.user?.email || "—"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }
 
