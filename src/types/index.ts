@@ -112,6 +112,30 @@ export interface Supplier {
   phone: string | null;
   address: string | null;
   isActive: boolean;
+  /** What the shop still owes this supplier. */
+  dueBalance: number;
+}
+
+export interface DueSupplier {
+  id: number;
+  name: string;
+  phone: string | null;
+  due_balance: number;
+  oldest_due_at: string | null;
+  open_receipts: number;
+}
+
+export interface SupplierPayment {
+  id: number;
+  supplierId: number | null;
+  receiptId: number | null;
+  paymentNumber: string;
+  amount: number;
+  method: "cash" | "bkash";
+  reference: string | null;
+  note: string | null;
+  balanceAfter: number;
+  createdAt: string;
 }
 
 export interface StockReceiptItem {
@@ -140,6 +164,8 @@ export interface StockReceipt {
   supplierInvoiceNo: string | null;
   receivedAt: string;
   totalCost: number;
+  /** Paid at the delivery plus later supplier payments settled against it. */
+  paidAmount: number;
   note: string | null;
   createdBy?: { id: number; email: string };
   /** Only on `GET /stock/receipts/:id`. */
@@ -305,6 +331,7 @@ export interface DailyClosing {
   by_method: { cash: number; bkash: number; due: number };
   refunds_by_method: { cash: number; bkash: number; due_adjust: number };
   due_collected: { cash: number; bkash: number };
+  supplier_paid: { cash: number; bkash: number };
   cash_in_drawer_expected: number;
   voided_count: number;
   top_items: { variant_id: number; name: string; unit: string; quantity: number; amount: number }[];

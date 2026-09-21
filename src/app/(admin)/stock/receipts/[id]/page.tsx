@@ -93,6 +93,13 @@ export default async function ReceiptDetailPage({ params }: PageProps<"/stock/re
               <span>{t("deliveries.totalCost")}</span>
               <span className="tabular-nums">{formatCurrency(receipt.totalCost)}</span>
             </div>
+            <Row label={t("supplier.paidSoFar")} value={formatCurrency(receipt.paidAmount)} />
+            {receipt.totalCost - receipt.paidAmount > 0 && (
+              <div className="flex justify-between font-semibold text-warning">
+                <span>{t("supplier.stillOwed")}</span>
+                <span className="tabular-nums">{formatCurrency(receipt.totalCost - receipt.paidAmount)}</span>
+              </div>
+            )}
           </CardBody>
         </Card>
       </div>

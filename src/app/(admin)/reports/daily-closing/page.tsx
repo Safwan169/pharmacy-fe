@@ -55,7 +55,7 @@ export default async function DailyClosingPage({ searchParams }: PageProps<"/rep
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label={t("closing.netSales")} value={formatCurrency(report.net_sales)} hint={t("closing.netSalesHint", { count: formatNumber(report.sales_count), discounts: formatCurrency(report.discounts) })} icon={ReceiptText} />
-        <StatCard label={t("closing.cashExpected")} value={formatCurrency(report.cash_in_drawer_expected)} hint={t("closing.cashExpectedHint")} icon={Wallet} />
+        <StatCard label={t("closing.cashExpected")} value={formatCurrency(report.cash_in_drawer_expected)} hint={t("closing.cashExpectedHint2")} icon={Wallet} />
         <StatCard label={t("closing.bkashToday")} value={formatCurrency(report.by_method.bkash + report.due_collected.bkash)} hint={t("closing.bkashHint", { sales: formatCurrency(report.by_method.bkash), due: formatCurrency(report.due_collected.bkash) })} icon={Banknote} />
         <StatCard label={t("closing.refunds")} value={formatCurrency(report.refunds)} hint={t("closing.voided", { count: formatNumber(report.voided_count) })} icon={Undo2} tone={report.refunds > 0 ? "warning" : "default"} />
       </div>
@@ -73,6 +73,8 @@ export default async function DailyClosingPage({ searchParams }: PageProps<"/rep
               <Row label={t("closing.refundCash")} value={-report.refunds_by_method.cash} />
               <Row label={t("closing.refundBkash")} value={-report.refunds_by_method.bkash} />
               <Row label={t("closing.refundDue")} value={-report.refunds_by_method.due_adjust} muted />
+              <Row label={t("closing.supplierCash")} value={-report.supplier_paid.cash} />
+              <Row label={t("closing.supplierBkash")} value={-report.supplier_paid.bkash} />
               <div className="flex justify-between border-t border-border pt-2 text-base font-semibold">
                 <dt>{t("closing.cashExpected")}</dt>
                 <dd className="tabular-nums">{formatCurrency(report.cash_in_drawer_expected)}</dd>

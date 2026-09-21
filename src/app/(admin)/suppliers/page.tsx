@@ -14,6 +14,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
 import { listSuppliers } from "@/lib/api/stock";
 import { ApiError } from "@/lib/api/client";
+import { LinkButton } from "@/components/ui/link-button";
+import { formatCurrency } from "@/lib/utils";
 import { getT } from "@/i18n/server";
 
 export const metadata = { title: "Suppliers" };
@@ -28,7 +30,11 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
 
   return (
     <>
-      <PageHeader title={t("suppliers.title")} description={t("suppliers.description")} />
+      <PageHeader
+        title={t("suppliers.title")}
+        description={t("suppliers.description")}
+        action={<LinkButton href="/suppliers/due" variant="secondary">{t("supplierDue.title")}</LinkButton>}
+      />
       <StockNav />
 
       <Card className="mb-5">
@@ -89,6 +95,7 @@ async function SupplierList({ search, status, page }: { search?: string; status:
             <Th>{t("deliveries.supplier")}</Th>
             <Th className="hidden sm:table-cell">{t("th.phone")}</Th>
             <Th className="hidden md:table-cell">{t("th.address")}</Th>
+            <Th className="text-right">{t("supplierDue.weOwe")}</Th>
             <Th>{t("th.status")}</Th>
             <Th />
           </tr>
@@ -97,7 +104,7 @@ async function SupplierList({ search, status, page }: { search?: string; status:
           {result.data.map((s) => (
             <tr key={s.id} className="align-top">
               <Td>
-                <p className="font-medium">{s.name}</p>
+                <Link href={`/suppliers/${s.id}`} className="font-medium text-primary hover:underline">{s.name}</Link>
                 <Link href={`/stock/receipts?search=&supplier_id=${s.id}`} className="text-xs text-primary hover:underline">
                   {t("stockNav.deliveries")}
                 </Link>
@@ -108,6 +115,9 @@ async function SupplierList({ search, status, page }: { search?: string; status:
               </Td>
               <Td className="hidden text-muted sm:table-cell">{s.phone ?? "—"}</Td>
               <Td className="hidden max-w-[16rem] truncate text-muted md:table-cell">{s.address ?? "—"}</Td>
+              <Td className="text-right tabular-nums">
+                {s.dueBalance > 0 ? <Badge tone="warning">{formatCurrency(s.dueBalance)}</Badge> : <span className="text-muted">—</span>}
+              </Td>
               <Td>{s.isActive ? <Badge tone="success">{t("suppliers.inUse")}</Badge> : <Badge tone="neutral">{t("suppliers.notUsed")}</Badge>}</Td>
               <Td className="text-right">
                 <SupplierEditToggle supplier={s} />

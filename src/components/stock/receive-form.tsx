@@ -52,6 +52,11 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
   const [invoiceNo, setInvoiceNo] = useState("");
   const [receivedAt, setReceivedAt] = useState(todayInDhaka());
   const [note, setNote] = useState("");
+  // "full" = paid at the door, "credit" = all on the supplier's account,
+  // "partial" = some now, rest on account.
+  const [payMode, setPayMode] = useState<"full" | "credit" | "partial">("full");
+  const [paidNow, setPaidNow] = useState("");
+  const [payMethod, setPayMethod] = useState<"cash" | "bkash">("cash");
   const [lines, setLines] = useState<Line[]>([]);
   const [result, setResult] = useState<ReceiveResult | null>(null);
   const [saved, setSaved] = useState<StockReceipt | null>(null);
@@ -106,6 +111,15 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
     return sum + (qty > 0 && cost >= 0 ? qty * cost : 0);
   }, 0);
 
+  const paidAmount = payMode === "full" ? total : payMode === "credit" ? 0 : Number(paidNow) || 0;
+  const onAccount = Math.max(0, total - paidAmount);
+  const paymentError =
+    payMode !== "full" && onAccount > 0 && !supplier
+      ? t("receive.supplierRequired")
+      : payMode === "partial" && paidAmount > total
+        ? t("receive.paidTooMuch")
+        : undefined;
+
   const problemIndexes = new Set(
     result?.status === "rejected" ? result.problems.map((p) => p.index) : [],
   );
@@ -114,13 +128,15 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
   );
 
   function submit() {
-    if (lines.length === 0 || hasErrors) return;
+    if (lines.length === 0 || hasErrors || paymentError) return;
     startSubmit(async () => {
       const response = await receiveStock({
         supplier_id: supplier?.id,
         supplier_invoice_no: invoiceNo.trim() || undefined,
         received_at: receivedAt || undefined,
         note: note.trim() || undefined,
+        paid_amount: payMode === "full" ? Math.round(total * 100) / 100 : payMode === "credit" ? 0 : Number(paidNow) || 0,
+        paid_method: payMethod,
         items: lines.map((l) => ({
           variant_id: l.variantId,
           unit_id: l.unitId === "" ? undefined : l.unitId,
@@ -157,6 +173,16 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
               <span className="text-muted">{t("deliveries.totalCost")}</span>
               <span className="font-semibold tabular-nums">{formatCurrency(saved.totalCost)}</span>
             </div>
+            <div className="mt-1 flex justify-between">
+              <span className="text-muted">{t("receive.paidNow")}</span>
+              <span className="tabular-nums">{formatCurrency(saved.paidAmount)}</span>
+            </div>
+            {saved.totalCost - saved.paidAmount > 0 && (
+              <div className="mt-1 flex justify-between text-warning">
+                <span>{t("receive.onAccount")}</span>
+                <span className="font-semibold tabular-nums">{formatCurrency(saved.totalCost - saved.paidAmount)}</span>
+              </div>
+            )}
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Link
@@ -337,7 +363,52 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
                 <span>{t("deliveries.totalCost")}</span>
                 <span className="tabular-nums">{formatCurrency(total)}</span>
               </div>
-              <Button type="button" onClick={submit} disabled={submitting || hasErrors} className="h-11 w-full">
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium">{t("receive.paymentTitle")}</p>
+                <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t("receive.paymentTitle")}>
+                  {(["full", "partial", "credit"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      role="radio"
+                      aria-checked={payMode === mode}
+                      onClick={() => setPayMode(mode)}
+                      className={cn(
+                        "h-10 rounded-lg border text-xs font-medium transition-colors",
+                        payMode === mode ? "border-primary bg-primary/10 text-primary" : "border-border bg-surface text-muted hover:text-foreground",
+                      )}
+                    >
+                      {t(mode === "full" ? "receive.payFull" : mode === "partial" ? "receive.payPartial" : "receive.payCredit")}
+                    </button>
+                  ))}
+                </div>
+                {payMode !== "credit" && (
+                  <div className="grid grid-cols-[1fr_7rem] gap-2">
+                    <Input
+                      aria-label={t("receive.paidNow")}
+                      inputMode="decimal"
+                      value={payMode === "full" ? total.toFixed(2) : paidNow}
+                      disabled={payMode === "full"}
+                      placeholder="0.00"
+                      onChange={(e) => setPaidNow(e.target.value)}
+                      className="tabular-nums"
+                    />
+                    <Select aria-label={t("sale.paidBy")} value={payMethod} onChange={(e) => setPayMethod(e.target.value as "cash" | "bkash")}>
+                      <option value="cash">{t("paymentMethod.cash")}</option>
+                      <option value="bkash">{t("paymentMethod.bkash")}</option>
+                    </Select>
+                  </div>
+                )}
+                {onAccount > 0 && !paymentError && (
+                  <p className="text-xs text-warning">
+                    {t("receive.onAccountHint", { amount: formatCurrency(onAccount), name: supplier?.name ?? "" })}
+                  </p>
+                )}
+                {paymentError && <p className="text-xs text-danger">{paymentError}</p>}
+              </div>
+
+              <Button type="button" onClick={submit} disabled={submitting || hasErrors || !!paymentError} className="h-11 w-full">
                 {submitting ? t("common.saving") : t("receive.save")}
               </Button>
             </CardBody>

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { listVariants } from "@/lib/api/catalogue";
 import { listSuppliers } from "@/lib/api/stock";
-import type { StockReceipt, Supplier } from "@/types";
+import type { StockReceipt, Supplier, SupplierPayment } from "@/types";
 import { issueText } from "@/lib/messages";
 import { getT } from "@/i18n/server";
 import type { Translate } from "@/i18n";
@@ -122,7 +122,52 @@ export interface ReceiveRequest {
   supplier_invoice_no?: string;
   received_at?: string;
   note?: string;
+  /** Paid at the door; the rest goes on the supplier's account. */
+  paid_amount: number;
+  paid_method: "cash" | "bkash";
   items: ReceiveLineInput[];
+}
+
+export interface SupplierPaymentState {
+  status: "idle" | "success" | "error";
+  message?: string;
+  payment?: SupplierPayment;
+}
+
+/** Money handed to a supplier against what the shop owes them. */
+export async function paySupplier(_prev: SupplierPaymentState, formData: FormData): Promise<SupplierPaymentState> {
+  const t = await getT();
+  const supplierId = Number(formData.get("supplier_id"));
+  const amount = Number(String(formData.get("amount") ?? "").trim());
+  const method = String(formData.get("method") ?? "cash");
+  const reference = String(formData.get("reference") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim();
+  if (!Number.isInteger(supplierId) || supplierId < 1) return { status: "error", message: t("action.reload") };
+  if (!(amount > 0)) return { status: "error", message: t("supplierPay.enterAmount") };
+  if (method !== "cash" && method !== "bkash") return { status: "error", message: t("customerAction.pickMethod") };
+  try {
+    const payment = await apiFetch<SupplierPayment>(`/suppliers/${supplierId}/payments`, {
+      method: "POST",
+      auth: true,
+      body: {
+        amount: Math.round(amount * 100) / 100,
+        method,
+        ...(reference ? { reference } : {}),
+        ...(note ? { note } : {}),
+      },
+    });
+    revalidatePath("/suppliers");
+    revalidatePath("/suppliers/due");
+    revalidatePath(`/suppliers/${supplierId}`);
+    revalidatePath("/reports/daily-closing");
+    return { status: "success", message: t("supplierPay.paid", { balance: payment.balanceAfter.toFixed(2) }), payment };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      const reason = (error.body as { reason?: string } | null)?.reason;
+      return { status: "error", message: reason === "overpayment" ? t("supplierPay.overpayment") : error.message };
+    }
+    throw error;
+  }
 }
 
 export type ReceiveResult =
@@ -164,7 +209,16 @@ export async function receiveStock(request: ReceiveRequest): Promise<ReceiveResu
           problems: errors.map((f) => ({ index: f.index, message: humaniseLine(f, t) })),
         };
       }
-      return { status: "error", message: error.message };
+      const reason = (error.body as { reason?: string } | null)?.reason;
+      return {
+        status: "error",
+        message:
+          reason === "supplier_required"
+            ? t("receive.supplierRequired")
+            : reason === "overpayment"
+              ? t("receive.paidTooMuch")
+              : error.message,
+      };
     }
     throw error;
   }
