@@ -893,7 +893,7 @@ export const en = {
   "bulk.changeBy": "Change by",
   "bulk.roundTo": "Round new prices to",
   "bulk.noRounding": "No rounding",
-  "bulk.hint": "Every priced unit (tablet, strip, box…) of each matching medicine is changed by the same rate. Negative values lower prices.",
+  "bulk.hint": "% changes every priced unit (tablet, strip, box…) by the same rate. ৳ is per tablet/capsule: a strip of 10 moves 10× that, a box of 100 moves 100×. Negative values lower prices.",
   "bulk.working": "Working…",
   "bulk.preview": "Preview",
   "bulk.apply": "Apply to {variants} medicines",
