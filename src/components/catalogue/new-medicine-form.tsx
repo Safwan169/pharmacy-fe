@@ -27,7 +27,15 @@ const DOSAGE_FORMS = [
   "Powder",
 ];
 
-export function NewMedicineForm({ manufacturers, generics }: { manufacturers: Manufacturer[]; generics: Generic[] }) {
+export function NewMedicineForm({
+  manufacturers,
+  generics,
+  initialName = "",
+}: {
+  manufacturers: Manufacturer[];
+  generics: Generic[];
+  initialName?: string;
+}) {
   const [state, action, pending] = useActionState(addMedicine, initial);
   const t = useT();
 
@@ -49,7 +57,7 @@ export function NewMedicineForm({ manufacturers, generics }: { manufacturers: Ma
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={t("catalogue.brand")} htmlFor="brand_name" required hint={t("newMedicine.brandHint")}>
-          <Input id="brand_name" name="brand_name" maxLength={255} autoFocus autoComplete="off" />
+          <Input id="brand_name" name="brand_name" maxLength={255} autoFocus autoComplete="off" defaultValue={initialName} />
         </Field>
         <Field label={t("catalogue.strength")} htmlFor="strength" hint={t("newMedicine.strengthHint")}>
           <Input id="strength" name="strength" maxLength={100} autoComplete="off" />

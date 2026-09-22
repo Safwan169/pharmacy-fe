@@ -606,7 +606,12 @@ function ItemSearch({ onSelect }: { onSelect: (item: ReceiveSearchResult) => voi
         </div>
         {state.status === "failed" && <Alert tone="error">{t("receive.searchFailed")}</Alert>}
         {state.status === "done" && state.results.length === 0 && (
-          <p className="rounded-lg bg-background p-4 text-sm text-muted">{t("receive.nothingFound", { query: term.trim() })}</p>
+          <p className="rounded-lg bg-background p-4 text-sm text-muted">
+            {t("receive.nothingFound", { query: term.trim() })}{" "}
+            <Link href={`/catalogue/new?name=${encodeURIComponent(term.trim())}`} className="font-medium text-primary underline">
+              {t("receive.addNew", { query: term.trim() })}
+            </Link>
+          </p>
         )}
         <ul className="divide-y divide-border">
           {state.results.map((item) => (
@@ -630,6 +635,12 @@ function ItemSearch({ onSelect }: { onSelect: (item: ReceiveSearchResult) => voi
             </li>
           ))}
         </ul>
+        <p className="text-xs text-muted">
+          {t("receive.newMedicineHint")}{" "}
+          <Link href="/catalogue/new" className="font-medium text-primary underline">
+            {t("receive.newMedicineLink")}
+          </Link>
+        </p>
       </CardBody>
     </Card>
   );

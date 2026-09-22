@@ -9,9 +9,11 @@ import { getT } from "@/i18n/server";
 
 export const metadata = { title: "Add a medicine" };
 
-export default async function NewMedicinePage() {
+export default async function NewMedicinePage({ searchParams }: PageProps<"/catalogue/new">) {
   await requireOwner();
   const t = await getT();
+  const params = await searchParams;
+  const initialName = typeof params.name === "string" ? params.name.slice(0, 255) : "";
   const [manufacturers, generics] = await Promise.all([
     listManufacturers({ limit: 100 }),
     listGenerics({ limit: 100 }),
@@ -26,7 +28,7 @@ export default async function NewMedicinePage() {
       <PageHeader title={t("newMedicine.title")} description={t("newMedicine.description")} />
       <Card className="max-w-3xl">
         <CardBody>
-          <NewMedicineForm manufacturers={manufacturers.data} generics={generics.data} />
+          <NewMedicineForm manufacturers={manufacturers.data} generics={generics.data} initialName={initialName} />
         </CardBody>
       </Card>
     </>

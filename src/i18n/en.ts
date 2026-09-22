@@ -503,6 +503,9 @@ export const en = {
   "receive.searchPlaceholder": "Start typing — for example “Napa”",
   "receive.searchFailed": "The search didn't work. Try again.",
   "receive.nothingFound": "Nothing found for “{query}”.",
+  "receive.addNew": "Add “{query}” as a new medicine →",
+  "receive.newMedicineHint": "Medicine not in the list yet?",
+  "receive.newMedicineLink": "Add it to the catalogue first, then come back here to receive it.",
   "receive.notCounted": "Not counted",
   // Suppliers & customers
   "th.address": "Address",

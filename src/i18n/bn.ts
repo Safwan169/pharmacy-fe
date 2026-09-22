@@ -505,6 +505,9 @@ export const bn: Record<MessageKey, string> = {
   "receive.searchPlaceholder": "লিখতে শুরু করুন — যেমন “Napa”",
   "receive.searchFailed": "খোঁজা যায়নি। আবার চেষ্টা করুন।",
   "receive.nothingFound": "“{query}” এর জন্য কিছু পাওয়া যায়নি।",
+  "receive.addNew": "“{query}” নতুন ওষুধ হিসেবে যোগ করুন →",
+  "receive.newMedicineHint": "ওষুধটা এখনো তালিকায় নেই?",
+  "receive.newMedicineLink": "আগে ক্যাটালগে যোগ করুন, তারপর এখানে ফিরে এসে স্টক তুলুন।",
   "receive.notCounted": "গোনা হয়নি",
   // Suppliers & customers
   "th.address": "ঠিকানা",
