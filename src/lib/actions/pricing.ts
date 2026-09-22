@@ -12,7 +12,7 @@ import type { Translate } from "@/i18n";
 export interface PricingState {
   status: "idle" | "success" | "error";
   message?: string;
-  errors?: { price?: string; stock_quantity?: string; units?: string; reorder_level?: string };
+  errors?: { price?: string; stock_quantity?: string; units?: string; reorder_level?: string; mrp?: string };
 }
 
 /**
@@ -40,6 +40,7 @@ export async function updatePricing(
     stock_quantity?: number;
     stock_note?: string;
     reorder_level?: number | null;
+    mrp?: number | null;
     units?: Array<{
       name: string;
       qty_in_base: number;
@@ -98,7 +99,22 @@ export async function updatePricing(
     else return { status: "error", errors: { reorder_level: t("pricingAction.reorderInteger") } };
   }
 
-  if (body.units === undefined && body.stock_quantity === undefined && body.reorder_level === undefined) {
+  // The printed MRP, which the company (or the government) revises from time
+  // to time. Only sent when it changed.
+  const mrpRaw = String(formData.get("mrp") ?? "").trim();
+  const mrpWas = String(formData.get("mrp_was") ?? "").trim();
+  if (mrpRaw !== mrpWas) {
+    if (mrpRaw === "") body.mrp = null;
+    else if (/^\d{1,8}(\.\d{1,2})?$/.test(mrpRaw)) body.mrp = Number(mrpRaw);
+    else return { status: "error", errors: { mrp: t("pricingAction.mrpNumber") } };
+  }
+
+  if (
+    body.units === undefined &&
+    body.stock_quantity === undefined &&
+    body.reorder_level === undefined &&
+    body.mrp === undefined
+  ) {
     return {
       status: "error",
       errors: { units: t("pricingAction.nothingToSave") },

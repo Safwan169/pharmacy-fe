@@ -119,6 +119,8 @@ export interface ReceiveLineInput {
   sell_prices?: { unit_name: string; qty_in_base: number; price: number }[];
   /** "now" or wait until the stock from before this delivery has sold out. */
   price_when?: "now" | "after_old_stock";
+  /** New MRP printed on these packs, per base unit. */
+  new_mrp?: number;
 }
 
 export interface ReceiveRequest {

@@ -192,6 +192,7 @@ export default async function VariantDetailPage({
                 template={template}
                 stock={variant.stockQuantity}
                 reorderLevel={variant.reorderLevel}
+                mrp={variant.mrp}
               />
             </CardBody>
           </Card>

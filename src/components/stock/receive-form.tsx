@@ -39,6 +39,8 @@ interface Line {
   expiryMonth: string; // YYYY-MM
   /** What the medicine will be sold as: unit name, size, price. */
   sellRows: SellRow[];
+  /** True when the packs in this delivery carry a revised printed MRP. */
+  mrpRevised: boolean;
   priceWhen: "now" | "after_old_stock";
   pricesOpen: boolean;
 }
@@ -144,6 +146,7 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
         })),
         // Something already on the shelf and already priced: default to letting
         // it sell out at the old price. Otherwise the new price is simply the price.
+        mrpRevised: false,
         priceWhen: (item.stock ?? 0) > 0 && item.units.some((u) => u.price !== null) ? "after_old_stock" : "now",
         // Open straight away when nothing is priced yet — it can't be sold otherwise.
         pricesOpen: !item.units.some((u) => u.isSellable && u.price !== null),
@@ -205,9 +208,18 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
     const changed = l.sellRows
       .filter((r) => r.price !== "" && Number(r.price) !== r.current)
       .map((r) => ({ unit_name: r.name, qty_in_base: r.qtyInBase, price: Number(r.price) }));
-    if (changed.length === 0) return {};
-    return { sell_prices: changed, price_when: l.priceWhen };
+    const newMrp = l.mrpRevised ? basePrice(l) : undefined;
+    if (changed.length === 0) return newMrp === undefined ? {} : { new_mrp: newMrp };
+    return { sell_prices: changed, price_when: l.priceWhen, ...(newMrp === undefined ? {} : { new_mrp: newMrp }) };
   }
+  /** The typed price of one base unit — which is what an MRP is quoted in. */
+  function basePrice(l: Line): number | undefined {
+    const base = l.sellRows.find((r) => r.qtyInBase === 1 && r.price !== "");
+    if (base) return Number(base.price);
+    const any = l.sellRows.find((r) => r.price !== "");
+    return any ? Math.round((Number(any.price) / any.qtyInBase) * 100) / 100 : undefined;
+  }
+
   const priceSummary = lines.reduce(
     (acc, l) => {
       const p = sellPricePayload(l);
@@ -730,6 +742,9 @@ function SellPriceBlock({
   const costPerBase = Number(line.unitCost) / (deliveredUnit?.qtyInBase ?? 1);
   const canMarkup = markupPercent !== null && costPerBase > 0;
   const changed = line.sellRows.some((r) => r.price !== "" && Number(r.price) !== r.current);
+  const baseRow = line.sellRows.find((r) => r.qtyInBase === 1 && r.price !== "") ?? line.sellRows.find((r) => r.price !== "");
+  const typedBase =
+    baseRow === undefined ? undefined : Math.round((Number(baseRow.price) / baseRow.qtyInBase) * 100) / 100;
 
   function setRow(index: number, patch: Partial<SellRow>) {
     onChange({ sellRows: line.sellRows.map((r, i) => (i === index ? { ...r, ...patch } : r)) });
@@ -836,6 +851,27 @@ function SellPriceBlock({
           );
         })}
       </div>
+      {typedBase !== undefined && line.mrp !== null && Math.abs(typedBase - line.mrp) > 0.005 && (
+        <label className="flex items-start gap-2 text-xs">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={line.mrpRevised}
+            onChange={(e) => onChange({ mrpRevised: e.target.checked })}
+          />
+          <span>
+            <span className="font-medium">{t("receive.mrpRevised")}</span>{" "}
+            <span className="text-muted">
+              {t("receive.mrpRevisedHint", {
+                old: formatCurrency(line.mrp),
+                new: formatCurrency(typedBase),
+                unit: line.baseUnit,
+              })}
+            </span>
+          </span>
+        </label>
+      )}
+
       {changed && line.stockBefore > 0 && (
         <div className="space-y-1 text-xs">
           <label className="flex items-start gap-2">

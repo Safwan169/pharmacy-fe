@@ -69,6 +69,7 @@ export function PricingForm({
   template,
   stock,
   reorderLevel,
+  mrp,
 }: {
   variantId: number;
   baseUnit: string;
@@ -76,6 +77,7 @@ export function PricingForm({
   template: UnitTemplate | null;
   stock: number | null;
   reorderLevel: number | null;
+  mrp: number | null;
 }) {
   const [state, formAction, pending] = useActionState(updatePricing, initialState);
   const t = useT();
@@ -362,6 +364,25 @@ export function PricingForm({
         hint={t("pricing.noteHint")}
       >
         <Input id="stock_note" name="stock_note" type="text" maxLength={255} autoComplete="off" />
+      </Field>
+
+      <Field
+        label={t("pricing.mrpLabel")}
+        htmlFor="mrp"
+        error={state.errors?.mrp}
+        hint={t("pricing.mrpHint", { unit: baseUnit })}
+      >
+        <input type="hidden" name="mrp_was" value={mrp ?? ""} />
+        <Input
+          id="mrp"
+          name="mrp"
+          type="text"
+          inputMode="decimal"
+          defaultValue={mrp ?? ""}
+          placeholder={t("pricing.mrpNone")}
+          autoComplete="off"
+          invalid={!!state.errors?.mrp}
+        />
       </Field>
 
       <Field
