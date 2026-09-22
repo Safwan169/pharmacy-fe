@@ -8,13 +8,12 @@ import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
 import { VariantFilters } from "@/components/catalogue/variant-filters";
 import { VariantTable } from "@/components/catalogue/variant-table";
-import { listGenerics, listManufacturers, listVariants } from "@/lib/api/catalogue";
+import { listAllGenerics, listAllManufacturers, listVariants } from "@/lib/api/catalogue";
 import { ApiError } from "@/lib/api/client";
 import { getT } from "@/i18n/server";
 
 export const metadata = { title: "Pricing" };
 
-const FILTER_OPTIONS_LIMIT = 100;
 
 /**
  * The pricing worklist — every SKU the import left without a price.
@@ -49,14 +48,14 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
 
 async function Filters() {
   const [manufacturers, generics] = await Promise.all([
-    listManufacturers({ limit: FILTER_OPTIONS_LIMIT }),
-    listGenerics({ limit: FILTER_OPTIONS_LIMIT }),
+    listAllManufacturers(),
+    listAllGenerics(),
   ]);
 
   return (
     <VariantFilters
-      manufacturers={manufacturers.data}
-      generics={generics.data}
+      manufacturers={manufacturers}
+      generics={generics}
       // The worklist IS the "needs a price" filter, so offering it again would
       // let someone contradict the page they're on.
       showPricingStatus={false}

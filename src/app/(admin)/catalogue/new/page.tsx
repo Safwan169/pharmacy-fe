@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardBody } from "@/components/ui/card";
 import { NewMedicineForm } from "@/components/catalogue/new-medicine-form";
-import { listGenerics, listManufacturers } from "@/lib/api/catalogue";
+import { listAllGenerics, listAllManufacturers } from "@/lib/api/catalogue";
 import { requireOwner } from "@/lib/current-user";
 import { getT } from "@/i18n/server";
 
@@ -15,8 +15,8 @@ export default async function NewMedicinePage({ searchParams }: PageProps<"/cata
   const params = await searchParams;
   const initialName = typeof params.name === "string" ? params.name.slice(0, 255) : "";
   const [manufacturers, generics] = await Promise.all([
-    listManufacturers({ limit: 100 }),
-    listGenerics({ limit: 100 }),
+    listAllManufacturers(),
+    listAllGenerics(),
   ]);
 
   return (
@@ -28,7 +28,7 @@ export default async function NewMedicinePage({ searchParams }: PageProps<"/cata
       <PageHeader title={t("newMedicine.title")} description={t("newMedicine.description")} />
       <Card className="max-w-3xl">
         <CardBody>
-          <NewMedicineForm manufacturers={manufacturers.data} generics={generics.data} initialName={initialName} />
+          <NewMedicineForm manufacturers={manufacturers} generics={generics} initialName={initialName} />
         </CardBody>
       </Card>
     </>

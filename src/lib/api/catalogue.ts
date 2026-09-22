@@ -86,6 +86,17 @@ export function listGenerics(params: { search?: string; limit?: number } = {}) {
   return apiFetch<Paginated<Generic>>(`/generics${buildQuery(params)}`);
 }
 
+/** Every company / ingredient, for dropdowns — the API allows up to 5000 here. */
+export const LOOKUP_LIMIT = 5000;
+
+export function listAllManufacturers() {
+  return listManufacturers({ limit: LOOKUP_LIMIT }).then((r) => r.data);
+}
+
+export function listAllGenerics() {
+  return listGenerics({ limit: LOOKUP_LIMIT }).then((r) => r.data);
+}
+
 /** Alternative brands built on the same active ingredient. */
 export function listGenericVariants(
   genericId: number,

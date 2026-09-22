@@ -5,7 +5,7 @@ import { Alert } from "@/components/ui/alert";
 import { Pagination } from "@/components/ui/pagination";
 import { VariantFilters } from "@/components/catalogue/variant-filters";
 import { VariantTable } from "@/components/catalogue/variant-table";
-import { listGenerics, listManufacturers, listVariants } from "@/lib/api/catalogue";
+import { listAllGenerics, listAllManufacturers, listVariants } from "@/lib/api/catalogue";
 import { ApiError } from "@/lib/api/client";
 import { LinkButton } from "@/components/ui/link-button";
 import { getCurrentUser } from "@/lib/current-user";
@@ -15,7 +15,6 @@ import { getT } from "@/i18n/server";
 export const metadata = { title: "Catalogue" };
 
 /** The dropdowns cap out at the API's maximum page size. */
-const FILTER_OPTIONS_LIMIT = 100;
 
 export default async function CataloguePage({ searchParams }: PageProps<"/catalogue">) {
   const t = await getT();
@@ -56,12 +55,12 @@ export default async function CataloguePage({ searchParams }: PageProps<"/catalo
 
 async function Filters() {
   const [manufacturers, generics] = await Promise.all([
-    listManufacturers({ limit: FILTER_OPTIONS_LIMIT }),
-    listGenerics({ limit: FILTER_OPTIONS_LIMIT }),
+    listAllManufacturers(),
+    listAllGenerics(),
   ]);
 
   return (
-    <VariantFilters manufacturers={manufacturers.data} generics={generics.data} />
+    <VariantFilters manufacturers={manufacturers} generics={generics} />
   );
 }
 
