@@ -26,6 +26,10 @@ interface Line {
   dosageForm: string;
   baseUnit: string;
   units: { id: number; name: string; qtyInBase: number; price: number | null; isSellable: boolean }[];
+  /** MRP printed on the pack, per base unit, and for a full pack. */
+  mrp: number | null;
+  packMrp: number | null;
+  packSize: number | null;
   /** Sellable base units already on the shelf when the line was added. */
   stockBefore: number;
   unitId: number | "";
@@ -33,15 +37,53 @@ interface Line {
   unitCost: string;
   batchNo: string;
   expiryMonth: string; // YYYY-MM
-  /** Selling price per unit id, as typed. "" = leave that unit as it is. */
-  sellPrices: Record<number, string>;
+  /** What the medicine will be sold as: unit name, size, price. */
+  sellRows: SellRow[];
   priceWhen: "now" | "after_old_stock";
   pricesOpen: boolean;
 }
 
-/** cost per base × (1 + markup) × pack size, to the poisha. */
-function suggestPrice(costPerBase: number, markupPercent: number, qtyInBase: number): string {
-  return (Math.round(costPerBase * (1 + markupPercent / 100) * qtyInBase * 100) / 100).toFixed(2);
+interface SellRow {
+  name: string;
+  qtyInBase: number;
+  /** Today's price for this unit, null when the unit doesn't exist yet. */
+  current: number | null;
+  /** As typed. "" = leave this unit alone. */
+  price: string;
+}
+
+const money = (n: number) => (Math.round(n * 100) / 100).toFixed(2);
+
+/**
+ * What to sell each unit at, before the shop overrides it. The MRP printed on
+ * the pack comes first — that is what a pharmacy charges — with cost plus the
+ * shop's usual margin only as a fallback for medicines with no printed price.
+ */
+function suggestedPrice(
+  row: { qtyInBase: number; current: number | null },
+  mrp: number | null,
+  costPerBase: number,
+  markupPercent: number | null,
+): string {
+  if (row.current !== null) return money(row.current);
+  if (mrp !== null) return money(mrp * row.qtyInBase);
+  if (markupPercent !== null && costPerBase > 0) {
+    return money(costPerBase * (1 + markupPercent / 100) * row.qtyInBase);
+  }
+  return "";
+}
+
+/** The ladder to offer: what the medicine already sells as, else the template. */
+function buildSellRows(item: ReceiveSearchResult): SellRow[] {
+  const existing = item.units.filter((u) => u.isSellable);
+  if (existing.length > 0) {
+    return existing
+      .map((u) => ({ name: u.name, qtyInBase: u.qtyInBase, current: u.price, price: u.price === null ? "" : money(u.price) }))
+      .sort((a, b) => a.qtyInBase - b.qtyInBase);
+  }
+  return item.suggestedUnits
+    .map((u) => ({ name: u.name, qtyInBase: u.qtyInBase, current: null, price: "" }))
+    .sort((a, b) => a.qtyInBase - b.qtyInBase);
 }
 
 /** Last day of a YYYY-MM month as YYYY-MM-DD — packs print month/year. */
@@ -87,13 +129,19 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
         dosageForm: item.dosageForm,
         baseUnit: item.baseUnit,
         units: item.units,
+        mrp: item.mrp,
+        packMrp: item.packMrp,
+        packSize: item.packSize,
         stockBefore: item.stock ?? 0,
         unitId: biggest ? biggest.id : "",
         quantity: "",
         unitCost: "",
         batchNo: "",
         expiryMonth: "",
-        sellPrices: Object.fromEntries(item.units.map((u) => [u.id, u.price === null ? "" : String(u.price)])),
+        sellRows: buildSellRows(item).map((r) => ({
+          ...r,
+          price: suggestedPrice(r, item.mrp, 0, null),
+        })),
         // Something already on the shelf and already priced: default to letting
         // it sell out at the old price. Otherwise the new price is simply the price.
         priceWhen: (item.stock ?? 0) > 0 && item.units.some((u) => u.price !== null) ? "after_old_stock" : "now",
@@ -120,12 +168,12 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
     if (!l.quantity || !Number.isInteger(qty) || qty < 1) return t("receive.errQty");
     if (l.unitCost === "" || Number.isNaN(cost) || cost < 0) return t("receive.errCost");
     if (l.expiryMonth && !endOfMonth(l.expiryMonth)) return t("receive.errExpiry");
-    for (const u of l.units) {
-      const raw = l.sellPrices[u.id] ?? "";
-      if (raw === "") continue;
-      const p = Number(raw);
-      if (!Number.isFinite(p) || p < 0) return t("receive.errSellPrice", { unit: u.name });
+    for (const row of l.sellRows) {
+      if (row.price === "") continue;
+      const p = Number(row.price);
+      if (!Number.isFinite(p) || p < 0) return t("receive.errSellPrice", { unit: row.name });
     }
+    if (l.sellRows.every((r) => r.price === "" && r.current === null)) return t("receive.errNoPrice");
     return undefined;
   });
   const hasErrors = lineErrors.some(Boolean);
@@ -154,9 +202,9 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
 
   /** Only prices that were typed and actually differ from today's go out. */
   function sellPricePayload(l: Line) {
-    const changed = l.units
-      .filter((u) => (l.sellPrices[u.id] ?? "") !== "" && Number(l.sellPrices[u.id]) !== u.price)
-      .map((u) => ({ unit_id: u.id, price: Number(l.sellPrices[u.id]) }));
+    const changed = l.sellRows
+      .filter((r) => r.price !== "" && Number(r.price) !== r.current)
+      .map((r) => ({ unit_name: r.name, qty_in_base: r.qtyInBase, price: Number(r.price) }));
     if (changed.length === 0) return {};
     return { sell_prices: changed, price_when: l.priceWhen };
   }
@@ -169,19 +217,27 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
     { now: 0, later: 0 },
   );
 
-  function fillSuggestions(key: number, onlyBlanks: boolean) {
+  /** Re-fills the prices from the MRP, or from cost plus the shop's margin. */
+  function fillSuggestions(key: number, source: "mrp" | "markup") {
     setLines((current) =>
       current.map((l) => {
-        if (l.key !== key || markupPercent === null) return l;
+        if (l.key !== key) return l;
         const unit = l.units.find((u) => u.id === l.unitId);
         const costPerBase = Number(l.unitCost) / (unit?.qtyInBase ?? 1);
-        if (!(costPerBase > 0)) return l;
-        const sellPrices = { ...l.sellPrices };
-        for (const u of l.units) {
-          if (onlyBlanks && (sellPrices[u.id] ?? "") !== "") continue;
-          sellPrices[u.id] = suggestPrice(costPerBase, markupPercent, u.qtyInBase);
-        }
-        return { ...l, sellPrices };
+        return {
+          ...l,
+          sellRows: l.sellRows.map((r) => ({
+            ...r,
+            price:
+              source === "mrp"
+                ? l.mrp === null
+                  ? r.price
+                  : money(l.mrp * r.qtyInBase)
+                : markupPercent === null || !(costPerBase > 0)
+                  ? r.price
+                  : money(costPerBase * (1 + markupPercent / 100) * r.qtyInBase),
+          })),
+        };
       }),
     );
   }
@@ -425,7 +481,7 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
                       line={line}
                       markupPercent={markupPercent}
                       onChange={(patch) => update(line.key, patch)}
-                      onSuggest={(onlyBlanks) => fillSuggestions(line.key, onlyBlanks)}
+                      onSuggest={(source) => fillSuggestions(line.key, source)}
                     />
 
                     {qty > 0 && (
@@ -666,33 +722,38 @@ function SellPriceBlock({
   line: Line;
   markupPercent: number | null;
   onChange: (patch: Partial<Line>) => void;
-  onSuggest: (onlyBlanks: boolean) => void;
+  onSuggest: (source: "mrp" | "markup") => void;
 }) {
   const t = useT();
-  const sellable = line.units.filter((u) => u.isSellable);
-  const unpriced = sellable.some((u) => u.price === null);
+  const unpriced = line.sellRows.every((r) => r.current === null);
   const deliveredUnit = line.units.find((u) => u.id === line.unitId);
   const costPerBase = Number(line.unitCost) / (deliveredUnit?.qtyInBase ?? 1);
-  const canSuggest = markupPercent !== null && costPerBase > 0;
-  const changed = sellable.some((u) => (line.sellPrices[u.id] ?? "") !== "" && Number(line.sellPrices[u.id]) !== u.price);
+  const canMarkup = markupPercent !== null && costPerBase > 0;
+  const changed = line.sellRows.some((r) => r.price !== "" && Number(r.price) !== r.current);
+
+  function setRow(index: number, patch: Partial<SellRow>) {
+    onChange({ sellRows: line.sellRows.map((r, i) => (i === index ? { ...r, ...patch } : r)) });
+  }
 
   if (!line.pricesOpen) {
+    const priced = line.sellRows.filter((r) => r.current !== null);
     return (
       <button
         type="button"
-        onClick={() => {
-          onChange({ pricesOpen: true });
-          if (unpriced && canSuggest) onSuggest(true);
-        }}
+        onClick={() => onChange({ pricesOpen: true })}
         className={cn(
-          "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs",
-          unpriced ? "border-warning/50 bg-warning/5 text-warning" : "border-border bg-background text-muted hover:text-foreground",
+          "flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-xs",
+          unpriced && !changed
+            ? "border-warning/50 bg-warning/5 text-warning"
+            : "border-border bg-background text-muted hover:text-foreground",
         )}
       >
         <span>
-          {unpriced
+          {unpriced && !changed
             ? t("receive.priceMissing")
-            : `${t("receive.sellingAt")} ${sellable.map((u) => `${u.name} ${formatCurrency(u.price as number)}`).join(" · ")}`}
+            : `${t("receive.sellingAt")} ${(changed ? line.sellRows.filter((r) => r.price !== "") : priced)
+                .map((r) => `${r.name} ${formatCurrency(Number(changed ? r.price : r.current))}`)
+                .join(" · ")}`}
         </span>
         <span className="font-medium">{changed ? t("receive.priceChanged") : t("receive.changePrice")}</span>
       </button>
@@ -701,11 +762,16 @@ function SellPriceBlock({
 
   return (
     <div className="space-y-2 rounded-lg border border-border bg-background p-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-medium">{t("receive.sellPriceTitle")}</p>
         <div className="flex items-center gap-2">
-          {canSuggest && (
-            <button type="button" onClick={() => onSuggest(false)} className="text-xs text-primary underline">
+          {line.mrp !== null && (
+            <button type="button" onClick={() => onSuggest("mrp")} className="text-xs text-primary underline">
+              {t("receive.useMrp")}
+            </button>
+          )}
+          {canMarkup && (
+            <button type="button" onClick={() => onSuggest("markup")} className="text-xs text-primary underline">
               {t("receive.suggestFromCost", { percent: markupPercent })}
             </button>
           )}
@@ -714,34 +780,59 @@ function SellPriceBlock({
           </button>
         </div>
       </div>
-      {!canSuggest && markupPercent === null && (
-        <p className="text-[11px] text-muted">{t("receive.noMarkupHint")}</p>
-      )}
+      <p className="text-[11px] text-muted">
+        {line.mrp !== null
+          ? t("receive.mrpIs", {
+              price: formatCurrency(line.mrp),
+              unit: line.baseUnit,
+              pack:
+                line.packMrp !== null && line.packSize
+                  ? t("receive.mrpPack", { count: line.packSize, price: formatCurrency(line.packMrp) })
+                  : "",
+            })
+          : t("receive.noMrp")}
+      </p>
       <div className="grid gap-2 sm:grid-cols-3">
-        {sellable.map((u) => {
-          const raw = line.sellPrices[u.id] ?? "";
-          const perBase = raw === "" ? null : Number(raw) / u.qtyInBase;
+        {line.sellRows.map((row, index) => {
+          const perBase = row.price === "" ? null : Number(row.price) / row.qtyInBase;
           const belowCost = perBase !== null && costPerBase > 0 && perBase < costPerBase;
+          const aboveMrp = perBase !== null && line.mrp !== null && perBase > line.mrp + 0.005;
           return (
-            <label key={u.id} className="block text-[11px] text-muted">
-              {u.name}
-              {u.qtyInBase > 1 ? ` (×${u.qtyInBase})` : ""}
-              {u.price !== null && <span className="ml-1 opacity-70">{t("receive.nowPrice", { price: formatCurrency(u.price) })}</span>}
+            <div key={`${row.name}-${index}`} className="text-[11px] text-muted">
+              <div className="flex items-center gap-1">
+                <span className="truncate">{row.name}</span>
+                <span className="text-muted/80">×</span>
+                <input
+                  inputMode="numeric"
+                  aria-label={t("receive.unitSize", { unit: row.name })}
+                  value={row.qtyInBase}
+                  onChange={(e) => {
+                    const n = Number(e.target.value.replace(/\D/g, ""));
+                    setRow(index, { qtyInBase: n > 0 ? n : 1 });
+                  }}
+                  disabled={row.current !== null && row.qtyInBase === 1}
+                  className="h-5 w-12 rounded border border-border bg-surface px-1 text-center tabular-nums disabled:opacity-60"
+                />
+                {row.current !== null && <span className="opacity-70">{t("receive.nowPrice", { price: formatCurrency(row.current) })}</span>}
+              </div>
               <div className="relative mt-0.5">
                 <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-xs text-muted">৳</span>
                 <Input
                   inputMode="decimal"
-                  placeholder={u.price === null ? "0.00" : String(u.price)}
-                  value={raw}
+                  placeholder="0.00"
+                  value={row.price}
                   className={cn("pl-5", belowCost && "border-danger")}
-                  onChange={(e) => onChange({ sellPrices: { ...line.sellPrices, [u.id]: e.target.value } })}
+                  onChange={(e) => setRow(index, { price: e.target.value })}
                 />
               </div>
-              {belowCost && <span className="text-danger">{t("receive.belowCost")}</span>}
-              {!belowCost && perBase !== null && costPerBase > 0 && (
+              {belowCost ? (
+                <span className="text-danger">{t("receive.belowCost")}</span>
+              ) : aboveMrp ? (
+                <span className="text-warning">{t("receive.aboveMrp")}</span>
+              ) : perBase !== null && costPerBase > 0 ? (
                 <span>{t("receive.marginIs", { percent: Math.round(((perBase - costPerBase) / costPerBase) * 100) })}</span>
-              )}
-            </label>
+              ) : null}
+            </div>
           );
         })}
       </div>

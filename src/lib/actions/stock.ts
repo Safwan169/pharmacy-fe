@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { apiFetch, ApiError } from "@/lib/api/client";
-import { listVariants } from "@/lib/api/catalogue";
+import { getUnitTemplate, listVariants } from "@/lib/api/catalogue";
 import { listSuppliers } from "@/lib/api/stock";
-import type { StockReceipt, Supplier, SupplierPayment } from "@/types";
+import type { StockReceipt, Supplier, SupplierPayment, UnitTemplate } from "@/types";
 import { issueText } from "@/lib/messages";
 import { getT } from "@/i18n/server";
 import type { Translate } from "@/i18n";
@@ -116,7 +116,7 @@ export interface ReceiveLineInput {
   batch_no?: string;
   expiry_date?: string;
   /** Selling prices to set with this delivery; units not listed keep theirs. */
-  sell_prices?: { unit_id: number; price: number }[];
+  sell_prices?: { unit_name: string; qty_in_base: number; price: number }[];
   /** "now" or wait until the stock from before this delivery has sold out. */
   price_when?: "now" | "after_old_stock";
 }
@@ -248,6 +248,19 @@ export async function searchForReceive(term: string) {
   const query = term.trim();
   if (query.length < 2) return [];
   const result = await listVariants({ search: query, status: "active", limit: 20 });
+  // Most of the catalogue has no sellable units yet, so the ladder to offer
+  // (tablet / strip / box) comes from the template for its dosage form.
+  const templates = new Map<string, UnitTemplate>();
+  await Promise.all(
+    [...new Set(result.data.map((v) => `${v.dosageForm}|${v.packSize ?? ""}`))].map(async (key) => {
+      const [dosageForm, packSize] = key.split("|");
+      try {
+        templates.set(key, await getUnitTemplate({ dosage_form: dosageForm, pack_size: packSize ? Number(packSize) : null }));
+      } catch {
+        // A missing template just means we fall back to the base unit.
+      }
+    }),
+  );
   return result.data.map((v) => ({
     id: v.id,
     name: `${v.product.brandName}${v.strength ? ` ${v.strength}` : ""}`,
@@ -255,6 +268,9 @@ export async function searchForReceive(term: string) {
     manufacturer: v.product.manufacturer?.name ?? "",
     baseUnit: v.baseUnit,
     stock: v.stockQuantity,
+    mrp: v.mrp,
+    packMrp: v.packMrp,
+    packSize: v.packSize,
     units: (v.units ?? []).map((u) => ({
       id: u.id,
       name: u.name,
@@ -262,6 +278,9 @@ export async function searchForReceive(term: string) {
       price: u.price,
       isSellable: u.isSellable,
     })),
+    suggestedUnits: (templates.get(`${v.dosageForm}|${v.packSize ?? ""}`)?.units ?? [
+      { name: v.baseUnit, qty_in_base: 1, is_sellable: true, is_default: true },
+    ]).map((u) => ({ name: u.name, qtyInBase: u.qty_in_base })),
   }));
 }
 

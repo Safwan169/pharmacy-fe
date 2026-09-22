@@ -65,6 +65,10 @@ export interface ProductVariant {
   /** Count in `baseUnit`. */
   stockQuantity: number | null;
   priceUpdatedAt: string | null;
+  /** MRP printed on the pack, per base unit, from the catalogue file. */
+  mrp: number | null;
+  /** MRP of a full pack of `packSize` units. */
+  packMrp: number | null;
   /** Restock below this many base units; null = shop-wide setting. */
   reorderLevel: number | null;
   /** Only on GET /variants/:id. */
@@ -342,7 +346,7 @@ export interface PendingPrice {
   id: number;
   variantId: number;
   afterBatchId: number;
-  unitPrices: { unit_id: number; unit_name: string; price: number }[];
+  unitPrices: { unit_id: number; unit_name: string; qty_in_base: number; price: number }[];
   createdById: number | null;
   createdAt: string;
   /** Sellable base units still left in the old batches. */
