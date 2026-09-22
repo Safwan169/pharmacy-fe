@@ -268,6 +268,8 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
                 const unitName = unit?.name ?? line.baseUnit;
                 const qty = Number(line.quantity);
                 const cost = Number(line.unitCost);
+                // Don't nag about a line the user hasn't started filling in yet.
+                const started = line.quantity !== "" || line.unitCost !== "" || line.batchNo !== "" || line.expiryMonth !== "";
                 return (
                   <li key={line.key} className={cn("space-y-2 px-5 py-3", problemIndexes.has(index) && "bg-danger/5")}>
                     <div className="flex items-start justify-between gap-2">
@@ -286,8 +288,10 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
                     </div>
 
                     <div className="grid grid-cols-3 gap-2">
+                      <label className="block text-[11px] text-muted">
+                        {t("receive.unitIn")}
                       <Select
-                        aria-label={t("receive.unitIn")}
+                        className="mt-0.5"
                         value={line.unitId}
                         onChange={(e) => update(line.key, { unitId: e.target.value === "" ? "" : Number(e.target.value) })}
                       >
@@ -300,55 +304,69 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
                             </option>
                           ))}
                       </Select>
-                      <Input
-                        aria-label={t("th.quantity")}
-                        inputMode="numeric"
-                        placeholder={t("th.qty")}
-                        value={line.quantity}
-                        onChange={(e) => update(line.key, { quantity: e.target.value.replace(/\D/g, "") })}
-                      />
-                      <div className="relative">
-                        <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-xs text-muted">৳</span>
+                      </label>
+                      <label className="block text-[11px] text-muted">
+                        {t("receive.howMany", { unit: unitName })}
                         <Input
-                          aria-label={t("receive.costPer", { unit: unitName })}
-                          inputMode="decimal"
-                          placeholder={t("th.costEach")}
-                          value={line.unitCost}
-                          className="pl-5"
-                          onChange={(e) => update(line.key, { unitCost: e.target.value })}
+                          className="mt-0.5"
+                          inputMode="numeric"
+                          placeholder="0"
+                          value={line.quantity}
+                          onChange={(e) => update(line.key, { quantity: e.target.value.replace(/\D/g, "") })}
                         />
-                      </div>
+                      </label>
+                      <label className="block text-[11px] text-muted">
+                        {t("receive.costPer", { unit: unitName })}
+                        <div className="relative mt-0.5">
+                          <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-xs text-muted">৳</span>
+                          <Input
+                            inputMode="decimal"
+                            placeholder="0.00"
+                            value={line.unitCost}
+                            className="pl-5"
+                            onChange={(e) => update(line.key, { unitCost: e.target.value })}
+                          />
+                        </div>
+                      </label>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
-                      <Input
-                        aria-label={t("receive.batchNo")}
-                        placeholder={t("receive.batchNoShort")}
-                        value={line.batchNo}
-                        maxLength={50}
-                        onChange={(e) => update(line.key, { batchNo: e.target.value })}
-                      />
-                      <Input
-                        aria-label={t("receive.expiryMonth")}
-                        type="month"
-                        value={line.expiryMonth}
-                        onChange={(e) => update(line.key, { expiryMonth: e.target.value })}
-                      />
+                      <label className="block text-[11px] text-muted">
+                        {t("receive.batchNoOptional")}
+                        <Input
+                          className="mt-0.5"
+                          placeholder={t("receive.batchNoShort")}
+                          value={line.batchNo}
+                          maxLength={50}
+                          onChange={(e) => update(line.key, { batchNo: e.target.value })}
+                        />
+                      </label>
+                      <label className="block text-[11px] text-muted">
+                        {t("receive.expiryMonth")}
+                        <Input
+                          className="mt-0.5"
+                          type="month"
+                          value={line.expiryMonth}
+                          onChange={(e) => update(line.key, { expiryMonth: e.target.value })}
+                        />
+                      </label>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-muted">
-                      <span>
-                        {qty > 0 ? `${(qty * qtyInBase).toLocaleString()} ${line.baseUnit}` : "—"}
-                        {qty > 0 && cost >= 0 && qtyInBase > 1 ? ` · ${formatCurrency(cost / qtyInBase)} / ${line.baseUnit}` : ""}
-                      </span>
-                      <span className="font-medium tabular-nums text-foreground">
-                        {qty > 0 && cost >= 0 ? formatCurrency(qty * cost) : ""}
-                      </span>
-                    </div>
-                    {!line.expiryMonth && (
+                    {qty > 0 && (
+                      <div className="flex items-center justify-between text-xs text-muted">
+                        <span>
+                          {`= ${(qty * qtyInBase).toLocaleString()} ${line.baseUnit}`}
+                          {cost >= 0 && qtyInBase > 1 ? ` · ${formatCurrency(cost / qtyInBase)} / ${line.baseUnit}` : ""}
+                        </span>
+                        <span className="font-medium tabular-nums text-foreground">
+                          {cost >= 0 ? formatCurrency(qty * cost) : ""}
+                        </span>
+                      </div>
+                    )}
+                    {started && !line.expiryMonth && (
                       <p className="text-xs text-warning">{t("receive.noExpiry")}</p>
                     )}
-                    {(problemByIndex.get(index) ?? lineErrors[index]) && (
+                    {(problemByIndex.get(index) ?? (started ? lineErrors[index] : undefined)) && (
                       <p className="text-xs text-danger">{problemByIndex.get(index) ?? lineErrors[index]}</p>
                     )}
                   </li>
