@@ -67,6 +67,8 @@ export interface ProductVariant {
   priceUpdatedAt: string | null;
   /** Restock below this many base units; null = shop-wide setting. */
   reorderLevel: number | null;
+  /** Only on GET /variants/:id. */
+  pendingPrice?: PendingPrice | null;
   isActive: boolean;
   /** The smallest thing counted — tablet, bottle, vial… */
   baseUnit: string;
@@ -331,6 +333,20 @@ export interface ShopSettings {
   receipt_footer: string;
   low_stock_threshold: string;
   receipt_width_mm: string;
+  /** Suggested profit % over cost when pricing at delivery. "" = no suggestion. */
+  default_markup_percent: string;
+}
+
+/** A selling-price change parked until the stock received before a delivery sells out. */
+export interface PendingPrice {
+  id: number;
+  variantId: number;
+  afterBatchId: number;
+  unitPrices: { unit_id: number; unit_name: string; price: number }[];
+  createdById: number | null;
+  createdAt: string;
+  /** Sellable base units still left in the old batches. */
+  oldStockLeft?: number;
 }
 
 export interface DailyClosing {

@@ -25,12 +25,23 @@ interface Line {
   name: string;
   dosageForm: string;
   baseUnit: string;
-  units: { id: number; name: string; qtyInBase: number }[];
+  units: { id: number; name: string; qtyInBase: number; price: number | null; isSellable: boolean }[];
+  /** Sellable base units already on the shelf when the line was added. */
+  stockBefore: number;
   unitId: number | "";
   quantity: string;
   unitCost: string;
   batchNo: string;
   expiryMonth: string; // YYYY-MM
+  /** Selling price per unit id, as typed. "" = leave that unit as it is. */
+  sellPrices: Record<number, string>;
+  priceWhen: "now" | "after_old_stock";
+  pricesOpen: boolean;
+}
+
+/** cost per base × (1 + markup) × pack size, to the poisha. */
+function suggestPrice(costPerBase: number, markupPercent: number, qtyInBase: number): string {
+  return (Math.round(costPerBase * (1 + markupPercent / 100) * qtyInBase * 100) / 100).toFixed(2);
 }
 
 /** Last day of a YYYY-MM month as YYYY-MM-DD — packs print month/year. */
@@ -47,7 +58,7 @@ function endOfMonth(ym: string): string | undefined {
  * Counts are in whatever unit the supplier delivers in — box, strip, bottle —
  * and converted to base units by the API.
  */
-export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number }) {
+export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSupplierId?: number; markupPercent: number | null }) {
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [invoiceNo, setInvoiceNo] = useState("");
   const [receivedAt, setReceivedAt] = useState(todayInDhaka());
@@ -60,6 +71,7 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
   const [lines, setLines] = useState<Line[]>([]);
   const [result, setResult] = useState<ReceiveResult | null>(null);
   const [saved, setSaved] = useState<StockReceipt | null>(null);
+  const [savedPrices, setSavedPrices] = useState({ now: 0, later: 0 });
   const [submitting, startSubmit] = useTransition();
   const keyRef = useRef(0);
   const t = useT();
@@ -75,11 +87,18 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
         dosageForm: item.dosageForm,
         baseUnit: item.baseUnit,
         units: item.units,
+        stockBefore: item.stock ?? 0,
         unitId: biggest ? biggest.id : "",
         quantity: "",
         unitCost: "",
         batchNo: "",
         expiryMonth: "",
+        sellPrices: Object.fromEntries(item.units.map((u) => [u.id, u.price === null ? "" : String(u.price)])),
+        // Something already on the shelf and already priced: default to letting
+        // it sell out at the old price. Otherwise the new price is simply the price.
+        priceWhen: (item.stock ?? 0) > 0 && item.units.some((u) => u.price !== null) ? "after_old_stock" : "now",
+        // Open straight away when nothing is priced yet — it can't be sold otherwise.
+        pricesOpen: !item.units.some((u) => u.isSellable && u.price !== null),
       },
     ]);
     setResult(null);
@@ -101,6 +120,12 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
     if (!l.quantity || !Number.isInteger(qty) || qty < 1) return t("receive.errQty");
     if (l.unitCost === "" || Number.isNaN(cost) || cost < 0) return t("receive.errCost");
     if (l.expiryMonth && !endOfMonth(l.expiryMonth)) return t("receive.errExpiry");
+    for (const u of l.units) {
+      const raw = l.sellPrices[u.id] ?? "";
+      if (raw === "") continue;
+      const p = Number(raw);
+      if (!Number.isFinite(p) || p < 0) return t("receive.errSellPrice", { unit: u.name });
+    }
     return undefined;
   });
   const hasErrors = lineErrors.some(Boolean);
@@ -127,6 +152,40 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
     result?.status === "rejected" ? result.problems.map((p) => [p.index, p.message]) : [],
   );
 
+  /** Only prices that were typed and actually differ from today's go out. */
+  function sellPricePayload(l: Line) {
+    const changed = l.units
+      .filter((u) => (l.sellPrices[u.id] ?? "") !== "" && Number(l.sellPrices[u.id]) !== u.price)
+      .map((u) => ({ unit_id: u.id, price: Number(l.sellPrices[u.id]) }));
+    if (changed.length === 0) return {};
+    return { sell_prices: changed, price_when: l.priceWhen };
+  }
+  const priceSummary = lines.reduce(
+    (acc, l) => {
+      const p = sellPricePayload(l);
+      if ("sell_prices" in p) acc[l.priceWhen === "now" || l.stockBefore === 0 ? "now" : "later"] += 1;
+      return acc;
+    },
+    { now: 0, later: 0 },
+  );
+
+  function fillSuggestions(key: number, onlyBlanks: boolean) {
+    setLines((current) =>
+      current.map((l) => {
+        if (l.key !== key || markupPercent === null) return l;
+        const unit = l.units.find((u) => u.id === l.unitId);
+        const costPerBase = Number(l.unitCost) / (unit?.qtyInBase ?? 1);
+        if (!(costPerBase > 0)) return l;
+        const sellPrices = { ...l.sellPrices };
+        for (const u of l.units) {
+          if (onlyBlanks && (sellPrices[u.id] ?? "") !== "") continue;
+          sellPrices[u.id] = suggestPrice(costPerBase, markupPercent, u.qtyInBase);
+        }
+        return { ...l, sellPrices };
+      }),
+    );
+  }
+
   function submit() {
     if (lines.length === 0 || hasErrors || paymentError) return;
     startSubmit(async () => {
@@ -144,10 +203,14 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
           unit_cost: Number(l.unitCost),
           batch_no: l.batchNo.trim() || undefined,
           expiry_date: endOfMonth(l.expiryMonth),
+          ...sellPricePayload(l),
         })),
       });
       setResult(response);
-      if (response.status === "success") setSaved(response.receipt);
+      if (response.status === "success") {
+        setSavedPrices(priceSummary);
+        setSaved(response.receipt);
+      }
     });
   }
 
@@ -182,6 +245,12 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
                 <span>{t("receive.onAccount")}</span>
                 <span className="font-semibold tabular-nums">{formatCurrency(saved.totalCost - saved.paidAmount)}</span>
               </div>
+            )}
+            {savedPrices.now > 0 && (
+              <p className="mt-2 text-success">{t("receive.pricedNow", { count: savedPrices.now })}</p>
+            )}
+            {savedPrices.later > 0 && (
+              <p className="mt-1 text-warning">{t("receive.pricedLater", { count: savedPrices.later })}</p>
             )}
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -351,6 +420,13 @@ export function ReceiveForm({ initialSupplierId }: { initialSupplierId?: number 
                         />
                       </label>
                     </div>
+
+                    <SellPriceBlock
+                      line={line}
+                      markupPercent={markupPercent}
+                      onChange={(patch) => update(line.key, patch)}
+                      onSuggest={(onlyBlanks) => fillSuggestions(line.key, onlyBlanks)}
+                    />
 
                     {qty > 0 && (
                       <div className="flex items-center justify-between text-xs text-muted">
@@ -573,6 +649,121 @@ function SupplierPicker({
         )}
       </div>
     </Field>
+  );
+}
+
+/**
+ * Selling prices for one delivery line. Collapsed to a one-line summary when
+ * the medicine is already priced; open when it isn't (it can't be sold until
+ * it is). Prices can be suggested from cost using the shop's default margin.
+ */
+function SellPriceBlock({
+  line,
+  markupPercent,
+  onChange,
+  onSuggest,
+}: {
+  line: Line;
+  markupPercent: number | null;
+  onChange: (patch: Partial<Line>) => void;
+  onSuggest: (onlyBlanks: boolean) => void;
+}) {
+  const t = useT();
+  const sellable = line.units.filter((u) => u.isSellable);
+  const unpriced = sellable.some((u) => u.price === null);
+  const deliveredUnit = line.units.find((u) => u.id === line.unitId);
+  const costPerBase = Number(line.unitCost) / (deliveredUnit?.qtyInBase ?? 1);
+  const canSuggest = markupPercent !== null && costPerBase > 0;
+  const changed = sellable.some((u) => (line.sellPrices[u.id] ?? "") !== "" && Number(line.sellPrices[u.id]) !== u.price);
+
+  if (!line.pricesOpen) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          onChange({ pricesOpen: true });
+          if (unpriced && canSuggest) onSuggest(true);
+        }}
+        className={cn(
+          "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs",
+          unpriced ? "border-warning/50 bg-warning/5 text-warning" : "border-border bg-background text-muted hover:text-foreground",
+        )}
+      >
+        <span>
+          {unpriced
+            ? t("receive.priceMissing")
+            : `${t("receive.sellingAt")} ${sellable.map((u) => `${u.name} ${formatCurrency(u.price as number)}`).join(" · ")}`}
+        </span>
+        <span className="font-medium">{changed ? t("receive.priceChanged") : t("receive.changePrice")}</span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="space-y-2 rounded-lg border border-border bg-background p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-medium">{t("receive.sellPriceTitle")}</p>
+        <div className="flex items-center gap-2">
+          {canSuggest && (
+            <button type="button" onClick={() => onSuggest(false)} className="text-xs text-primary underline">
+              {t("receive.suggestFromCost", { percent: markupPercent })}
+            </button>
+          )}
+          <button type="button" onClick={() => onChange({ pricesOpen: false })} className="text-xs text-muted hover:text-foreground">
+            {t("common.close")}
+          </button>
+        </div>
+      </div>
+      {!canSuggest && markupPercent === null && (
+        <p className="text-[11px] text-muted">{t("receive.noMarkupHint")}</p>
+      )}
+      <div className="grid gap-2 sm:grid-cols-3">
+        {sellable.map((u) => {
+          const raw = line.sellPrices[u.id] ?? "";
+          const perBase = raw === "" ? null : Number(raw) / u.qtyInBase;
+          const belowCost = perBase !== null && costPerBase > 0 && perBase < costPerBase;
+          return (
+            <label key={u.id} className="block text-[11px] text-muted">
+              {u.name}
+              {u.qtyInBase > 1 ? ` (×${u.qtyInBase})` : ""}
+              {u.price !== null && <span className="ml-1 opacity-70">{t("receive.nowPrice", { price: formatCurrency(u.price) })}</span>}
+              <div className="relative mt-0.5">
+                <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-xs text-muted">৳</span>
+                <Input
+                  inputMode="decimal"
+                  placeholder={u.price === null ? "0.00" : String(u.price)}
+                  value={raw}
+                  className={cn("pl-5", belowCost && "border-danger")}
+                  onChange={(e) => onChange({ sellPrices: { ...line.sellPrices, [u.id]: e.target.value } })}
+                />
+              </div>
+              {belowCost && <span className="text-danger">{t("receive.belowCost")}</span>}
+              {!belowCost && perBase !== null && costPerBase > 0 && (
+                <span>{t("receive.marginIs", { percent: Math.round(((perBase - costPerBase) / costPerBase) * 100) })}</span>
+              )}
+            </label>
+          );
+        })}
+      </div>
+      {changed && line.stockBefore > 0 && (
+        <div className="space-y-1 text-xs">
+          <label className="flex items-start gap-2">
+            <input type="radio" className="mt-0.5" checked={line.priceWhen === "after_old_stock"} onChange={() => onChange({ priceWhen: "after_old_stock" })} />
+            <span>
+              <span className="font-medium">{t("receive.whenLater")}</span>{" "}
+              <span className="text-muted">{t("receive.whenLaterHint", { count: line.stockBefore, unit: line.baseUnit })}</span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2">
+            <input type="radio" className="mt-0.5" checked={line.priceWhen === "now"} onChange={() => onChange({ priceWhen: "now" })} />
+            <span>
+              <span className="font-medium">{t("receive.whenNow")}</span>{" "}
+              <span className="text-muted">{t("receive.whenNowHint", { count: line.stockBefore, unit: line.baseUnit })}</span>
+            </span>
+          </label>
+        </div>
+      )}
+    </div>
   );
 }
 

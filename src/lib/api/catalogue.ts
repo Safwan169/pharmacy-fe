@@ -31,6 +31,14 @@ export function getVariant(id: number) {
   return apiFetch<ProductVariant>(`/variants/${id}`);
 }
 
+/** Apply a parked price change now, or drop it. */
+export function resolvePendingPrice(id: number, intent: "apply" | "cancel") {
+  return apiFetch<void>(intent === "apply" ? `/variants/${id}/pending-price/apply` : `/variants/${id}/pending-price`, {
+    method: intent === "apply" ? "POST" : "DELETE",
+    auth: true,
+  });
+}
+
 /** Suggested unit ladder for a SKU that hasn't been set up yet. */
 export function getUnitTemplate(params: { dosage_form: string; pack_size?: number | null }) {
   return apiFetch<UnitTemplate>(

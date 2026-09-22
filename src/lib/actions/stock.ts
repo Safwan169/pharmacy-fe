@@ -115,6 +115,10 @@ export interface ReceiveLineInput {
   unit_cost: number;
   batch_no?: string;
   expiry_date?: string;
+  /** Selling prices to set with this delivery; units not listed keep theirs. */
+  sell_prices?: { unit_id: number; price: number }[];
+  /** "now" or wait until the stock from before this delivery has sold out. */
+  price_when?: "now" | "after_old_stock";
 }
 
 export interface ReceiveRequest {
@@ -251,7 +255,13 @@ export async function searchForReceive(term: string) {
     manufacturer: v.product.manufacturer?.name ?? "",
     baseUnit: v.baseUnit,
     stock: v.stockQuantity,
-    units: (v.units ?? []).map((u) => ({ id: u.id, name: u.name, qtyInBase: u.qtyInBase })),
+    units: (v.units ?? []).map((u) => ({
+      id: u.id,
+      name: u.name,
+      qtyInBase: u.qtyInBase,
+      price: u.price,
+      isSellable: u.isSellable,
+    })),
   }));
 }
 

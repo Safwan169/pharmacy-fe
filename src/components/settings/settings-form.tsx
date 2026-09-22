@@ -54,6 +54,9 @@ export function SettingsForm({ settings }: { settings: ShopSettings }) {
           <Field label={t("settings.lowStock")} htmlFor="low_stock_threshold" hint={t("settings.lowStockHint")}>
             <Input id="low_stock_threshold" name="low_stock_threshold" inputMode="numeric" defaultValue={settings.low_stock_threshold} onChange={(e) => set("low_stock_threshold", e.target.value)} />
           </Field>
+          <Field label={t("settings.markup")} htmlFor="default_markup_percent" hint={t("settings.markupHint")}>
+            <Input id="default_markup_percent" name="default_markup_percent" inputMode="decimal" placeholder="12" defaultValue={settings.default_markup_percent ?? ""} onChange={(e) => set("default_markup_percent", e.target.value)} />
+          </Field>
         </div>
 
         <Button type="submit" disabled={pending}>{pending ? t("common.saving") : t("settings.save")}</Button>

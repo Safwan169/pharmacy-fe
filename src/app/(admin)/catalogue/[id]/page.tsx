@@ -9,6 +9,7 @@ import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PricingForm } from "@/components/catalogue/pricing-form";
 import { AvailabilityControl } from "@/components/catalogue/availability-control";
+import { PendingPriceCard } from "@/components/catalogue/pending-price-card";
 import { BatchTable } from "@/components/catalogue/batch-table";
 import { SellableBadge, PriceCell, StockCell } from "@/components/catalogue/status-badges";
 import { getUnitTemplate, getVariant, listGenericVariants } from "@/lib/api/catalogue";
@@ -177,6 +178,7 @@ export default async function VariantDetailPage({
 
         {isOwner && (
         <div className="space-y-5">
+          {variant.pendingPrice && <PendingPriceCard pending={variant.pendingPrice} baseUnit={variant.baseUnit} />}
           <Card>
             <CardHeader
               title={t("catalogue.pricingTitle")}

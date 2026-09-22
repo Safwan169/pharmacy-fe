@@ -18,6 +18,7 @@ const KEYS: (keyof ShopSettings)[] = [
   "receipt_footer",
   "low_stock_threshold",
   "receipt_width_mm",
+  "default_markup_percent",
 ];
 
 export async function saveSettings(_prev: SettingsState, formData: FormData): Promise<SettingsState> {
@@ -30,6 +31,9 @@ export async function saveSettings(_prev: SettingsState, formData: FormData): Pr
   if (!body.shop_name) return { status: "error", message: t("settingsAction.nameRequired") };
   if (body.low_stock_threshold && !/^\d{1,6}$/.test(body.low_stock_threshold)) {
     return { status: "error", message: t("settingsAction.lowStockInteger") };
+  }
+  if (body.default_markup_percent && !/^\d{1,3}(\.\d{1,2})?$/.test(body.default_markup_percent)) {
+    return { status: "error", message: t("settingsAction.markupNumber") };
   }
   try {
     await apiFetch<ShopSettings>("/settings", { method: "PATCH", auth: true, body });

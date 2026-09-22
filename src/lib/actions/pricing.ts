@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { apiFetch, ApiError } from "@/lib/api/client";
+import { resolvePendingPrice } from "@/lib/api/catalogue";
 import { pricingSchema, unitsSchema } from "@/lib/validations";
 import type { ProductVariant } from "@/types";
 import { issueText } from "@/lib/messages";
@@ -223,4 +224,30 @@ export async function setVariantAvailability(
       ? t("pricingAction.withdrawn")
       : t("pricingAction.restored"),
   };
+}
+
+export interface PendingPriceState {
+  status: "idle" | "success" | "error";
+  message?: string;
+}
+
+/** Owner decides not to wait for the old stock — or drops the change. */
+export async function resolvePending(_prev: PendingPriceState, formData: FormData): Promise<PendingPriceState> {
+  const variantId = Number(formData.get("variant_id"));
+  const intent = formData.get("intent") === "apply" ? "apply" : "cancel";
+  const t = await getT();
+  if (!Number.isInteger(variantId) || variantId < 1) {
+    return { status: "error", message: t("action.reload") };
+  }
+  try {
+    await resolvePendingPrice(variantId, intent);
+  } catch (error) {
+    if (error instanceof ApiError) return { status: "error", message: error.message };
+    throw error;
+  }
+  revalidatePath("/catalogue");
+  revalidatePath("/pricing");
+  revalidatePath("/pos");
+  revalidatePath(`/catalogue/${variantId}`);
+  return { status: "success", message: t(intent === "apply" ? "pending.applied" : "pending.cancelled") };
 }
