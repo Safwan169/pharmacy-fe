@@ -52,6 +52,22 @@ interface SellRow {
   current: number | null;
   /** As typed. "" = leave this unit alone. */
   price: string;
+  /** True once the shop typed this one, so it stops following the others. */
+  manual?: boolean;
+}
+
+/**
+ * One price typed by hand sets the rate for the whole ladder: a tablet at ৳1.20
+ * makes a strip of ten ৳12. Rows the shop has typed itself are left alone.
+ */
+function propagate(rows: SellRow[], fromIndex: number): SellRow[] {
+  const source = rows[fromIndex];
+  if (source.price === "") return rows;
+  const perBase = Number(source.price) / source.qtyInBase;
+  if (!Number.isFinite(perBase) || perBase <= 0) return rows;
+  return rows.map((r, i) =>
+    i === fromIndex || r.manual ? r : { ...r, price: money(perBase * r.qtyInBase) },
+  );
 }
 
 const money = (n: number) => (Math.round(n * 100) / 100).toFixed(2);
@@ -240,6 +256,7 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
           ...l,
           sellRows: l.sellRows.map((r) => ({
             ...r,
+            manual: false,
             price:
               source === "mrp"
                 ? l.mrp === null
@@ -747,7 +764,8 @@ function SellPriceBlock({
     baseRow === undefined ? undefined : Math.round((Number(baseRow.price) / baseRow.qtyInBase) * 100) / 100;
 
   function setRow(index: number, patch: Partial<SellRow>) {
-    onChange({ sellRows: line.sellRows.map((r, i) => (i === index ? { ...r, ...patch } : r)) });
+    const rows = line.sellRows.map((r, i) => (i === index ? { ...r, ...patch } : r));
+    onChange({ sellRows: patch.price === undefined ? rows : propagate(rows, index) });
   }
 
   if (!line.pricesOpen) {
@@ -839,7 +857,7 @@ function SellPriceBlock({
                   placeholder={row.current === null ? "0.00" : String(row.current)}
                   value={row.price}
                   className={cn("h-9 pl-5", belowCost && "border-danger")}
-                  onChange={(e) => setRow(index, { price: e.target.value })}
+                  onChange={(e) => setRow(index, { price: e.target.value, manual: true })}
                 />
               </div>
             </div>
