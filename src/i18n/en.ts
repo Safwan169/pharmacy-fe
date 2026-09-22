@@ -307,6 +307,8 @@ export const en = {
   "pos.searchLabel": "Search for a medicine",
   "pos.searchFailed": "The search didn't work. Check your connection and try typing again.",
   "pos.keepTyping": "Keep typing — at least 2 letters.",
+  "pos.splitLine": "{oldQty} {unit} at {oldPrice} (old stock) + {newQty} {unit} at {newPrice}",
+  "pos.nextPriceHint": "New price starts after the {count} {unit} of old stock — a bill that crosses over is split into two lines.",
   "pos.nothingFound": "Nothing found for “{query}”. Check the spelling, or try part of the name instead.",
   "pos.noPrice": "No price set",
   "pos.inStock": "in stock",

@@ -33,7 +33,7 @@ import { formatCurrency, cn } from "@/lib/utils";
 import type { DiscountType, Sale } from "@/types";
 import { SaleReceipt } from "./sale-receipt";
 import { PaymentPanel, type PaymentChoice } from "./payment-panel";
-import { loadHeldSales, newHeldSale, saveHeldSales, type HeldSale } from "./held-sales";
+import { loadHeldSales, newHeldSale, saveHeldSales, splitLine, type HeldSale } from "./held-sales";
 import { PauseCircle, PlayCircle } from "lucide-react";
 import { useT } from "@/i18n/client";
 
@@ -46,6 +46,7 @@ interface BasketLine {
   unitName: string;
   qtyInBase: number;
   unitPrice: number;
+  nextPrice?: { price: number; oldStockLeft: number };
   /** Base-unit stock at the time it was added — a guard rail, not the final word. */
   stockAtAdd: number;
   /** In the sold unit. */
@@ -135,6 +136,7 @@ export function CounterTerminal() {
                   unitName: unit.name,
                   qtyInBase: unit.qtyInBase,
                   unitPrice: unit.price,
+                  nextPrice: unit.nextPrice,
                   quantity: 1,
                 },
         );
@@ -149,6 +151,7 @@ export function CounterTerminal() {
           unitName: unit.name,
           qtyInBase: unit.qtyInBase,
           unitPrice: unit.price,
+          nextPrice: unit.nextPrice,
           stockAtAdd: item.stock ?? 0,
           quantity: 1,
         },
@@ -181,10 +184,7 @@ export function CounterTerminal() {
     return () => clearTimeout(timer);
   }, [justAdded]);
 
-  const subtotal = basket.reduce(
-    (sum, line) => sum + line.unitPrice * line.quantity,
-    0,
-  );
+  const subtotal = basket.reduce((sum, line) => sum + splitLine(line).total, 0);
 
   const parsedDiscount = Number(discountValue);
   const discountAmount = (() => {
@@ -324,7 +324,7 @@ export function CounterTerminal() {
                     <p className="truncate font-medium">{h.label}</p>
                     <p className="text-xs text-muted">
                       {t(h.lines.length === 1 ? "pos.itemCount" : "pos.itemsCount", { count: h.lines.length })} ·{" "}
-                      {formatCurrency(h.lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0))} ·{" "}
+                      {formatCurrency(h.lines.reduce((s, l) => s + splitLine(l).total, 0))} ·{" "}
                       {new Date(h.heldAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>
@@ -442,9 +442,21 @@ export function CounterTerminal() {
                         </div>
 
                         <span className="text-sm font-semibold tabular-nums">
-                          {formatCurrency(line.unitPrice * line.quantity)}
+                          {formatCurrency(splitLine(line).total)}
                         </span>
                       </div>
+
+                      {line.nextPrice && splitLine(line).newUnits > 0 && (
+                        <p className="mt-1.5 text-xs text-muted">
+                          {t("pos.splitLine", {
+                            oldQty: splitLine(line).oldUnits,
+                            oldPrice: formatCurrency(line.unitPrice),
+                            newQty: splitLine(line).newUnits,
+                            newPrice: formatCurrency(line.nextPrice.price),
+                            unit: line.unitName,
+                          })}
+                        </p>
+                      )}
 
                       {line.quantity * line.qtyInBase > line.stockAtAdd && (
                         <p className="mt-1.5 text-xs text-warning">
@@ -735,10 +747,21 @@ function ItemSearch({
                             <span className="text-muted">×{unit.qtyInBase}</span>
                           )}
                           <span className="tabular-nums">{formatCurrency(unit.price)}</span>
+                          {unit.nextPrice && (
+                            <span className="tabular-nums text-warning">→ {formatCurrency(unit.nextPrice.price)}</span>
+                          )}
                         </button>
                       );
                     })}
                   </div>
+                )}
+                {sellable && item.units.some((u) => u.nextPrice) && (
+                  <p className="mt-1 text-xs text-warning">
+                    {t("pos.nextPriceHint", {
+                      count: item.units.find((u) => u.nextPrice)!.nextPrice!.oldStockLeft,
+                      unit: item.baseUnit,
+                    })}
+                  </p>
                 )}
 
                 {added && (

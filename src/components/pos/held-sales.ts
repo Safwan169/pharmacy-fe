@@ -22,8 +22,22 @@ export interface HeldLine {
   unitName: string;
   qtyInBase: number;
   unitPrice: number;
+  /** A price waiting on old stock: the first `oldStockLeft` base units go at `unitPrice`. */
+  nextPrice?: { price: number; oldStockLeft: number };
   stockAtAdd: number;
   quantity: number;
+}
+
+/**
+ * How a line is billed. With a waiting price the units that come out of the
+ * old stock keep today's price and the rest get the new one — the same rule
+ * the API applies at checkout.
+ */
+export function splitLine(line: Pick<HeldLine, "unitPrice" | "nextPrice" | "qtyInBase" | "quantity">) {
+  if (!line.nextPrice) return { oldUnits: line.quantity, newUnits: 0, total: line.unitPrice * line.quantity };
+  const oldUnits = Math.min(line.quantity, Math.floor(line.nextPrice.oldStockLeft / line.qtyInBase));
+  const newUnits = line.quantity - oldUnits;
+  return { oldUnits, newUnits, total: oldUnits * line.unitPrice + newUnits * line.nextPrice.price };
 }
 
 const KEY = "pharmacy.heldSales";

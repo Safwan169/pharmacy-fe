@@ -9,6 +9,8 @@ export interface CounterUnit {
   qtyInBase: number;
   price: number;
   isDefault: boolean;
+  /** Set when a new price is waiting for the old stock to sell out. */
+  nextPrice?: { price: number; oldStockLeft: number };
 }
 
 export interface CounterSearchResult {
@@ -34,7 +36,9 @@ export interface CounterSearchResult {
  * SKUs are returned — a withdrawn one can't be sold, so offering it would just
  * lead to a rejected checkout.
  */
-export async function searchForCounter(term: string): Promise<CounterSearchResult[]> {
+export async function searchForCounter(
+  term: string,
+): Promise<CounterSearchResult[]> {
   const query = term.trim();
   if (query.length < 2) return [];
 
@@ -59,12 +63,24 @@ function toResult(variant: ProductVariant): CounterSearchResult {
     baseUnit: variant.baseUnit,
     units: (variant.units ?? [])
       .filter((u) => u.isSellable && u.price !== null)
-      .map((u) => ({
-        id: u.id,
-        name: u.name,
-        qtyInBase: u.qtyInBase,
-        price: u.price as number,
-        isDefault: u.isDefault,
-      })),
+      .map((u) => {
+        const waiting = variant.pendingPrice?.unitPrices.find(
+          (p) => p.unit_id === u.id,
+        );
+        return {
+          id: u.id,
+          name: u.name,
+          qtyInBase: u.qtyInBase,
+          price: u.price as number,
+          isDefault: u.isDefault,
+          nextPrice:
+            waiting && waiting.price !== u.price
+              ? {
+                  price: waiting.price,
+                  oldStockLeft: variant.pendingPrice?.oldStockLeft ?? 0,
+                }
+              : undefined,
+        };
+      }),
   };
 }
