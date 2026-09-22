@@ -14,7 +14,14 @@ const initial: BulkPriceState = { status: "idle" };
 
 export function BulkPriceForm({ manufacturers, generics }: { manufacturers: Manufacturer[]; generics: Generic[] }) {
   const [state, action, pending] = useActionState(runBulkPrice, initial);
+  // Every field is controlled: a form resets its uncontrolled inputs after a
+  // server action, which would blank the settings between Preview and Apply.
   const [mode, setMode] = useState<"percent" | "amount">("percent");
+  const [manufacturerId, setManufacturerId] = useState("");
+  const [genericId, setGenericId] = useState("");
+  const [search, setSearch] = useState("");
+  const [value, setValue] = useState("");
+  const [roundTo, setRoundTo] = useState("0.5");
   const t = useT();
   const preview = state.preview;
 
@@ -25,7 +32,7 @@ export function BulkPriceForm({ manufacturers, generics }: { manufacturers: Manu
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label={t("th.company")} htmlFor="manufacturer_id">
-          <Select id="manufacturer_id" name="manufacturer_id" defaultValue="">
+          <Select id="manufacturer_id" name="manufacturer_id" value={manufacturerId} onChange={(e) => setManufacturerId(e.target.value)}>
             <option value="">{t("filters.allCompanies")}</option>
             {manufacturers.map((m) => (
               <option key={m.id} value={m.id}>{m.name}</option>
@@ -33,7 +40,7 @@ export function BulkPriceForm({ manufacturers, generics }: { manufacturers: Manu
           </Select>
         </Field>
         <Field label={t("th.ingredient")} htmlFor="generic_id">
-          <Select id="generic_id" name="generic_id" defaultValue="">
+          <Select id="generic_id" name="generic_id" value={genericId} onChange={(e) => setGenericId(e.target.value)}>
             <option value="">{t("filters.allIngredients")}</option>
             {generics.map((g) => (
               <option key={g.id} value={g.id}>{g.name}</option>
@@ -41,7 +48,7 @@ export function BulkPriceForm({ manufacturers, generics }: { manufacturers: Manu
           </Select>
         </Field>
         <Field label={t("bulk.search")} htmlFor="search" hint={t("bulk.searchHint")}>
-          <Input id="search" name="search" maxLength={100} autoComplete="off" />
+          <Input id="search" name="search" maxLength={100} autoComplete="off" value={search} onChange={(e) => setSearch(e.target.value)} />
         </Field>
       </div>
 
@@ -52,11 +59,11 @@ export function BulkPriceForm({ manufacturers, generics }: { manufacturers: Manu
               <option value="percent">%</option>
               <option value="amount">৳</option>
             </Select>
-            <Input id="value" name="value" inputMode="decimal" placeholder={mode === "percent" ? "5" : "2"} className="tabular-nums" />
+            <Input id="value" name="value" inputMode="decimal" placeholder={mode === "percent" ? "5" : "2"} className="tabular-nums" value={value} onChange={(e) => setValue(e.target.value)} />
           </div>
         </Field>
         <Field label={t("bulk.roundTo")} htmlFor="round_to">
-          <Select id="round_to" name="round_to" defaultValue="0.5">
+          <Select id="round_to" name="round_to" value={roundTo} onChange={(e) => setRoundTo(e.target.value)}>
             <option value="0.5">৳0.50</option>
             <option value="1">৳1.00</option>
             <option value="0.01">{t("bulk.noRounding")}</option>
