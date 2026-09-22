@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState, type FormEvent } from "react";
 import { runBulkPrice, type BulkPriceState } from "@/lib/actions/bulk-price";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
@@ -25,8 +25,19 @@ export function BulkPriceForm({ manufacturers, generics }: { manufacturers: Manu
   const t = useT();
   const preview = state.preview;
 
+  // Submit by hand: a form submitted through its `action` prop is reset by
+  // React afterwards, and that clears the <select>s even though they are
+  // controlled — so Apply would go out without the company/ingredient filter.
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    formData.set("intent", submitter?.value ?? "preview");
+    startTransition(() => action(formData));
+  }
+
   return (
-    <form action={action} className="space-y-4" noValidate>
+    <form onSubmit={submit} className="space-y-4" noValidate>
       {state.status === "error" && state.message && <Alert tone="error">{state.message}</Alert>}
       {state.status === "applied" && state.message && <Alert tone="success">{state.message}</Alert>}
 
