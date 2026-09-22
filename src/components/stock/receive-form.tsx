@@ -751,7 +751,7 @@ function SellPriceBlock({
   }
 
   if (!line.pricesOpen) {
-    const priced = line.sellRows.filter((r) => r.current !== null);
+    const shown = changed ? line.sellRows.filter((r) => r.price !== "") : line.sellRows.filter((r) => r.current !== null);
     return (
       <button
         type="button"
@@ -763,60 +763,54 @@ function SellPriceBlock({
             : "border-border bg-background text-muted hover:text-foreground",
         )}
       >
-        <span>
+        <span className="min-w-0 truncate">
           {unpriced && !changed
             ? t("receive.priceMissing")
-            : `${t("receive.sellingAt")} ${(changed ? line.sellRows.filter((r) => r.price !== "") : priced)
-                .map((r) => `${r.name} ${formatCurrency(Number(changed ? r.price : r.current))}`)
-                .join(" · ")}`}
+            : shown.map((r) => `${r.name} ${formatCurrency(Number(changed ? r.price : r.current))}`).join(" · ")}
         </span>
-        <span className="font-medium">{changed ? t("receive.priceChanged") : t("receive.changePrice")}</span>
+        <span className="shrink-0 font-medium">{changed ? "✓" : t("receive.changePrice")}</span>
       </button>
     );
   }
 
   return (
     <div className="space-y-2 rounded-lg border border-border bg-background p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-medium">{t("receive.sellPriceTitle")}</p>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <p className="text-xs font-medium">
+          {t("receive.sellPriceTitle")}
           {line.mrp !== null && (
-            <button type="button" onClick={() => onSuggest("mrp")} className="text-xs text-primary underline">
-              {t("receive.useMrp")}
+            <span className="ml-1.5 font-normal text-muted">
+              {t("receive.mrpShort", { price: formatCurrency(line.mrp), unit: line.baseUnit })}
+            </span>
+          )}
+        </p>
+        <div className="flex shrink-0 items-center gap-2 text-xs">
+          {line.mrp !== null && (
+            <button type="button" onClick={() => onSuggest("mrp")} className="text-primary underline">
+              {t("receive.useMrpShort")}
             </button>
           )}
           {canMarkup && (
-            <button type="button" onClick={() => onSuggest("markup")} className="text-xs text-primary underline">
-              {t("receive.suggestFromCost", { percent: markupPercent })}
+            <button type="button" onClick={() => onSuggest("markup")} className="text-primary underline">
+              +{markupPercent}%
             </button>
           )}
-          <button type="button" onClick={() => onChange({ pricesOpen: false })} className="text-xs text-muted hover:text-foreground">
+          <button type="button" onClick={() => onChange({ pricesOpen: false })} className="text-muted hover:text-foreground">
             {t("common.close")}
           </button>
         </div>
       </div>
-      <p className="text-[11px] text-muted">
-        {line.mrp !== null
-          ? t("receive.mrpIs", {
-              price: formatCurrency(line.mrp),
-              unit: line.baseUnit,
-              pack:
-                line.packMrp !== null && line.packSize
-                  ? t("receive.mrpPack", { count: line.packSize, price: formatCurrency(line.packMrp) })
-                  : "",
-            })
-          : t("receive.noMrp")}
-      </p>
-      <div className="grid gap-2 sm:grid-cols-3">
+
+      <div className="grid gap-2 sm:grid-cols-2">
         {line.sellRows.map((row, index) => {
           const perBase = row.price === "" ? null : Number(row.price) / row.qtyInBase;
           const belowCost = perBase !== null && costPerBase > 0 && perBase < costPerBase;
           const aboveMrp = perBase !== null && line.mrp !== null && perBase > line.mrp + 0.005;
           return (
-            <div key={`${row.name}-${index}`} className="text-[11px] text-muted">
-              <div className="flex items-center gap-1">
-                <span className="truncate">{row.name}</span>
-                <span className="text-muted/80">×</span>
+            <div key={`${row.name}-${index}`}>
+              <div className="flex items-center gap-1 text-[11px] text-muted">
+                <span className="shrink-0 font-medium text-foreground">{row.name}</span>
+                <span>×</span>
                 <input
                   inputMode="numeric"
                   aria-label={t("receive.unitSize", { unit: row.name })}
@@ -826,67 +820,56 @@ function SellPriceBlock({
                     setRow(index, { qtyInBase: n > 0 ? n : 1 });
                   }}
                   disabled={row.current !== null && row.qtyInBase === 1}
-                  className="h-5 w-12 rounded border border-border bg-surface px-1 text-center tabular-nums disabled:opacity-60"
+                  className="h-5 w-10 shrink-0 rounded border border-border bg-surface px-1 text-center tabular-nums disabled:opacity-60"
                 />
-                {row.current !== null && <span className="opacity-70">{t("receive.nowPrice", { price: formatCurrency(row.current) })}</span>}
+                {belowCost ? (
+                  <span className="ml-auto truncate text-danger">{t("receive.belowCostShort")}</span>
+                ) : aboveMrp ? (
+                  <span className="ml-auto truncate text-warning">{t("receive.aboveMrpShort")}</span>
+                ) : perBase !== null && costPerBase > 0 ? (
+                  <span className="ml-auto truncate">
+                    {t("receive.marginIs", { percent: Math.round(((perBase - costPerBase) / costPerBase) * 100) })}
+                  </span>
+                ) : null}
               </div>
               <div className="relative mt-0.5">
                 <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-xs text-muted">৳</span>
                 <Input
                   inputMode="decimal"
-                  placeholder="0.00"
+                  placeholder={row.current === null ? "0.00" : String(row.current)}
                   value={row.price}
-                  className={cn("pl-5", belowCost && "border-danger")}
+                  className={cn("h-9 pl-5", belowCost && "border-danger")}
                   onChange={(e) => setRow(index, { price: e.target.value })}
                 />
               </div>
-              {belowCost ? (
-                <span className="text-danger">{t("receive.belowCost")}</span>
-              ) : aboveMrp ? (
-                <span className="text-warning">{t("receive.aboveMrp")}</span>
-              ) : perBase !== null && costPerBase > 0 ? (
-                <span>{t("receive.marginIs", { percent: Math.round(((perBase - costPerBase) / costPerBase) * 100) })}</span>
-              ) : null}
             </div>
           );
         })}
       </div>
+
       {typedBase !== undefined && line.mrp !== null && Math.abs(typedBase - line.mrp) > 0.005 && (
-        <label className="flex items-start gap-2 text-xs">
+        <label className="flex items-center gap-2 text-xs">
           <input
             type="checkbox"
-            className="mt-0.5"
+            className="shrink-0"
             checked={line.mrpRevised}
             onChange={(e) => onChange({ mrpRevised: e.target.checked })}
           />
-          <span>
-            <span className="font-medium">{t("receive.mrpRevised")}</span>{" "}
-            <span className="text-muted">
-              {t("receive.mrpRevisedHint", {
-                old: formatCurrency(line.mrp),
-                new: formatCurrency(typedBase),
-                unit: line.baseUnit,
-              })}
-            </span>
+          <span className="min-w-0">
+            {t("receive.mrpRevisedShort", { price: formatCurrency(typedBase), unit: line.baseUnit })}
           </span>
         </label>
       )}
 
       {changed && line.stockBefore > 0 && (
-        <div className="space-y-1 text-xs">
-          <label className="flex items-start gap-2">
-            <input type="radio" className="mt-0.5" checked={line.priceWhen === "after_old_stock"} onChange={() => onChange({ priceWhen: "after_old_stock" })} />
-            <span>
-              <span className="font-medium">{t("receive.whenLater")}</span>{" "}
-              <span className="text-muted">{t("receive.whenLaterHint", { count: line.stockBefore, unit: line.baseUnit })}</span>
-            </span>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+          <label className="flex items-center gap-1.5">
+            <input type="radio" checked={line.priceWhen === "after_old_stock"} onChange={() => onChange({ priceWhen: "after_old_stock" })} />
+            {t("receive.whenLaterShort", { count: line.stockBefore, unit: line.baseUnit })}
           </label>
-          <label className="flex items-start gap-2">
-            <input type="radio" className="mt-0.5" checked={line.priceWhen === "now"} onChange={() => onChange({ priceWhen: "now" })} />
-            <span>
-              <span className="font-medium">{t("receive.whenNow")}</span>{" "}
-              <span className="text-muted">{t("receive.whenNowHint", { count: line.stockBefore, unit: line.baseUnit })}</span>
-            </span>
+          <label className="flex items-center gap-1.5">
+            <input type="radio" checked={line.priceWhen === "now"} onChange={() => onChange({ priceWhen: "now" })} />
+            {t("receive.whenNowShort")}
           </label>
         </div>
       )}
