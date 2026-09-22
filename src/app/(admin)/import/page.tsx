@@ -9,15 +9,14 @@ import { getT } from "@/i18n/server";
 export const metadata = { title: "Import" };
 
 const COLUMNS = [
-  { name: "brand id", key: "import.col.brandId", required: true },
   { name: "brand name", key: "import.col.brandName", required: true },
   { name: "type", key: "import.col.type", required: true },
-  { name: "slug", key: "import.col.slug", required: false },
   { name: "dosage form", key: "import.col.dosageForm", required: true },
   { name: "generic", key: "import.col.generic", required: false },
   { name: "strength", key: "import.col.strength", required: false },
   { name: "manufacturer", key: "import.col.manufacturer", required: true },
-  { name: "package container / Package Size", key: "import.col.pack", required: false },
+  { name: "mrp", key: "import.col.mrp", required: false },
+  { name: "Package Size", key: "import.col.pack", required: false },
 ] as const;
 
 export default async function ImportPage() {

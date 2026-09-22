@@ -1,9 +1,8 @@
-﻿brand id,brand name,type,slug,dosage form,generic,strength,manufacturer,package container,Package Size
-90001,Napa,allopathic,napa-tablet-500-mg,Tablet,Paracetamol,500 mg,Beximco Pharmaceuticals Ltd.,10 x 10: (100's pack: 120.00),
-90002,Napa,allopathic,napa-syrup-120-mg-5-ml,Syrup,Paracetamol,120 mg/5 ml,Beximco Pharmaceuticals Ltd.,60 ml bottle: 35.00,
-90003,Seclo,allopathic,seclo-capsule-20-mg,Capsule,Omeprazole,20 mg,Square Pharmaceuticals PLC.,,10 x 10: (100's pack: 500.00)
-90004,Monas,allopathic,monas-tablet-10-mg,Tablet,Montelukast Sodium,10 mg,ACME Laboratories Ltd.,3 x 10: (30's pack: 480.00),
-90005,Amodis,allopathic,amodis-suspension-200-mg-5-ml,Powder for Suspension,Metronidazole,200 mg/5 ml,Square Pharmaceuticals PLC.,60 ml bottle: 45.00,
-90006,Alkuli,herbal,alkuli-syrup,Syrup,Ammi majus,,Hamdard Laboratories (Waqf) Bangladesh,100 ml bottle: 60.00,
-90007,Ceevit,allopathic,ceevit-tablet-250-mg,Tablet,Ascorbic Acid [Vitamin C],250 mg,Square Pharmaceuticals PLC.,10 x 10: (100's pack: 150.00),
-90008,Neotack,allopathic,neotack-tablet-150-mg,Tablet,Ranitidine Hydrochloride,150 mg,Square Pharmaceuticals PLC.,20 x 10: (200's pack: 500.00),
+﻿brand name,type,dosage form,generic,strength,manufacturer,mrp,Package Size
+Napa,allopathic,Tablet,Paracetamol,500 mg,Beximco Pharmaceuticals Ltd.,1.20,10 x 10: (100's pack)
+Napa,allopathic,Syrup,Paracetamol,120 mg/5 ml,Beximco Pharmaceuticals Ltd.,35.00,
+Seclo,allopathic,Capsule,Omeprazole,20 mg,Square Pharmaceuticals PLC.,7.00,10 x 10: (100's pack)
+Monas,allopathic,Tablet,Montelukast Sodium,10 mg,ACME Laboratories Ltd.,16.00,3 x 10: (30's pack)
+Amodis,allopathic,Powder for Suspension,Metronidazole,200 mg/5 ml,Square Pharmaceuticals PLC.,45.00,
+Alkuli,herbal,Syrup,Ammi majus,,Hamdard Laboratories (Waqf) Bangladesh,60.00,
+Ceevit,allopathic,Tablet,Ascorbic Acid [Vitamin C],250 mg,Square Pharmaceuticals PLC.,1.50,10 x 10: (100's pack)
