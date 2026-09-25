@@ -100,13 +100,21 @@ export const navigation = [
   },
 ];
 
-export function SidebarNav({ onNavigate, role }: { onNavigate?: () => void; role: string }) {
+export function SidebarNav({
+  onNavigate,
+  role,
+  compact = false,
+}: {
+  onNavigate?: () => void;
+  role: string;
+  compact?: boolean;
+}) {
   const pathname = usePathname();
   const t = useT();
   const visible = navigation.filter((item) => !("ownerOnly" in item && item.ownerOnly) || role === "owner");
 
   return (
-    <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+    <nav className={cn("flex-1 space-y-1 overflow-y-auto", compact ? "p-2" : "p-3")}>
       {visible.map(({ href, label, icon: Icon, hint }) => {
         const active = pathname === href || pathname.startsWith(`${href}/`);
         return (
@@ -115,16 +123,17 @@ export function SidebarNav({ onNavigate, role }: { onNavigate?: () => void; role
             href={href}
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
-            title={t(hint)}
+            title={compact ? t(label) : t(hint)}
             className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+              "flex items-center rounded-lg text-sm font-medium transition-colors",
+              compact ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2",
               active
                 ? "bg-primary/10 text-primary"
                 : "text-muted hover:bg-background hover:text-foreground",
             )}
           >
             <Icon className="h-4 w-4 shrink-0" aria-hidden />
-            {t(label)}
+            {compact ? <span className="sr-only">{t(label)}</span> : t(label)}
           </Link>
         );
       })}
@@ -132,22 +141,37 @@ export function SidebarNav({ onNavigate, role }: { onNavigate?: () => void; role
   );
 }
 
-function Brand() {
+function Brand({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex h-16 items-center gap-2 border-b border-border px-5">
+    <div
+      className={cn(
+        "flex h-16 items-center border-b border-border",
+        compact ? "justify-center px-0" : "gap-2 px-5",
+      )}
+    >
       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
         <Cross className="h-4 w-4 text-primary-foreground" aria-hidden />
       </span>
-      <span className="text-sm font-semibold">Pharmacy</span>
+      {!compact && <span className="text-sm font-semibold">Pharmacy</span>}
     </div>
   );
 }
 
 export function Sidebar({ role }: { role: string }) {
+  // At the counter the labels are dead weight — a cashier knows the five icons
+  // they use, and the basket wants the width. Everywhere else the full menu
+  // helps, so this folds by itself instead of asking.
+  const compact = usePathname() === "/pos";
+
   return (
-    <aside className="hidden w-60 shrink-0 border-r border-border bg-surface lg:flex lg:flex-col">
-      <Brand />
-      <SidebarNav role={role} />
+    <aside
+      className={cn(
+        "hidden shrink-0 border-r border-border bg-surface transition-[width] lg:flex lg:flex-col",
+        compact ? "w-16" : "w-60",
+      )}
+    >
+      <Brand compact={compact} />
+      <SidebarNav role={role} compact={compact} />
     </aside>
   );
 }
