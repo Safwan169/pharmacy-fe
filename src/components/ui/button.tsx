@@ -22,16 +22,20 @@ const sizes: Record<Size, string> = {
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;
+  /** For the rare caller that needs to focus or scroll to the button. */
+  ref?: React.Ref<HTMLButtonElement>;
 }
 
 export function Button({
   className,
   variant = "primary",
   size = "md",
+  ref,
   ...props
 }: ButtonProps) {
   return (
     <button
+      ref={ref}
       className={cn(
         "inline-flex items-center justify-center rounded-lg font-medium transition-colors",
         "focus-visible:outline-2 focus-visible:outline-offset-2",

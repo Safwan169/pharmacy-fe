@@ -46,15 +46,22 @@ export async function searchForCounter(
   term: string,
 ): Promise<CounterSearchResult[]> {
   const query = term.trim();
-  if (query.length < 2) return [];
+  if (query.length < 1) return [];
 
   const result = await listVariants({
     search: query,
     status: "active",
     limit: 20,
   });
+  if (result.data.length > 0) return result.data.map(toResult);
 
-  return result.data.map(toResult);
+  // Nothing matched: try again on a shorter stem, so a slip like "nappa" or a
+  // half-remembered ending still reaches "Napa" instead of an empty list.
+  const words = query.split(/\s+/);
+  const stem = words[0].slice(0, Math.max(3, words[0].length - 2));
+  if (stem.length < 3 || stem === query) return [];
+  const retry = await listVariants({ search: stem, status: "active", limit: 20 });
+  return retry.data.map(toResult);
 }
 
 function toResult(variant: ProductVariant): CounterSearchResult {

@@ -69,6 +69,8 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
     null,
   );
   const addNonce = useRef(0);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const payRef = useRef<HTMLButtonElement>(null);
   const t = useT();
   // Parked baskets. Read once on mount (localStorage isn't there on the server).
   const [held, setHeld] = useState<HeldSale[]>([]);
@@ -120,7 +122,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
     [result],
   );
 
-  const addItem = useCallback((item: CounterSearchResult, unit: CounterUnit) => {
+  const addItem = useCallback((item: CounterSearchResult, unit: CounterUnit, quantity = 1) => {
     // Adding the same item twice must merge into one line: the API rejects a
     // basket that lists a variant more than once. Picking a different unit
     // for an item already in the basket switches that line to the new unit.
@@ -131,7 +133,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
           line.variantId !== item.id
             ? line
             : line.unitId === unit.id
-              ? { ...line, quantity: line.quantity + 1 }
+              ? { ...line, quantity: line.quantity + quantity }
               : {
                   ...line,
                   unitId: unit.id,
@@ -139,7 +141,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
                   qtyInBase: unit.qtyInBase,
                   unitPrice: unit.price,
                   nextPrice: unit.nextPrice,
-                  quantity: 1,
+                  quantity,
                 },
         );
       }
@@ -155,7 +157,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
           unitPrice: unit.price,
           nextPrice: unit.nextPrice,
           stockAtAdd: item.stock ?? 0,
-          quantity: 1,
+          quantity,
         },
       ];
     });
@@ -185,6 +187,26 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
     const timer = setTimeout(() => setJustAdded(null), 900);
     return () => clearTimeout(timer);
   }, [justAdded]);
+
+  // F2 and F4 are the two moves a busy counter makes constantly: back to the
+  // search box, and on to taking the money. Kept off single letters so typing
+  // a medicine name never triggers them.
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "F2") {
+        event.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      }
+      if (event.key === "F4") {
+        event.preventDefault();
+        payRef.current?.scrollIntoView({ block: "center" });
+        payRef.current?.focus();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const subtotal = basket.reduce((sum, line) => sum + splitLine(line).total, 0);
 
@@ -280,7 +302,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
       </p>
 
       <div className="space-y-4 lg:col-span-3">
-        <ItemSearch onSelect={addItem} justAdded={justAdded} />
+        <ItemSearch onSelect={addItem} justAdded={justAdded} inputRef={searchRef} />
         <Favourites items={favourites} onSelect={addItem} />
       </div>
 
@@ -529,6 +551,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
                 </div>
 
                 <Button
+                  ref={payRef}
                   type="button"
                   onClick={submit}
                   disabled={submitting || !!discountError || !!paymentError}
@@ -646,12 +669,21 @@ function Favourites({
   );
 }
 
+/** "napa x10" / "napa *10" — the trailing count, POS style. */
+function splitQuantity(raw: string): { query: string; quantity: number } {
+  const match = /^(.*?)[\s]*[x*×]\s*(\d{1,4})$/i.exec(raw.trim());
+  if (!match || match[1].trim() === "") return { query: raw.trim(), quantity: 1 };
+  return { query: match[1].trim(), quantity: Math.max(1, Number(match[2])) };
+}
+
 function ItemSearch({
   onSelect,
   justAdded,
+  inputRef,
 }: {
-  onSelect: (item: CounterSearchResult, unit: CounterUnit) => void;
+  onSelect: (item: CounterSearchResult, unit: CounterUnit, quantity?: number) => void;
   justAdded: { id: number; nonce: number } | null;
+  inputRef: React.RefObject<HTMLInputElement | null>;
 }) {
   const [term, setTerm] = useState("");
   // One object rather than three flags, so a result can never be shown next to
@@ -661,22 +693,25 @@ function ItemSearch({
     results: CounterSearchResult[];
   }>({ status: "idle", results: [] });
   const requestId = useRef(0);
+  // Which row the keyboard is on, and which of that row's units is chosen.
+  const [cursor, setCursor] = useState({ row: 0, unit: 0 });
   const t = useT();
 
   function handleChange(value: string) {
     setTerm(value);
+    setCursor({ row: 0, unit: 0 });
     // Clearing and the spinner both belong to the keystroke, not to an effect —
     // deriving them here keeps the effect purely about the debounced request.
     setState(
-      value.trim().length < 2
+      splitQuantity(value).query.length < 1
         ? { status: "idle", results: [] }
         : { status: "searching", results: [] },
     );
   }
 
   useEffect(() => {
-    const query = term.trim();
-    if (query.length < 2) return;
+    const query = splitQuantity(term).query;
+    if (query.length < 1) return;
 
     const id = ++requestId.current;
 
@@ -701,7 +736,44 @@ function ItemSearch({
   const searching = status === "searching";
   const failed = status === "failed";
 
-  const query = term.trim();
+  const { query, quantity } = splitQuantity(term);
+  // Only rows that can actually be rung up take part in keyboard selection.
+  const sellableRows = results.filter((item) => item.units.length > 0 && (item.stock ?? 0) > 0);
+  const row = Math.min(cursor.row, Math.max(sellableRows.length - 1, 0));
+  const current = sellableRows[row];
+  const currentUnit =
+    current === undefined
+      ? undefined
+      : current.units[Math.min(cursor.unit, current.units.length - 1)] ??
+        current.units.find((u) => u.isDefault) ??
+        current.units[0];
+
+  function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      handleChange("");
+      return;
+    }
+    if (sellableRows.length === 0) return;
+
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const next = event.key === "ArrowDown" ? row + 1 : row - 1;
+      setCursor({ row: (next + sellableRows.length) % sellableRows.length, unit: 0 });
+      return;
+    }
+    // Tab walks the ladder — tablet, strip, box — without leaving the box.
+    if (event.key === "Tab" && current !== undefined && current.units.length > 1) {
+      event.preventDefault();
+      setCursor({ row, unit: (cursor.unit + 1) % current.units.length });
+      return;
+    }
+    if (event.key === "Enter" && current !== undefined && currentUnit !== undefined) {
+      event.preventDefault();
+      onSelect(current, currentUnit, quantity);
+      handleChange("");
+      inputRef.current?.focus();
+    }
+  }
 
   return (
     <Card>
@@ -716,10 +788,12 @@ function ItemSearch({
             aria-hidden
           />
           <input
+            ref={inputRef}
             type="search"
             value={term}
             autoFocus
             onChange={(e) => handleChange(e.target.value)}
+            onKeyDown={onKeyDown}
             placeholder={t("pos.searchPlaceholder")}
             aria-label={t("pos.searchLabel")}
             className="h-11 w-full rounded-lg border border-border bg-surface pr-10 pl-9 text-sm placeholder:text-muted/70 focus:border-primary focus:outline-2 focus:outline-primary/30"
@@ -738,8 +812,10 @@ function ItemSearch({
           </Alert>
         )}
 
-        {query.length > 0 && query.length < 2 && (
-          <p className="text-sm text-muted">{t("pos.keepTyping")}</p>
+        {sellableRows.length > 0 && (
+          <p className="text-xs text-muted">
+            {quantity > 1 ? t("pos.keysWithQty", { count: quantity }) : t("pos.keys")}
+          </p>
         )}
 
         {status === "done" && results.length === 0 && (
@@ -759,7 +835,11 @@ function ItemSearch({
               // flash when the same item is added twice in a row.
               <li
                 key={added ? `${item.id}-${justAdded.nonce}` : item.id}
-                className={cn("relative px-1 py-3", added && "animate-add-flash")}
+                className={cn(
+                  "relative rounded-lg px-1 py-3",
+                  added && "animate-add-flash",
+                  current?.id === item.id && "bg-primary/5 ring-1 ring-primary/40",
+                )}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -800,6 +880,7 @@ function ItemSearch({
                               ? "cursor-pointer border-border bg-surface hover:border-primary hover:bg-primary/5 active:bg-primary/10"
                               : "cursor-not-allowed border-border opacity-50",
                             unit.isDefault && enough && "border-primary/60",
+                            current?.id === item.id && currentUnit?.id === unit.id && "border-primary bg-primary/10",
                           )}
                         >
                           <span className="font-medium">{unit.name}</span>
