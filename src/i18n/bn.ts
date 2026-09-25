@@ -550,6 +550,7 @@ export const bn: Record<MessageKey, string> = {
   "receive.done": "ডেলিভারি গ্রহণ হয়েছে",
   "receive.doneHint": "স্টক আপডেট হয়েছে এবং প্রতিটি লাইন এখন মেয়াদসহ একটি ব্যাচ।",
   "receive.viewReceipt": "রসিদ দেখুন",
+  "receive.doneKeys": "Enter \u2014 \u09aa\u09b0\u09c7\u09b0 \u09a1\u09c7\u09b2\u09bf\u09ad\u09be\u09b0\u09bf",
   "receive.another": "আরেকটি গ্রহণ",
   "receive.delivery": "ডেলিভারি",
   "receive.deliveryHint": "কার কাছ থেকে, কবে।",

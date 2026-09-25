@@ -548,6 +548,7 @@ export const en = {
   "receive.done": "Delivery received",
   "receive.doneHint": "Stock is updated and each line is now a batch with its expiry date.",
   "receive.viewReceipt": "View receipt",
+  "receive.doneKeys": "Enter \u2014 next delivery",
   "receive.another": "Receive another",
   "receive.delivery": "Delivery",
   "receive.deliveryHint": "Who it came from and when.",

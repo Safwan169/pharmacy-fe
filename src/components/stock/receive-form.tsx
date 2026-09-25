@@ -295,77 +295,20 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
       if (response.status === "success") {
         setSavedPrices(priceSummary);
         setSaved(response.receipt);
+        // The supplier and the date usually carry over to the next delivery;
+        // the lines and the invoice number never do.
+        setLines([]);
+        setInvoiceNo("");
+        setNote("");
       }
     });
   }
 
-  if (saved) {
-    return (
-      <Card className="mx-auto max-w-lg">
-        <CardBody className="space-y-4 text-center">
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
-            <CircleCheck className="h-6 w-6 text-success" aria-hidden />
-          </span>
-          <div>
-            <h2 className="text-lg font-semibold">{t("receive.done")}</h2>
-            <p className="mt-1 text-sm text-muted">
-              {t("receive.doneHint")}
-            </p>
-          </div>
-          <div className="rounded-xl bg-background p-4 text-left text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted">{t("deliveries.receipt")}</span>
-              <span className="font-mono font-semibold">{saved.receiptNumber}</span>
-            </div>
-            <div className="mt-1 flex justify-between">
-              <span className="text-muted">{t("deliveries.totalCost")}</span>
-              <span className="font-semibold tabular-nums">{formatCurrency(saved.totalCost)}</span>
-            </div>
-            <div className="mt-1 flex justify-between">
-              <span className="text-muted">{t("receive.paidNow")}</span>
-              <span className="tabular-nums">{formatCurrency(saved.paidAmount)}</span>
-            </div>
-            {saved.totalCost - saved.paidAmount > 0 && (
-              <div className="mt-1 flex justify-between text-warning">
-                <span>{t("receive.onAccount")}</span>
-                <span className="font-semibold tabular-nums">{formatCurrency(saved.totalCost - saved.paidAmount)}</span>
-              </div>
-            )}
-            {savedPrices.now > 0 && (
-              <p className="mt-2 text-success">{t("receive.pricedNow", { count: savedPrices.now })}</p>
-            )}
-            {savedPrices.later > 0 && (
-              <p className="mt-1 text-warning">{t("receive.pricedLater", { count: savedPrices.later })}</p>
-            )}
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Link
-              href={`/stock/receipts/${saved.id}`}
-              className="inline-flex h-10 flex-1 items-center justify-center rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-background"
-            >
-              {t("receive.viewReceipt")}
-            </Link>
-            <Button
-              className="h-10 flex-1"
-              onClick={() => {
-                setSaved(null);
-                setResult(null);
-                setLines([]);
-                setInvoiceNo("");
-                setNote("");
-              }}
-            >
-              <Plus className="h-4 w-4" aria-hidden />
-              {t("receive.another")}
-            </Button>
-          </div>
-        </CardBody>
-      </Card>
-    );
-  }
-
   return (
     <div className="grid gap-5 lg:grid-cols-5">
+      {saved && (
+        <ReceivedDialog receipt={saved} prices={savedPrices} onClose={() => setSaved(null)} />
+      )}
       <div className="space-y-5 lg:col-span-3">
         <Card>
           <CardHeader title={t("receive.delivery")} description={t("receive.deliveryHint")} />
@@ -980,5 +923,94 @@ function ItemSearch({ onSelect }: { onSelect: (item: ReceiveSearchResult) => voi
         </p>
       </CardBody>
     </Card>
+  );
+}
+
+/**
+ * What was just received, over the form rather than instead of it: the shop
+ * usually has a second delivery in the same pile, and the form behind is
+ * already blank and waiting. Enter or Esc gets on with it.
+ */
+function ReceivedDialog({
+  receipt,
+  prices,
+  onClose,
+}: {
+  receipt: StockReceipt;
+  prices: { now: number; later: number };
+  onClose: () => void;
+}) {
+  const t = useT();
+  const owed = receipt.totalCost - receipt.paidAmount;
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Enter" || event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={t("receive.done")}
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-foreground/40 p-4 pt-10 backdrop-blur-[1px]"
+    >
+      <Card className="w-full max-w-lg shadow-xl">
+        <CardBody className="space-y-4 text-center">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
+            <CircleCheck className="h-6 w-6 text-success" aria-hidden />
+          </span>
+          <div>
+            <h2 className="text-lg font-semibold">{t("receive.done")}</h2>
+            <p className="mt-1 text-sm text-muted">{t("receive.doneHint")}</p>
+          </div>
+          <div className="rounded-xl bg-background p-4 text-left text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted">{t("deliveries.receipt")}</span>
+              <span className="font-mono font-semibold">{receipt.receiptNumber}</span>
+            </div>
+            <div className="mt-1 flex justify-between">
+              <span className="text-muted">{t("deliveries.totalCost")}</span>
+              <span className="font-semibold tabular-nums">{formatCurrency(receipt.totalCost)}</span>
+            </div>
+            <div className="mt-1 flex justify-between">
+              <span className="text-muted">{t("receive.paidNow")}</span>
+              <span className="tabular-nums">{formatCurrency(receipt.paidAmount)}</span>
+            </div>
+            {owed > 0 && (
+              <div className="mt-1 flex justify-between text-warning">
+                <span>{t("receive.onAccount")}</span>
+                <span className="font-semibold tabular-nums">{formatCurrency(owed)}</span>
+              </div>
+            )}
+            {prices.now > 0 && (
+              <p className="mt-2 text-success">{t("receive.pricedNow", { count: prices.now })}</p>
+            )}
+            {prices.later > 0 && (
+              <p className="mt-1 text-warning">{t("receive.pricedLater", { count: prices.later })}</p>
+            )}
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Link
+              href={`/stock/receipts/${receipt.id}`}
+              className="inline-flex h-10 flex-1 items-center justify-center rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-background"
+            >
+              {t("receive.viewReceipt")}
+            </Link>
+            <Button className="h-10 flex-1" autoFocus onClick={onClose}>
+              <Plus className="h-4 w-4" aria-hidden />
+              {t("receive.another")}
+            </Button>
+          </div>
+          <p className="text-xs text-muted">{t("receive.doneKeys")}</p>
+        </CardBody>
+      </Card>
+    </div>
   );
 }
