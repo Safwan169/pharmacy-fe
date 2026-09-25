@@ -17,6 +17,8 @@ import {
   ShoppingCart,
   CircleAlert,
   Check,
+  Pill,
+  TrendingUp,
 } from "lucide-react";
 import { Card, CardHeader, CardBody } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -603,25 +605,38 @@ function Favourites({
   if (items.length === 0) return null;
 
   return (
-    <section aria-label={t("pos.favourites")}>
-      <p className="mb-2 flex items-baseline gap-2 px-1 text-xs font-medium tracking-wide text-muted uppercase">
-        {t("pos.favourites")}
-        <span className="text-[11px] normal-case opacity-80">{t("pos.favouritesHint")}</span>
-      </p>
+    <section aria-label={t("pos.favourites")} className="space-y-2">
+      <div className="flex items-center gap-2 px-0.5">
+        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <TrendingUp className="h-3.5 w-3.5" aria-hidden />
+        </span>
+        <h2 className="text-sm font-semibold">{t("pos.favourites")}</h2>
+        <span className="truncate text-xs text-muted">{t("pos.favouritesHint")}</span>
+      </div>
+
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
         {items.map((item) => {
           const unit = item.units.find((u) => u.isDefault) ?? item.units[0];
+          const low = (item.stock ?? 0) < unit.qtyInBase * 3;
           return (
             <button
               key={item.id}
               type="button"
               onClick={() => onSelect(item, unit)}
-              className="flex flex-col gap-0.5 rounded-lg border border-border bg-surface px-2.5 py-2 text-left transition-colors hover:border-primary hover:bg-primary/5 active:bg-primary/10"
+              className="group flex items-center gap-2.5 rounded-xl border border-border bg-surface p-2.5 text-left transition-all hover:-translate-y-px hover:border-primary/60 hover:shadow-sm active:translate-y-0 active:bg-primary/10"
             >
-              <span className="line-clamp-1 text-sm font-medium">{item.name}</span>
-              <span className="flex items-baseline justify-between gap-2 text-xs text-muted">
-                <span className="truncate">{unit.name}</span>
-                <span className="shrink-0 font-semibold tabular-nums text-foreground">{formatCurrency(unit.price)}</span>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                <Pill className="h-4 w-4 transition-transform group-hover:hidden" aria-hidden />
+                <Plus className="hidden h-4 w-4 group-hover:block" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="line-clamp-1 text-sm font-medium">{item.name}</span>
+                <span className="flex items-baseline justify-between gap-2">
+                  <span className={cn("truncate text-xs", low ? "text-warning" : "text-muted")}>
+                    {low ? t("pos.onlyLeft", { count: item.stock ?? 0, unit: item.baseUnit }) : unit.name}
+                  </span>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums">{formatCurrency(unit.price)}</span>
+                </span>
               </span>
             </button>
           );

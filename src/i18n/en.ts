@@ -309,6 +309,7 @@ export const en = {
   "pos.keepTyping": "Keep typing — at least 2 letters.",
   "pos.splitLine": "{oldQty} {unit} at {oldPrice} (old stock) + {newQty} {unit} at {newPrice}",
   "pos.nextPriceHint": "New price starts after the {count} {unit} of old stock — a bill that crosses over is split into two lines.",
+  "pos.onlyLeft": "only {count} {unit} left",
   "pos.favourites": "Sells most",
   "pos.favouritesHint": "One tap adds it to the basket.",
   "pos.focus": "Full screen",

@@ -338,6 +338,7 @@ export const bn: Record<MessageKey, string> = {
   "pos.keepTyping": "আরও লিখুন — কমপক্ষে ২ অক্ষর।",
   "pos.splitLine": "{oldQty} {unit} × {oldPrice} (পুরনো স্টক) + {newQty} {unit} × {newPrice}",
   "pos.nextPriceHint": "পুরনো স্টকের {count} {unit} শেষ হলে নতুন দাম — মাঝখানে পড়া বিল দুই লাইনে ভাগ হবে।",
+  "pos.onlyLeft": "মাত্র {count} {unit} বাকি",
   "pos.favourites": "সবচেয়ে বেশি বিক্রি",
   "pos.favouritesHint": "এক টাচেই ঝুড়িতে যোগ হবে।",
   "pos.focus": "পুরো পর্দা",
