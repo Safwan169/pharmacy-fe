@@ -326,7 +326,7 @@ export const en = {
   "keys.search": "Jump back to the search box",
   "keys.pay": "Jump to the payment button",
   "keys.finish": "Complete the sale",
-  "receipt.keys": "Enter — next customer · P — print the receipt",
+  "receipt.keys": "Enter — next customer · P — print the receipt · A — A4 invoice",
   "pos.favourites": "Sells most",
   "pos.favouritesHint": "One tap adds it to the basket.",
   "pos.focus": "Full screen",

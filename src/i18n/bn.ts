@@ -355,7 +355,7 @@ export const bn: Record<MessageKey, string> = {
   "keys.search": "খোঁজার ঘরে ফিরুন",
   "keys.pay": "টাকা নেওয়ার বোতামে",
   "keys.finish": "বিক্রি শেষ করুন",
-  "receipt.keys": "Enter — পরের কাস্টমার · P — রসিদ প্রিন্ট",
+  "receipt.keys": "Enter — পরের কাস্টমার · P — রসিদ প্রিন্ট · A — A4 ইনভয়েস",
   "pos.favourites": "সবচেয়ে বেশি বিক্রি",
   "pos.favouritesHint": "এক টাচেই ঝুড়িতে যোগ হবে।",
   "pos.focus": "পুরো পর্দা",

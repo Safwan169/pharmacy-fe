@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { CircleCheck, Download, Plus, Printer } from "lucide-react";
 import { Card, CardBody } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,17 +34,26 @@ export function SaleReceipt({
   const t = useT();
   const method = PAYMENT_METHOD_KEYS[sale.paymentMethod as PaymentMethod];
 
+  const invoiceRef = useRef<HTMLAnchorElement>(null);
+
   // A finished sale sits on top of the counter rather than replacing it, and
-  // answers to the keyboard: the next customer is usually already waiting.
+  // answers to the keyboard: the next customer is usually already waiting, so
+  // every button here has a letter.
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key === "Enter" || event.key === "Escape") {
         event.preventDefault();
         onNewSale();
+        return;
       }
-      if (event.key.toLowerCase() === "p") {
+      const key = event.key.toLowerCase();
+      if (key === "p") {
         event.preventDefault();
         void printReceipt(sale.id);
+      }
+      if (key === "a") {
+        event.preventDefault();
+        invoiceRef.current?.click();
       }
     }
     window.addEventListener("keydown", onKey);
@@ -141,17 +150,21 @@ export function SaleReceipt({
             <Button type="button" variant="secondary" onClick={() => void printReceipt(sale.id)} className="h-10 flex-1">
               <Printer className="h-4 w-4" aria-hidden />
               {t("receipt.print")}
+              <Hint>P</Hint>
             </Button>
             <a
+              ref={invoiceRef}
               href={`/api/invoices/${sale.id}`}
               className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-medium transition-colors hover:bg-background"
             >
               <Download className="h-4 w-4" aria-hidden />
               {t("receipt.a4")}
+              <Hint>A</Hint>
             </a>
             <Button onClick={onNewSale} autoFocus className="h-10 flex-1">
               <Plus className="h-4 w-4" aria-hidden />
               {t("receipt.next")}
+              <Hint>Enter</Hint>
             </Button>
           </div>
 
@@ -166,5 +179,14 @@ export function SaleReceipt({
         </CardBody>
       </Card>
     </div>
+  );
+}
+
+/** The letter that fires a button, shown on the button itself. */
+function Hint({ children }: { children: string }) {
+  return (
+    <kbd className="ml-1 hidden rounded border border-current/30 px-1 text-[10px] leading-4 font-normal opacity-70 sm:inline">
+      {children}
+    </kbd>
   );
 }
