@@ -10,6 +10,7 @@ import {
 } from "react";
 import {
   Search,
+  X,
   Plus,
   Minus,
   Trash2,
@@ -71,6 +72,10 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
   const addNonce = useRef(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const payRef = useRef<HTMLButtonElement>(null);
+  const searchHandle = useRef<SearchHandle | null>(null);
+  // Which basket line the keyboard is on. Null while the search box is
+  // driving, so the ring only appears once the arrows actually mean the basket.
+  const [lineCursor, setLineCursor] = useState<number | null>(null);
   const t = useT();
   // Parked baskets. Read once on mount (localStorage isn't there on the server).
   const [held, setHeld] = useState<HeldSale[]>([]);
@@ -188,25 +193,106 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
     return () => clearTimeout(timer);
   }, [justAdded]);
 
-  // F2 and F4 are the two moves a busy counter makes constantly: back to the
-  // search box, and on to taking the money. Kept off single letters so typing
-  // a medicine name never triggers them.
+  // One listener for the whole counter, so nothing depends on where the
+  // cashier last clicked: typing searches, the arrows pick, Enter adds, and
+  // when the search box is empty those same arrows edit the basket instead.
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const typingElsewhere =
+        target !== null &&
+        target !== searchRef.current &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable);
+
+      // The two jumps work even from the discount or cash box.
       if (event.key === "F2") {
         event.preventDefault();
-        searchRef.current?.focus();
-        searchRef.current?.select();
+        searchHandle.current?.focus();
+        return;
       }
       if (event.key === "F4") {
         event.preventDefault();
         payRef.current?.scrollIntoView({ block: "center" });
         payRef.current?.focus();
+        return;
+      }
+      if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        payRef.current?.click();
+        return;
+      }
+      if (typingElsewhere) {
+        if (event.key === "Escape") (target as HTMLInputElement).blur();
+        return;
+      }
+
+      const search = searchHandle.current;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        search?.clear();
+        return;
+      }
+      if (search?.hasResults()) {
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          event.preventDefault();
+          search.move(event.key === "ArrowDown" ? 1 : -1);
+          return;
+        }
+        if (event.key === "Tab") {
+          event.preventDefault();
+          search.cycleUnit();
+          return;
+        }
+        if (event.key === "Enter") {
+          event.preventDefault();
+          setLineCursor(null);
+          search.commit();
+          return;
+        }
+      } else if (basket.length > 0 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+        // Nothing to pick from, so the arrows belong to the basket.
+        const line = basket[Math.min(lineCursor ?? 0, basket.length - 1)];
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          event.preventDefault();
+          setLineCursor((c) => {
+            if (c === null) return event.key === "ArrowDown" ? 0 : basket.length - 1;
+            return (c + (event.key === "ArrowDown" ? 1 : basket.length - 1)) % basket.length;
+          });
+          return;
+        }
+        if (event.key === "+" || event.key === "=" || event.key === "ArrowRight") {
+          event.preventDefault();
+          setQuantity(line.variantId, line.quantity + 1);
+          return;
+        }
+        if (event.key === "-" || event.key === "ArrowLeft") {
+          event.preventDefault();
+          if (line.quantity > 1) setQuantity(line.variantId, line.quantity - 1);
+          return;
+        }
+        if (event.key === "Delete") {
+          event.preventDefault();
+          removeItem(line.variantId);
+          return;
+        }
+      }
+
+      // Anything printable goes to the search box, wherever the focus was.
+      if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+        if (target === searchRef.current) return;
+        event.preventDefault();
+        setLineCursor(null);
+        search?.type(event.key);
+        return;
+      }
+      if (event.key === "Backspace" && target !== searchRef.current) {
+        event.preventDefault();
+        search?.backspace();
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [basket, lineCursor]);
 
   const subtotal = basket.reduce((sum, line) => sum + splitLine(line).total, 0);
 
@@ -302,7 +388,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
       </p>
 
       <div className="space-y-4 lg:col-span-3">
-        <ItemSearch onSelect={addItem} justAdded={justAdded} inputRef={searchRef} />
+        <ItemSearch onSelect={addItem} justAdded={justAdded} inputRef={searchRef} handleRef={searchHandle} />
         <Favourites items={favourites} onSelect={addItem} />
       </div>
 
@@ -394,9 +480,12 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
           ) : (
             <>
               <ul className="divide-y divide-border">
-                {basket.map((line) => {
+                {basket.map((line, index) => {
                   const flagged = problemIds.has(line.variantId);
                   const added = justAdded?.id === line.variantId;
+                  // Only marked once the search box is empty, because that is
+                  // when the arrow keys drive the basket rather than the list.
+                  const onCursor = lineCursor !== null && index === Math.min(lineCursor, basket.length - 1);
                   return (
                     <li
                       // Re-keying on the nonce remounts the line, which is what
@@ -410,6 +499,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
                         "px-5 py-3",
                         flagged && "bg-danger/5",
                         added && "animate-basket-pop",
+                        onCursor && "bg-primary/5 ring-1 ring-primary/30 ring-inset",
                       )}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -492,6 +582,8 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
                   );
                 })}
               </ul>
+
+              <p className="hidden px-5 pb-1 text-xs text-muted lg:block">{t("pos.basketKeys")}</p>
 
               <CardBody className="space-y-4 border-t border-border">
                 <div>
@@ -676,14 +768,29 @@ function splitQuantity(raw: string): { query: string; quantity: number } {
   return { query: match[1].trim(), quantity: Math.max(1, Number(match[2])) };
 }
 
+/** What the counter's global key handling can ask of the search box. */
+export interface SearchHandle {
+  focus(): void;
+  clear(): void;
+  hasResults(): boolean;
+  move(delta: number): void;
+  cycleUnit(): void;
+  /** Adds the highlighted medicine. True when something was added. */
+  commit(): boolean;
+  type(char: string): void;
+  backspace(): void;
+}
+
 function ItemSearch({
   onSelect,
   justAdded,
   inputRef,
+  handleRef,
 }: {
   onSelect: (item: CounterSearchResult, unit: CounterUnit, quantity?: number) => void;
   justAdded: { id: number; nonce: number } | null;
   inputRef: React.RefObject<HTMLInputElement | null>;
+  handleRef: React.RefObject<SearchHandle | null>;
 }) {
   const [term, setTerm] = useState("");
   // One object rather than three flags, so a result can never be shown next to
@@ -697,7 +804,12 @@ function ItemSearch({
   const [cursor, setCursor] = useState({ row: 0, unit: 0 });
   const t = useT();
 
-  function handleChange(value: string) {
+  // The term is mirrored in a ref so that keystrokes arriving faster than a
+  // re-render — a fast typist, or a barcode scanner "typing" a whole code in a
+  // few milliseconds — still append to each other instead of overwriting.
+  const termRef = useRef("");
+  const applyTerm = useCallback((value: string) => {
+    termRef.current = value;
     setTerm(value);
     setCursor({ row: 0, unit: 0 });
     // Clearing and the spinner both belong to the keystroke, not to an effect —
@@ -707,6 +819,10 @@ function ItemSearch({
         ? { status: "idle", results: [] }
         : { status: "searching", results: [] },
     );
+  }, []);
+
+  function handleChange(value: string) {
+    applyTerm(value);
   }
 
   useEffect(() => {
@@ -748,32 +864,52 @@ function ItemSearch({
         current.units.find((u) => u.isDefault) ??
         current.units[0];
 
-  function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Escape") {
-      handleChange("");
-      return;
-    }
-    if (sellableRows.length === 0) return;
+  // The counter listens for keys on the whole page, so the same moves work
+  // whether the cashier last touched the search box, a tile or the basket.
+  // The handle reads through a ref of the latest render, which keeps it stable
+  // without going stale.
+  const latest = useRef({ row, cursor, current, currentUnit, quantity, sellableRows, onSelect });
+  useEffect(() => {
+    latest.current = { row, cursor, current, currentUnit, quantity, sellableRows, onSelect };
+  });
 
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      const next = event.key === "ArrowDown" ? row + 1 : row - 1;
-      setCursor({ row: (next + sellableRows.length) % sellableRows.length, unit: 0 });
-      return;
-    }
-    // Tab walks the ladder — tablet, strip, box — without leaving the box.
-    if (event.key === "Tab" && current !== undefined && current.units.length > 1) {
-      event.preventDefault();
-      setCursor({ row, unit: (cursor.unit + 1) % current.units.length });
-      return;
-    }
-    if (event.key === "Enter" && current !== undefined && currentUnit !== undefined) {
-      event.preventDefault();
-      onSelect(current, currentUnit, quantity);
-      handleChange("");
+  useEffect(() => {
+    const set = (value: string) => {
+      applyTerm(value);
       inputRef.current?.focus();
-    }
-  }
+    };
+    handleRef.current = {
+      focus() {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      },
+      clear: () => set(""),
+      hasResults: () => latest.current.sellableRows.length > 0,
+      move(delta) {
+        const rows = latest.current.sellableRows;
+        if (rows.length === 0) return;
+        setCursor({ row: (latest.current.row + delta + rows.length) % rows.length, unit: 0 });
+      },
+      cycleUnit() {
+        const { current: item, cursor: at, row: atRow } = latest.current;
+        if (item === undefined || item.units.length < 2) return;
+        setCursor({ row: atRow, unit: (at.unit + 1) % item.units.length });
+      },
+      commit() {
+        const { current: item, currentUnit: unit, quantity: qty } = latest.current;
+        if (item === undefined || unit === undefined) return false;
+        latest.current.onSelect(item, unit, qty);
+        set("");
+        return true;
+      },
+      type: (char) => set(termRef.current + char),
+      backspace: () => set(termRef.current.slice(0, -1)),
+    };
+    const handle = handleRef;
+    return () => {
+      handle.current = null;
+    };
+  }, [applyTerm, handleRef, inputRef]);
 
   return (
     <Card>
@@ -793,16 +929,29 @@ function ItemSearch({
             value={term}
             autoFocus
             onChange={(e) => handleChange(e.target.value)}
-            onKeyDown={onKeyDown}
             placeholder={t("pos.searchPlaceholder")}
             aria-label={t("pos.searchLabel")}
             className="h-11 w-full rounded-lg border border-border bg-surface pr-10 pl-9 text-sm placeholder:text-muted/70 focus:border-primary focus:outline-2 focus:outline-primary/30"
           />
-          {searching && (
+          {searching ? (
             <Loader2
               className="absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 animate-spin text-muted"
               aria-label={t("filters.searching")}
             />
+          ) : (
+            term !== "" && (
+              <button
+                type="button"
+                onClick={() => {
+                  handleChange("");
+                  inputRef.current?.focus();
+                }}
+                aria-label={t("common.close")}
+                className="absolute top-1/2 right-2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted hover:bg-background hover:text-foreground"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            )
           )}
         </div>
 
@@ -871,7 +1020,12 @@ function ItemSearch({
                         <button
                           key={unit.id}
                           type="button"
-                          onClick={() => enough && onSelect(item, unit)}
+                          onClick={() => {
+                            if (!enough) return;
+                            onSelect(item, unit, quantity);
+                            handleChange("");
+                            inputRef.current?.focus();
+                          }}
                           disabled={!enough}
                           title={enough ? undefined : t("pos.notEnoughFor", { unit: unit.name })}
                           className={cn(
