@@ -1,7 +1,7 @@
 import { requireOwner } from "@/lib/current-user";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Banknote, Boxes, CalendarClock, PackageCheck, ReceiptText, Warehouse } from "lucide-react";
+import { Banknote, Boxes, CalendarClock, HandCoins, PackageCheck, ReceiptText, Wallet, Warehouse } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { PeriodTabs } from "@/components/dashboard/period-tabs";
@@ -10,10 +10,10 @@ import { Table, Th, Td } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { getExpired, getExpiring, getLowStock, getSummary } from "@/lib/api/sales";
+import { getExpired, getExpiring, getLowStock, getOutstanding, getSummary } from "@/lib/api/sales";
 import { getStockValue } from "@/lib/api/reports";
 import { ApiError } from "@/lib/api/client";
-import { formatCurrency, formatNumber } from "@/lib/utils";
+import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
 import { SUMMARY_PERIODS, type SummaryPeriod } from "@/types";
 import { getT } from "@/i18n/server";
 import type { MessageKey } from "@/i18n";
@@ -51,6 +51,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       <div className="mt-5">
         <Suspense fallback={null}>
+          <OutstandingSection />
+        </Suspense>
+      </div>
+
+      <div className="mt-5">
+        <Suspense fallback={null}>
           <ExpirySection />
         </Suspense>
       </div>
@@ -61,6 +67,58 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </Suspense>
       </div>
     </>
+  );
+}
+
+/**
+ * Money that has been sold but not collected, and stock that has been taken
+ * but not paid for. Neither moves with the period tabs above — they are
+ * balances as of now, which is how the owner thinks about them.
+ */
+async function OutstandingSection() {
+  const t = await getT();
+  let owed;
+  try {
+    owed = await getOutstanding();
+  } catch {
+    return null;
+  }
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <Link href="/customers/due" className="block">
+        <StatCard
+          label={t("dashboard.customersOwe")}
+          value={formatCurrency(owed.customers_owe)}
+          hint={
+            owed.customers_count === 0
+              ? t("dashboard.nobodyOwes")
+              : t("dashboard.owedBy", {
+                  count: owed.customers_count,
+                  since: owed.customers_oldest ? formatDate(owed.customers_oldest) : "—",
+                })
+          }
+          icon={HandCoins}
+          tone={owed.customers_owe > 0 ? "warning" : "default"}
+        />
+      </Link>
+      <Link href="/suppliers/due" className="block">
+        <StatCard
+          label={t("dashboard.shopOwes")}
+          value={formatCurrency(owed.shop_owes)}
+          hint={
+            owed.suppliers_count === 0
+              ? t("dashboard.oweNobody")
+              : t("dashboard.oweTo", {
+                  count: owed.suppliers_count,
+                  since: owed.suppliers_oldest ? formatDate(owed.suppliers_oldest) : "—",
+                })
+          }
+          icon={Wallet}
+          tone={owed.shop_owes > 0 ? "warning" : "default"}
+        />
+      </Link>
+    </div>
   );
 }
 

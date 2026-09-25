@@ -6,6 +6,7 @@ import type {
   ExpiringItem,
   ExpiryWindow,
   LowStockItem,
+  Outstanding,
   Paginated,
   Sale,
 } from "@/types";
@@ -46,6 +47,14 @@ export function getExpired() {
 
 export function getLowStock() {
   return apiFetch<LowStockItem[]>("/dashboard/low-stock", {
+    auth: true,
+    redirectOnUnauthorized: true,
+  });
+}
+
+/** What customers still owe the shop, and what the shop owes its suppliers. */
+export function getOutstanding() {
+  return apiFetch<Outstanding>("/dashboard/outstanding", {
     auth: true,
     redirectOnUnauthorized: true,
   });

@@ -471,6 +471,16 @@ export interface Sale {
   createdAt: string;
 }
 
+/** Credit in both directions, as of now — not tied to the dashboard period. */
+export interface Outstanding {
+  customers_owe: number;
+  customers_count: number;
+  customers_oldest: string | null;
+  shop_owes: number;
+  suppliers_count: number;
+  suppliers_oldest: string | null;
+}
+
 export interface LowStockItem {
   variant_id: number;
   brand_name: string;
