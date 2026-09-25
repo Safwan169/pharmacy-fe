@@ -20,6 +20,7 @@ import {
   Check,
   Pill,
   TrendingUp,
+  Keyboard,
 } from "lucide-react";
 import { Card, CardHeader, CardBody } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -76,6 +77,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
   // Which basket line the keyboard is on. Null while the search box is
   // driving, so the ring only appears once the arrows actually mean the basket.
   const [lineCursor, setLineCursor] = useState<number | null>(null);
+  const [showKeys, setShowKeys] = useState(false);
   const t = useT();
   // Parked baskets. Read once on mount (localStorage isn't there on the server).
   const [held, setHeld] = useState<HeldSale[]>([]);
@@ -198,6 +200,8 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
   // when the search box is empty those same arrows edit the basket instead.
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
+      // The finished-sale dialog owns the keyboard while it is open.
+      if (completed) return;
       const target = event.target as HTMLElement | null;
       const typingElsewhere =
         target !== null &&
@@ -227,6 +231,25 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
       }
 
       const search = searchHandle.current;
+      if (event.key === "?" || (event.key === "/" && event.shiftKey)) {
+        event.preventDefault();
+        setShowKeys((open) => !open);
+        return;
+      }
+      if (showKeys && event.key === "Escape") {
+        event.preventDefault();
+        setShowKeys(false);
+        return;
+      }
+      // With the search box empty, the number keys are the quick-pick tiles.
+      if (/^[1-9]$/.test(event.key) && !search?.hasResults() && favourites.length > 0) {
+        const item = favourites[Number(event.key) - 1];
+        if (item !== undefined) {
+          event.preventDefault();
+          addItem(item, item.units.find((u) => u.isDefault) ?? item.units[0]);
+          return;
+        }
+      }
       if (event.key === "Escape") {
         event.preventDefault();
         search?.clear();
@@ -292,7 +315,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [basket, lineCursor]);
+  }, [basket, lineCursor, favourites, addItem, completed, showKeys]);
 
   const subtotal = basket.reduce((sum, line) => sum + splitLine(line).total, 0);
 
@@ -361,17 +384,6 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
     });
   }
 
-  if (completed) {
-    return (
-      <SaleReceipt
-        sale={completed}
-        onNewSale={() => {
-          setCompleted(null);
-          setResult(null);
-        }}
-      />
-    );
-  }
 
   const addedLine = justAdded
     ? basket.find((line) => line.variantId === justAdded.id)
@@ -379,6 +391,17 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
 
   return (
     <div className="grid gap-5 lg:grid-cols-5">
+      {completed && (
+        <SaleReceipt
+          sale={completed}
+          onNewSale={() => {
+            setCompleted(null);
+            setResult(null);
+            searchHandle.current?.focus();
+          }}
+        />
+      )}
+      {showKeys && <KeyHelp onClose={() => setShowKeys(false)} />}
       {/* The flash and the badge are visual only; this is what a screen
           reader hears when something lands in the basket. */}
       <p aria-live="polite" className="sr-only">
@@ -389,7 +412,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
 
       <div className="space-y-4 lg:col-span-3">
         <ItemSearch onSelect={addItem} justAdded={justAdded} inputRef={searchRef} handleRef={searchHandle} />
-        <Favourites items={favourites} onSelect={addItem} />
+        <Favourites items={favourites} onSelect={addItem} onShowKeys={() => setShowKeys(true)} />
       </div>
 
       <div id="basket" className="scroll-mt-4 pb-16 lg:pb-0 lg:sticky lg:top-2 lg:col-span-2 lg:self-start">
@@ -712,9 +735,11 @@ function QuantityButton({
 function Favourites({
   items,
   onSelect,
+  onShowKeys,
 }: {
   items: CounterSearchResult[];
   onSelect: (item: CounterSearchResult, unit: CounterUnit) => void;
+  onShowKeys: () => void;
 }) {
   const t = useT();
   if (items.length === 0) return null;
@@ -726,11 +751,19 @@ function Favourites({
           <TrendingUp className="h-3.5 w-3.5" aria-hidden />
         </span>
         <h2 className="text-sm font-semibold">{t("pos.favourites")}</h2>
-        <span className="truncate text-xs text-muted">{t("pos.favouritesHint")}</span>
+        <span className="hidden truncate text-xs text-muted sm:inline">{t("pos.favouritesHint")}</span>
+        <button
+          type="button"
+          onClick={onShowKeys}
+          className="ml-auto flex h-6 shrink-0 items-center gap-1 rounded-md border border-border px-2 text-xs text-muted hover:text-foreground"
+        >
+          <Keyboard className="h-3.5 w-3.5" aria-hidden />
+          {t("pos.keyHelp")}
+        </button>
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
-        {items.map((item) => {
+        {items.map((item, index) => {
           const unit = item.units.find((u) => u.isDefault) ?? item.units[0];
           const low = (item.stock ?? 0) < unit.qtyInBase * 3;
           return (
@@ -738,10 +771,10 @@ function Favourites({
               key={item.id}
               type="button"
               onClick={() => onSelect(item, unit)}
-              className="group flex items-center gap-2.5 rounded-xl border border-border bg-surface p-2.5 text-left transition-all hover:-translate-y-px hover:border-primary/60 hover:shadow-sm active:translate-y-0 active:bg-primary/10"
+              className="group relative flex items-center gap-2.5 rounded-xl border border-border bg-surface p-2.5 text-left transition-all hover:-translate-y-px hover:border-primary/60 hover:shadow-sm active:translate-y-0 active:bg-primary/10"
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                <Pill className="h-4 w-4 transition-transform group-hover:hidden" aria-hidden />
+                <Pill className="h-4 w-4 group-hover:hidden" aria-hidden />
                 <Plus className="hidden h-4 w-4 group-hover:block" aria-hidden />
               </span>
               <span className="min-w-0 flex-1">
@@ -753,6 +786,14 @@ function Favourites({
                   <span className="shrink-0 text-sm font-semibold tabular-nums">{formatCurrency(unit.price)}</span>
                 </span>
               </span>
+              {index < 9 && (
+                <span
+                  aria-hidden
+                  className="absolute top-1 right-1 rounded px-1 text-[10px] font-medium text-muted/70 tabular-nums"
+                >
+                  {index + 1}
+                </span>
+              )}
             </button>
           );
         })}
@@ -761,11 +802,61 @@ function Favourites({
   );
 }
 
-/** "napa x10" / "napa *10" — the trailing count, POS style. */
-function splitQuantity(raw: string): { query: string; quantity: number } {
-  const match = /^(.*?)[\s]*[x*×]\s*(\d{1,4})$/i.exec(raw.trim());
-  if (!match || match[1].trim() === "") return { query: raw.trim(), quantity: 1 };
-  return { query: match[1].trim(), quantity: Math.max(1, Number(match[2])) };
+/** The whole keyboard, in one place, for whoever is new at the till. */
+function KeyHelp({ onClose }: { onClose: () => void }) {
+  const t = useT();
+  const rows: [string, string][] = [
+    ["A–Z", t("keys.type")],
+    ["1–9", t("keys.tiles")],
+    ["↑ ↓", t("keys.move")],
+    ["Tab", t("keys.unit")],
+    ["Enter", t("keys.add")],
+    ["x5 + Enter", t("keys.qty")],
+    ["+ / −", t("keys.plusMinus")],
+    ["Delete", t("keys.remove")],
+    ["Esc", t("keys.clear")],
+    ["F2", t("keys.search")],
+    ["F4", t("keys.pay")],
+    ["Ctrl+Enter", t("keys.finish")],
+  ];
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={t("pos.keyHelp")}
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-foreground/40 p-4 pt-10"
+    >
+      <Card className="w-full max-w-md shadow-xl">
+        <CardHeader
+          title={t("pos.keyHelp")}
+          description={t("keys.hint")}
+          action={
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t("common.close")}
+              className="rounded-md p-1 text-muted hover:bg-background hover:text-foreground"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          }
+        />
+        <CardBody>
+          <dl className="divide-y divide-border text-sm">
+            {rows.map(([key, what]) => (
+              <div key={key} className="flex items-center gap-3 py-2">
+                <dt className="w-28 shrink-0">
+                  <kbd className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-xs">{key}</kbd>
+                </dt>
+                <dd className="text-muted">{what}</dd>
+              </div>
+            ))}
+          </dl>
+        </CardBody>
+      </Card>
+    </div>
+  );
 }
 
 /** What the counter's global key handling can ask of the search box. */
@@ -779,6 +870,13 @@ export interface SearchHandle {
   commit(): boolean;
   type(char: string): void;
   backspace(): void;
+}
+
+/** "napa x10" / "napa *10" — the trailing count, POS style. */
+function splitQuantity(raw: string): { query: string; quantity: number } {
+  const match = /^(.*?)[\s]*[x*×]\s*(\d{1,4})$/i.exec(raw.trim());
+  if (!match || match[1].trim() === "") return { query: raw.trim(), quantity: 1 };
+  return { query: match[1].trim(), quantity: Math.max(1, Number(match[2])) };
 }
 
 function ItemSearch({
@@ -931,7 +1029,7 @@ function ItemSearch({
             onChange={(e) => handleChange(e.target.value)}
             placeholder={t("pos.searchPlaceholder")}
             aria-label={t("pos.searchLabel")}
-            className="h-11 w-full rounded-lg border border-border bg-surface pr-10 pl-9 text-sm placeholder:text-muted/70 focus:border-primary focus:outline-2 focus:outline-primary/30"
+            className="h-11 w-full rounded-lg border border-border bg-surface pr-10 pl-9 text-sm placeholder:text-muted/70 focus:border-primary focus:outline-2 focus:outline-primary/30 [&::-webkit-search-cancel-button]:appearance-none"
           />
           {searching ? (
             <Loader2

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 import { CircleCheck, Download, Plus, Printer } from "lucide-react";
 import { Card, CardBody } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,9 +33,32 @@ export function SaleReceipt({
 }) {
   const t = useT();
   const method = PAYMENT_METHOD_KEYS[sale.paymentMethod as PaymentMethod];
+
+  // A finished sale sits on top of the counter rather than replacing it, and
+  // answers to the keyboard: the next customer is usually already waiting.
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Enter" || event.key === "Escape") {
+        event.preventDefault();
+        onNewSale();
+      }
+      if (event.key.toLowerCase() === "p") {
+        event.preventDefault();
+        void printReceipt(sale.id);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onNewSale, sale.id]);
+
   return (
-    <div className="mx-auto max-w-lg">
-      <Card>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={t("receipt.complete")}
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-foreground/40 p-4 pt-10 backdrop-blur-[1px]"
+    >
+      <Card className="w-full max-w-lg shadow-xl">
         <CardBody className="space-y-5 text-center">
           <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
             <CircleCheck className="h-6 w-6 text-success" aria-hidden />
@@ -114,7 +138,7 @@ export function SaleReceipt({
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Button type="button" variant="secondary" onClick={() => printReceipt(sale.id)} className="h-10 flex-1">
+            <Button type="button" variant="secondary" onClick={() => void printReceipt(sale.id)} className="h-10 flex-1">
               <Printer className="h-4 w-4" aria-hidden />
               {t("receipt.print")}
             </Button>
@@ -125,11 +149,13 @@ export function SaleReceipt({
               <Download className="h-4 w-4" aria-hidden />
               {t("receipt.a4")}
             </a>
-            <Button onClick={onNewSale} className="h-10 flex-1">
+            <Button onClick={onNewSale} autoFocus className="h-10 flex-1">
               <Plus className="h-4 w-4" aria-hidden />
               {t("receipt.next")}
             </Button>
           </div>
+
+          <p className="text-xs text-muted">{t("receipt.keys")}</p>
 
           <Link
             href={`/sales/${sale.id}`}
