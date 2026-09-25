@@ -128,6 +128,9 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
   const [payMode, setPayMode] = useState<"full" | "credit" | "partial">("full");
   const [paidNow, setPaidNow] = useState("");
   const [payMethod, setPayMethod] = useState<"cash" | "bkash">("cash");
+  // Cash handed over at the delivery usually comes out of the counter drawer —
+  // but not always, and the day's cash count is wrong whenever it didn't.
+  const [fromDrawer, setFromDrawer] = useState(true);
   const [lines, setLines] = useState<Line[]>([]);
   const [result, setResult] = useState<ReceiveResult | null>(null);
   const [saved, setSaved] = useState<StockReceipt | null>(null);
@@ -281,6 +284,7 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
         note: note.trim() || undefined,
         paid_amount: payMode === "full" ? Math.round(total * 100) / 100 : payMode === "credit" ? 0 : Number(paidNow) || 0,
         paid_method: payMethod,
+        paid_from_drawer: fromDrawer,
         items: lines.map((l) => ({
           variant_id: l.variantId,
           unit_id: l.unitId === "" ? undefined : l.unitId,
@@ -520,6 +524,27 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
                       <option value="cash">{t("paymentMethod.cash")}</option>
                       <option value="bkash">{t("paymentMethod.bkash")}</option>
                     </Select>
+                  </div>
+                )}
+                {payMode !== "credit" && payMethod === "cash" && paidAmount > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-muted">{t("cashFrom.label")}</span>
+                    {([true, false] as const).map((drawer) => (
+                      <button
+                        key={String(drawer)}
+                        type="button"
+                        onClick={() => setFromDrawer(drawer)}
+                        aria-pressed={fromDrawer === drawer}
+                        className={cn(
+                          "rounded-lg border px-2.5 py-1 text-xs",
+                          fromDrawer === drawer
+                            ? "border-primary bg-primary/10 font-medium text-primary"
+                            : "border-border bg-surface text-muted hover:text-foreground",
+                        )}
+                      >
+                        {t(drawer ? "cashFrom.drawer" : "cashFrom.outside")}
+                      </button>
+                    ))}
                   </div>
                 )}
                 {onAccount > 0 && !paymentError && (

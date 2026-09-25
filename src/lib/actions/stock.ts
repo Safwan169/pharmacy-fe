@@ -131,6 +131,8 @@ export interface ReceiveRequest {
   /** Paid at the door; the rest goes on the supplier's account. */
   paid_amount: number;
   paid_method: "cash" | "bkash";
+  /** False when the cash came from a bank or the owner's pocket, not the drawer. */
+  paid_from_drawer?: boolean;
   items: ReceiveLineInput[];
 }
 
@@ -147,6 +149,8 @@ export async function paySupplier(_prev: SupplierPaymentState, formData: FormDat
   const amount = Number(String(formData.get("amount") ?? "").trim());
   const method = String(formData.get("method") ?? "cash");
   const reference = String(formData.get("reference") ?? "").trim();
+  // Only cash can come out of the drawer, so bKash never asks.
+  const fromDrawer = formData.get("from_drawer") !== "outside";
   const note = String(formData.get("note") ?? "").trim();
   if (!Number.isInteger(supplierId) || supplierId < 1) return { status: "error", message: t("action.reload") };
   if (!(amount > 0)) return { status: "error", message: t("supplierPay.enterAmount") };
@@ -158,6 +162,7 @@ export async function paySupplier(_prev: SupplierPaymentState, formData: FormDat
       body: {
         amount: Math.round(amount * 100) / 100,
         method,
+        from_drawer: method === "cash" ? fromDrawer : true,
         ...(reference ? { reference } : {}),
         ...(note ? { note } : {}),
       },

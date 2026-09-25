@@ -65,6 +65,9 @@ export default async function DailyClosingPage({ searchParams }: PageProps<"/rep
           <CardHeader title={t("closing.byMethod")} />
           <CardBody>
             <dl className="space-y-2 text-sm">
+              {report.opening_cash !== null && (
+                <Row label={t("closing.openingCash")} value={report.opening_cash} />
+              )}
               <Row label={t("closing.cashSales")} value={report.by_method.cash} />
               <Row label={t("closing.bkashSales")} value={report.by_method.bkash} />
               <Row label={t("closing.onAccount")} value={report.by_method.due} muted />
@@ -74,6 +77,9 @@ export default async function DailyClosingPage({ searchParams }: PageProps<"/rep
               <Row label={t("closing.refundBkash")} value={-report.refunds_by_method.bkash} />
               <Row label={t("closing.refundDue")} value={-report.refunds_by_method.due_adjust} muted />
               <Row label={t("closing.supplierCash")} value={-report.supplier_paid.cash} />
+              {report.supplier_paid.cash_outside > 0 && (
+                <Row label={t("closing.supplierOutside")} value={report.supplier_paid.cash_outside} muted />
+              )}
               <Row label={t("closing.supplierBkash")} value={-report.supplier_paid.bkash} />
               <div className="flex justify-between border-t border-border pt-2 text-base font-semibold">
                 <dt>{t("closing.cashExpected")}</dt>

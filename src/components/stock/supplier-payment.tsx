@@ -47,6 +47,12 @@ export function PaySupplier({ supplierId, dueBalance, compact = false }: { suppl
           <option value="bkash">{t("paymentMethod.bkash")}</option>
         </Select>
       </div>
+      {method === "cash" && (
+        <Select name="from_drawer" defaultValue="drawer" aria-label={t("cashFrom.label")}>
+          <option value="drawer">{t("cashFrom.drawer")}</option>
+          <option value="outside">{t("cashFrom.outside")}</option>
+        </Select>
+      )}
       <Input name="reference" placeholder={`${t("supplierPay.reference")} (${t("common.optional").toLowerCase()})`} maxLength={50} aria-label={t("supplierPay.reference")} />
       <Input name="note" placeholder={`${t("deliveries.note")} (${t("common.optional").toLowerCase()})`} maxLength={255} aria-label={t("deliveries.note")} />
       <div className="flex gap-2">

@@ -363,7 +363,9 @@ export interface DailyClosing {
   by_method: { cash: number; bkash: number; due: number };
   refunds_by_method: { cash: number; bkash: number; due_adjust: number };
   due_collected: { cash: number; bkash: number };
-  supplier_paid: { cash: number; bkash: number };
+  supplier_paid: { cash: number; bkash: number; cash_outside: number };
+  /** What the drawer held when the day began. Null on a single cashier's view. */
+  opening_cash: number | null;
   cash_in_drawer_expected: number;
   voided_count: number;
   top_items: { variant_id: number; name: string; unit: string; quantity: number; amount: number }[];
