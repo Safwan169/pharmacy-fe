@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { apiFetch, ApiError } from "@/lib/api/client";
+import { listSales } from "@/lib/api/sales";
 import type { RefundMethod, Sale } from "@/types";
 import { getT } from "@/i18n/server";
 import type { Translate } from "@/i18n";
@@ -32,6 +33,25 @@ export async function voidSale(_prev: VoidState, formData: FormData): Promise<Vo
   }
   revalidateSale(saleId);
   return { status: "success", message: t("returnAction.voided") };
+}
+
+/**
+ * Bills the counter could still take something back from. With no search it is
+ * the past week, which covers almost every return; typing searches all of
+ * history by medicine, customer or invoice number.
+ */
+export async function findSalesToReturn(search: string): Promise<Sale[]> {
+  const term = search.trim();
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const result = await listSales({
+    limit: 20,
+    with_items: true,
+    ...(term === "" ? { from: weekAgo } : { search: term }),
+  });
+  // A voided or fully returned bill has nothing left to give back.
+  return result.data.filter((sale) =>
+    (sale.items ?? []).some((item) => item.quantity - item.returnedQuantity > 0),
+  );
 }
 
 export interface ReturnRequest {

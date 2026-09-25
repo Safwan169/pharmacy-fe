@@ -21,6 +21,7 @@ import {
   Pill,
   TrendingUp,
   Keyboard,
+  Undo2,
 } from "lucide-react";
 import { Card, CardHeader, CardBody } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ import { checkout, type CheckoutResult } from "@/lib/actions/checkout";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { DiscountType, Sale } from "@/types";
 import { SaleReceipt } from "./sale-receipt";
+import { ReturnDialog } from "./return-dialog";
 import { PaymentPanel, type PaymentChoice } from "./payment-panel";
 import { loadHeldSales, newHeldSale, saveHeldSales, splitLine, type HeldSale } from "./held-sales";
 import { PauseCircle, PlayCircle } from "lucide-react";
@@ -78,6 +80,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
   // driving, so the ring only appears once the arrows actually mean the basket.
   const [lineCursor, setLineCursor] = useState<number | null>(null);
   const [showKeys, setShowKeys] = useState(false);
+  const [returning, setReturning] = useState(false);
   const t = useT();
   // Parked baskets. Read once on mount (localStorage isn't there on the server).
   const [held, setHeld] = useState<HeldSale[]>([]);
@@ -200,8 +203,13 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
   // when the search box is empty those same arrows edit the basket instead.
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      // The finished-sale dialog owns the keyboard while it is open.
-      if (completed) return;
+      // A dialog on top owns the keyboard while it is open.
+      if (completed || returning) return;
+      if (event.key === "F7") {
+        event.preventDefault();
+        setReturning(true);
+        return;
+      }
       const target = event.target as HTMLElement | null;
       const typingElsewhere =
         target !== null &&
@@ -315,7 +323,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [basket, lineCursor, favourites, addItem, completed, showKeys]);
+  }, [basket, lineCursor, favourites, addItem, completed, showKeys, returning]);
 
   const subtotal = basket.reduce((sum, line) => sum + splitLine(line).total, 0);
 
@@ -402,6 +410,14 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
         />
       )}
       {showKeys && <KeyHelp onClose={() => setShowKeys(false)} />}
+      {returning && (
+        <ReturnDialog
+          onClose={() => {
+            setReturning(false);
+            searchHandle.current?.focus();
+          }}
+        />
+      )}
       {/* The flash and the badge are visual only; this is what a screen
           reader hears when something lands in the basket. */}
       <p aria-live="polite" className="sr-only">
@@ -426,6 +442,14 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
             }
             action={
               <span className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setReturning(true)}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted hover:bg-background hover:text-foreground"
+                >
+                  <Undo2 className="h-3.5 w-3.5" aria-hidden />
+                  {t("ret.button")}
+                </button>
                 {basket.length > 0 && (
                   <button
                     type="button"
@@ -818,6 +842,7 @@ function KeyHelp({ onClose }: { onClose: () => void }) {
     ["F2", t("keys.search")],
     ["F4", t("keys.pay")],
     ["Ctrl+Enter", t("keys.finish")],
+    ["F7", t("keys.return")],
   ];
 
   return (

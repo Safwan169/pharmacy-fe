@@ -18,6 +18,7 @@ export function listSales(
     to?: string;
     page?: number;
     limit?: number;
+    with_items?: boolean;
   } = {},
 ) {
   return apiFetch<Paginated<Sale>>(`/sales${buildQuery(params)}`, {
