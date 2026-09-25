@@ -376,6 +376,8 @@ export const bn: Record<MessageKey, string> = {
   "ret.backToCounter": "\u0995\u09be\u0989\u09a8\u09cd\u099f\u09be\u09b0\u09c7 \u09ab\u09bf\u09b0\u09c1\u09a8",
   "ret.doneKeys": "Enter \u2014 \u0995\u09be\u0989\u09a8\u09cd\u099f\u09be\u09b0\u09c7 \u09ab\u09bf\u09b0\u09c1\u09a8",
   "refund.dueShort": "\u09ac\u09be\u0995\u09bf \u09a5\u09c7\u0995\u09c7",
+  "pos.soundOn": "\u09b6\u09ac\u09cd\u09a6 \u099a\u09be\u09b2\u09c1 \u2014 \u09ac\u09a8\u09cd\u09a7 \u0995\u09b0\u09c1\u09a8",
+  "pos.soundOff": "\u09b6\u09ac\u09cd\u09a6 \u09ac\u09a8\u09cd\u09a7 \u2014 \u099a\u09be\u09b2\u09c1 \u0995\u09b0\u09c1\u09a8",
   "pos.favourites": "সবচেয়ে বেশি বিক্রি",
   "pos.favouritesHint": "এক টাচেই ঝুড়িতে যোগ হবে।",
   "pos.focus": "পুরো পর্দা",

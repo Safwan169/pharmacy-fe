@@ -22,6 +22,8 @@ import {
   TrendingUp,
   Keyboard,
   Undo2,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { Card, CardHeader, CardBody } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,6 +39,7 @@ import { checkout, type CheckoutResult } from "@/lib/actions/checkout";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { DiscountType, Sale } from "@/types";
 import { SaleReceipt } from "./sale-receipt";
+import { beep, setSoundOn, soundIsOn } from "./beep";
 import { ReturnDialog } from "./return-dialog";
 import { PaymentPanel, type PaymentChoice } from "./payment-panel";
 import { loadHeldSales, newHeldSale, saveHeldSales, splitLine, type HeldSale } from "./held-sales";
@@ -81,6 +84,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
   const [lineCursor, setLineCursor] = useState<number | null>(null);
   const [showKeys, setShowKeys] = useState(false);
   const [returning, setReturning] = useState(false);
+  const [sound, setSound] = useState(true);
   const t = useT();
   // Parked baskets. Read once on mount (localStorage isn't there on the server).
   const [held, setHeld] = useState<HeldSale[]>([]);
@@ -88,6 +92,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration from storage
     setHeld(loadHeldSales());
+    setSound(soundIsOn());
   }, []);
 
   function holdSale() {
@@ -173,6 +178,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
     });
     setResult(null);
     setJustAdded({ id: item.id, nonce: ++addNonce.current });
+    beep();
   }, []);
 
   function setQuantity(variantId: number, quantity: number) {
@@ -442,6 +448,25 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
             }
             action={
               <span className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !sound;
+                    setSound(next);
+                    setSoundOn(next);
+                    if (next) beep();
+                  }}
+                  aria-pressed={sound}
+                  title={sound ? t("pos.soundOn") : t("pos.soundOff")}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted hover:bg-background hover:text-foreground"
+                >
+                  {sound ? (
+                    <Volume2 className="h-3.5 w-3.5" aria-hidden />
+                  ) : (
+                    <VolumeX className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                  <span className="sr-only">{sound ? t("pos.soundOn") : t("pos.soundOff")}</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setReturning(true)}

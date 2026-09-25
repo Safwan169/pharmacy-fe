@@ -347,6 +347,8 @@ export const en = {
   "ret.backToCounter": "Back to the counter",
   "ret.doneKeys": "Enter \u2014 back to the counter",
   "refund.dueShort": "Off their due",
+  "pos.soundOn": "Beep is on \u2014 turn it off",
+  "pos.soundOff": "Beep is off \u2014 turn it on",
   "pos.favourites": "Sells most",
   "pos.favouritesHint": "One tap adds it to the basket.",
   "pos.focus": "Full screen",
