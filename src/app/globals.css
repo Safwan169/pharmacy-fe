@@ -34,6 +34,10 @@
  * medicine name, a row of unit chips) widens the column past the phone
  * screen and the page clips. Nothing here wants that.
  */
+[data-focus="1"] .hide-on-focus {
+  display: none;
+}
+
 .grid > * {
   min-width: 0;
 }

@@ -53,7 +53,7 @@ interface BasketLine {
   quantity: number;
 }
 
-export function CounterTerminal() {
+export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearchResult[] }) {
   const [basket, setBasket] = useState<BasketLine[]>([]);
   const [discountType, setDiscountType] = useState<DiscountType>("percentage");
   const [discountValue, setDiscountValue] = useState("");
@@ -277,7 +277,8 @@ export function CounterTerminal() {
           : ""}
       </p>
 
-      <div className="lg:col-span-3">
+      <div className="space-y-4 lg:col-span-3">
+        <Favourites items={favourites} onSelect={addItem} />
         <ItemSearch onSelect={addItem} justAdded={justAdded} />
       </div>
 
@@ -586,6 +587,51 @@ function QuantityButton({
 }
 
 /** Type-ahead lookup. Debounced so a fast typist doesn't queue up requests. */
+/**
+ * One-tap tiles for what the shop sells most, so the common medicines need no
+ * typing at all. Each tile adds the medicine in its default unit; the price
+ * shown is that unit's, which is what the customer will be charged.
+ */
+function Favourites({
+  items,
+  onSelect,
+}: {
+  items: CounterSearchResult[];
+  onSelect: (item: CounterSearchResult, unit: CounterUnit) => void;
+}) {
+  const t = useT();
+  if (items.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader title={t("pos.favourites")} description={t("pos.favouritesHint")} />
+      <CardBody className="pt-0">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+          {items.map((item) => {
+            const unit = item.units.find((u) => u.isDefault) ?? item.units[0];
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onSelect(item, unit)}
+                className="flex min-h-16 flex-col justify-between gap-1 rounded-xl border border-border bg-surface px-3 py-2 text-left transition-colors hover:border-primary hover:bg-primary/5 active:bg-primary/10"
+              >
+                <span className="line-clamp-2 text-sm font-medium">{item.name}</span>
+                <span className="flex items-baseline justify-between gap-2 text-xs text-muted">
+                  <span className="truncate">{unit.name}</span>
+                  <span className="shrink-0 font-semibold tabular-nums text-foreground">
+                    {formatCurrency(unit.price)}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </CardBody>
+    </Card>
+  );
+}
+
 function ItemSearch({
   onSelect,
   justAdded,

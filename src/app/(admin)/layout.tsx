@@ -1,3 +1,4 @@
+import { CounterChrome } from "@/components/layout/counter-chrome";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { getCurrentUser } from "@/lib/current-user";
@@ -8,12 +9,8 @@ export default async function AdminLayout({ children }: LayoutProps<"/">) {
   const user = await getCurrentUser();
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar role={user.role} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar user={user} />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 lg:p-6">{children}</main>
-      </div>
-    </div>
+    <CounterChrome sidebar={<Sidebar role={user.role} />} topbar={<Topbar user={user} />}>
+      {children}
+    </CounterChrome>
   );
 }

@@ -27,6 +27,11 @@ export function listVariants(filters: VariantFilters = {}) {
   return apiFetch<Paginated<ProductVariant>>(`/variants${buildQuery(filters)}`);
 }
 
+/** Most-sold medicines, for the counter's tiles. */
+export function getFavourites(params: { limit?: number; days?: number } = {}) {
+  return apiFetch<ProductVariant[]>(`/variants/favourites${buildQuery(params)}`, { auth: true });
+}
+
 export function getVariant(id: number) {
   return apiFetch<ProductVariant>(`/variants/${id}`);
 }

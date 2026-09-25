@@ -1,6 +1,6 @@
 "use server";
 
-import { listVariants } from "@/lib/api/catalogue";
+import { getFavourites, listVariants } from "@/lib/api/catalogue";
 import type { ProductVariant } from "@/types";
 
 export interface CounterUnit {
@@ -36,6 +36,12 @@ export interface CounterSearchResult {
  * SKUs are returned — a withdrawn one can't be sold, so offering it would just
  * lead to a rejected checkout.
  */
+/** The counter's quick-pick tiles: what this shop sells most. */
+export async function listFavourites(): Promise<CounterSearchResult[]> {
+  const variants = await getFavourites({ limit: 18, days: 30 });
+  return variants.map(toResult).filter((item) => item.units.length > 0 && (item.stock ?? 0) > 0);
+}
+
 export async function searchForCounter(
   term: string,
 ): Promise<CounterSearchResult[]> {
