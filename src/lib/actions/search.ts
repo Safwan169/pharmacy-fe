@@ -1,6 +1,13 @@
 "use server";
 
-import { getFavourites, listVariants } from "@/lib/api/catalogue";
+import { revalidatePath } from "next/cache";
+import { ApiError } from "@/lib/api/client";
+import {
+  addVariantBarcode,
+  getFavourites,
+  getVariantByBarcode,
+  listVariants,
+} from "@/lib/api/catalogue";
 import type { ProductVariant } from "@/types";
 
 export interface CounterUnit {
@@ -40,6 +47,45 @@ export interface CounterSearchResult {
 export async function listFavourites(): Promise<CounterSearchResult[]> {
   const variants = await getFavourites({ limit: 18, days: 30 });
   return variants.map(toResult).filter((item) => item.units.length > 0 && (item.stock ?? 0) > 0);
+}
+
+export type ScanResult =
+  | { status: "found"; item: CounterSearchResult }
+  | { status: "unknown"; code: string }
+  | { status: "unsellable"; item: CounterSearchResult };
+
+/**
+ * What a scan means at the counter. An unpaired code is the ordinary first
+ * answer for a pack the shop has never scanned, so it comes back as something
+ * to act on rather than as a failure.
+ */
+export async function scanBarcode(code: string): Promise<ScanResult> {
+  const clean = code.trim().toUpperCase();
+  try {
+    const item = toResult(await getVariantByBarcode(clean));
+    return item.units.length > 0 && (item.stock ?? 0) > 0
+      ? { status: "found", item }
+      : { status: "unsellable", item };
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return { status: "unknown", code: clean };
+    }
+    throw error;
+  }
+}
+
+export type PairResult = { status: "paired" } | { status: "error"; message: string };
+
+/** Remembers a code against a medicine, so the next scan just rings it up. */
+export async function pairBarcode(variantId: number, code: string): Promise<PairResult> {
+  try {
+    await addVariantBarcode(variantId, { code: code.trim().toUpperCase() });
+  } catch (error) {
+    if (error instanceof ApiError) return { status: "error", message: error.message };
+    throw error;
+  }
+  revalidatePath(`/catalogue/${variantId}`);
+  return { status: "paired" };
 }
 
 export async function searchForCounter(

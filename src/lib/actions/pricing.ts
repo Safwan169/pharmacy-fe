@@ -2,12 +2,21 @@
 
 import { revalidatePath } from "next/cache";
 import { apiFetch, ApiError } from "@/lib/api/client";
-import { resolvePendingPrice } from "@/lib/api/catalogue";
+import {
+  deleteVariantBarcode,
+  resolvePendingPrice,
+} from "@/lib/api/catalogue";
 import { pricingSchema, unitsSchema } from "@/lib/validations";
 import type { ProductVariant } from "@/types";
 import { issueText } from "@/lib/messages";
 import { getT } from "@/i18n/server";
 import type { Translate } from "@/i18n";
+
+/** Unpairs a code from a medicine — for one scanned onto the wrong pack. */
+export async function forgetBarcode(variantId: number, barcodeId: number): Promise<void> {
+  await deleteVariantBarcode(variantId, barcodeId);
+  revalidatePath(`/catalogue/${variantId}`);
+}
 
 export interface PricingState {
   status: "idle" | "success" | "error";

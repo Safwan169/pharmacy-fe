@@ -8,6 +8,7 @@ import type {
   Product,
   ProductVariant,
   UnitTemplate,
+  VariantBarcode,
 } from "@/types";
 
 export interface VariantFilters {
@@ -30,6 +31,32 @@ export function listVariants(filters: VariantFilters = {}) {
 /** Most-sold medicines, for the counter's tiles. */
 export function getFavourites(params: { limit?: number; days?: number } = {}) {
   return apiFetch<ProductVariant[]>(`/variants/favourites${buildQuery(params)}`, { auth: true });
+}
+
+/** The medicine a scanned code opens. Throws ApiError 404 when unpaired. */
+export function getVariantByBarcode(code: string) {
+  return apiFetch<ProductVariant>(`/variants/by-barcode/${encodeURIComponent(code)}`, {
+    auth: true,
+  });
+}
+
+export function addVariantBarcode(id: number, body: { code: string; note?: string }) {
+  return apiFetch<{ id: number; code: string }>(`/variants/${id}/barcodes`, {
+    method: "POST",
+    auth: true,
+    body,
+  });
+}
+
+export function listVariantBarcodes(id: number) {
+  return apiFetch<VariantBarcode[]>(`/variants/${id}/barcodes`, { auth: true });
+}
+
+export function deleteVariantBarcode(id: number, barcodeId: number) {
+  return apiFetch<void>(`/variants/${id}/barcodes/${barcodeId}`, {
+    method: "DELETE",
+    auth: true,
+  });
 }
 
 export function getVariant(id: number) {

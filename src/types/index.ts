@@ -483,6 +483,15 @@ export interface Outstanding {
   suppliers_oldest: string | null;
 }
 
+/** A code printed on a pack, paired with the medicine inside it. */
+export interface VariantBarcode {
+  id: number;
+  variantId: number;
+  code: string;
+  note: string | null;
+  createdAt: string;
+}
+
 export interface LowStockItem {
   variant_id: number;
   brand_name: string;

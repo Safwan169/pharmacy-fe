@@ -8,15 +8,22 @@ import { Table, Th, Td } from "@/components/ui/table";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PricingForm } from "@/components/catalogue/pricing-form";
+import { BarcodeList } from "@/components/catalogue/barcode-list";
 import { AvailabilityControl } from "@/components/catalogue/availability-control";
 import { PendingPriceCard } from "@/components/catalogue/pending-price-card";
 import { BatchTable } from "@/components/catalogue/batch-table";
 import { SellableBadge, PriceCell, StockCell } from "@/components/catalogue/status-badges";
-import { getUnitTemplate, getVariant, listGenericVariants } from "@/lib/api/catalogue";
+import {
+  getUnitTemplate,
+  getVariant,
+  listGenericVariants,
+  listVariantBarcodes,
+} from "@/lib/api/catalogue";
 import { getCurrentUser } from "@/lib/current-user";
 import { ApiError } from "@/lib/api/client";
 import { formatDateTime } from "@/lib/utils";
 import { getT } from "@/i18n/server";
+import type { VariantBarcode } from "@/types";
 import { listAudit } from "@/lib/api/reports";
 
 export async function generateMetadata({ params }: PageProps<"/catalogue/[id]">) {
@@ -50,6 +57,14 @@ export default async function VariantDetailPage({
 
   const name = `${variant.product.brandName}${variant.strength ? ` ${variant.strength}` : ""}`;
   const isOwner = (await getCurrentUser()).role === "owner";
+
+  // Codes are paired by scanning, so a medicine nobody has scanned has none.
+  let barcodes: VariantBarcode[] = [];
+  try {
+    barcodes = await listVariantBarcodes(variantId);
+  } catch {
+    barcodes = [];
+  }
 
   // A SKU that has never been set up gets a suggested ladder to start from.
   let template = null;
@@ -194,6 +209,13 @@ export default async function VariantDetailPage({
                 reorderLevel={variant.reorderLevel}
                 mrp={variant.mrp}
               />
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader title={t("scan.codes")} description={t("scan.codesHint")} />
+            <CardBody>
+              <BarcodeList variantId={variant.id} barcodes={barcodes} canEdit={isOwner} />
             </CardBody>
           </Card>
 

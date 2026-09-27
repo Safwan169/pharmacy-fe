@@ -22,6 +22,7 @@ import {
   TrendingUp,
   Keyboard,
   Undo2,
+  ScanLine,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -31,6 +32,8 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
+  pairBarcode,
+  scanBarcode,
   searchForCounter,
   type CounterSearchResult,
   type CounterUnit,
@@ -79,6 +82,8 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
   const searchRef = useRef<HTMLInputElement>(null);
   const payRef = useRef<HTMLButtonElement>(null);
   const searchHandle = useRef<SearchHandle | null>(null);
+  // Held between the digit landing in the box and it becoming a tile.
+  const tileTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Which basket line the keyboard is on. Null while the search box is
   // driving, so the ring only appears once the arrows actually mean the basket.
   const [lineCursor, setLineCursor] = useState<number | null>(null);
@@ -255,12 +260,27 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
         setShowKeys(false);
         return;
       }
-      // With the search box empty, the number keys are the quick-pick tiles.
-      if (/^[1-9]$/.test(event.key) && !search?.hasResults() && favourites.length > 0) {
+      // With the search box empty, the number keys are the quick-pick tiles —
+      // but a barcode is digits too, and a scanner sends a whole one in a few
+      // milliseconds. So the digit goes into the box first and only becomes a
+      // tile if nothing follows it; a scan never pauses, so it never picks one.
+      if (
+        /^[1-9]$/.test(event.key) &&
+        !search?.hasResults() &&
+        favourites.length > 0 &&
+        (search?.term() ?? "") === ""
+      ) {
         const item = favourites[Number(event.key) - 1];
         if (item !== undefined) {
+          const digit = event.key;
           event.preventDefault();
-          addItem(item, item.units.find((u) => u.isDefault) ?? item.units[0]);
+          search?.type(digit);
+          if (tileTimer.current !== null) clearTimeout(tileTimer.current);
+          tileTimer.current = setTimeout(() => {
+            if (searchHandle.current?.term() !== digit) return;
+            searchHandle.current.clear();
+            addItem(item, item.units.find((u) => u.isDefault) ?? item.units[0]);
+          }, 150);
           return;
         }
       }
@@ -913,6 +933,8 @@ function KeyHelp({ onClose }: { onClose: () => void }) {
 export interface SearchHandle {
   focus(): void;
   clear(): void;
+  /** What is in the box right now — read live, not as of the last render. */
+  term(): string;
   hasResults(): boolean;
   move(delta: number): void;
   cycleUnit(): void;
@@ -923,6 +945,11 @@ export interface SearchHandle {
 }
 
 /** "napa x10" / "napa *10" — the trailing count, POS style. */
+/** A scanner's read looks like this, and a medicine name never does. */
+function looksLikeBarcode(term: string): boolean {
+  return /^[0-9]{6,}$/.test(term.trim());
+}
+
 function splitQuantity(raw: string): { query: string; quantity: number } {
   const match = /^(.*?)[\s]*[x*×]\s*(\d{1,4})$/i.exec(raw.trim());
   if (!match || match[1].trim() === "") return { query: raw.trim(), quantity: 1 };
@@ -950,6 +977,15 @@ function ItemSearch({
   const requestId = useRef(0);
   // Which row the keyboard is on, and which of that row's units is chosen.
   const [cursor, setCursor] = useState({ row: 0, unit: 0 });
+  // What the last scan turned up, when it wasn't simply "add this". A code
+  // nobody has paired yet stays here while the cashier names the medicine.
+  const [scan, setScan] = useState<
+    { kind: "learn" | "unsellable"; code: string; name?: string } | null
+  >(null);
+  const scanRef = useRef<typeof scan>(null);
+  useEffect(() => {
+    scanRef.current = scan;
+  }, [scan]);
   const t = useT();
 
   // The term is mirrored in a ref so that keystrokes arriving faster than a
@@ -973,6 +1009,25 @@ function ItemSearch({
     applyTerm(value);
   }
 
+  /**
+   * Adding a medicine, however it was picked. When a scan is still waiting to
+   * be named, whatever is chosen next is what that code means — pairing it
+   * here costs the cashier nothing beyond the sale they were making anyway.
+   */
+  const choose = useCallback(
+    (item: CounterSearchResult, unit: CounterUnit, qty: number) => {
+      const waiting = scanRef.current;
+      if (waiting?.kind === "learn") {
+        void pairBarcode(item.id, waiting.code);
+        setScan(null);
+      }
+      onSelect(item, unit, qty);
+      applyTerm("");
+      inputRef.current?.focus();
+    },
+    [onSelect, applyTerm, inputRef],
+  );
+
   useEffect(() => {
     const query = splitQuantity(term).query;
     if (query.length < 1) return;
@@ -981,6 +1036,27 @@ function ItemSearch({
 
     const timer = setTimeout(async () => {
       try {
+        // A scanner types its whole code in milliseconds and no medicine is
+        // named in digits, so a long run of them is a scan, not a search.
+        if (looksLikeBarcode(query)) {
+          const result = await scanBarcode(query);
+          if (id !== requestId.current) return;
+          if (result.status === "found") {
+            const unit =
+              result.item.units.find((u) => u.isDefault) ?? result.item.units[0];
+            setState({ status: "idle", results: [] });
+            choose(result.item, unit, splitQuantity(term).quantity);
+            return;
+          }
+          setScan(
+            result.status === "unknown"
+              ? { kind: "learn", code: result.code }
+              : { kind: "unsellable", code: query, name: result.item.name },
+          );
+          setState({ status: "idle", results: [] });
+          applyTerm("");
+          return;
+        }
         const found = await searchForCounter(query);
         // A slow earlier request must not overwrite a newer one's results.
         if (id === requestId.current) {
@@ -994,7 +1070,7 @@ function ItemSearch({
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [term]);
+  }, [term, choose, applyTerm]);
 
   const { status, results } = state;
   const searching = status === "searching";
@@ -1031,7 +1107,11 @@ function ItemSearch({
         inputRef.current?.focus();
         inputRef.current?.select();
       },
-      clear: () => set(""),
+      clear: () => {
+        setScan(null);
+        set("");
+      },
+      term: () => termRef.current,
       hasResults: () => latest.current.sellableRows.length > 0,
       move(delta) {
         const rows = latest.current.sellableRows;
@@ -1046,8 +1126,7 @@ function ItemSearch({
       commit() {
         const { current: item, currentUnit: unit, quantity: qty } = latest.current;
         if (item === undefined || unit === undefined) return false;
-        latest.current.onSelect(item, unit, qty);
-        set("");
+        choose(item, unit, qty);
         return true;
       },
       type: (char) => set(termRef.current + char),
@@ -1057,7 +1136,7 @@ function ItemSearch({
     return () => {
       handle.current = null;
     };
-  }, [applyTerm, handleRef, inputRef]);
+  }, [applyTerm, choose, handleRef, inputRef]);
 
   return (
     <Card>
@@ -1107,6 +1186,30 @@ function ItemSearch({
           <Alert tone="error">
             {t("pos.searchFailed")}
           </Alert>
+        )}
+
+        {scan && (
+          <div className="flex items-start gap-2.5 rounded-lg border border-warning/40 bg-warning/5 p-3">
+            <ScanLine className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">
+                {scan.kind === "learn"
+                  ? t("scan.unknown", { code: scan.code })
+                  : t("scan.unsellable", { name: scan.name ?? "" })}
+              </p>
+              <p className="mt-0.5 text-xs text-muted">
+                {t(scan.kind === "learn" ? "scan.unknownHint" : "scan.unsellableHint")}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setScan(null)}
+              aria-label={t("common.close")}
+              className="shrink-0 rounded-md p-1 text-muted hover:bg-background hover:text-foreground"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          </div>
         )}
 
         {sellableRows.length > 0 && (
@@ -1168,12 +1271,7 @@ function ItemSearch({
                         <button
                           key={unit.id}
                           type="button"
-                          onClick={() => {
-                            if (!enough) return;
-                            onSelect(item, unit, quantity);
-                            handleChange("");
-                            inputRef.current?.focus();
-                          }}
+                          onClick={() => enough && choose(item, unit, quantity)}
                           disabled={!enough}
                           title={enough ? undefined : t("pos.notEnoughFor", { unit: unit.name })}
                           className={cn(
