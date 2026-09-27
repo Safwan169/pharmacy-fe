@@ -3,9 +3,20 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { apiFetch, ApiError } from "@/lib/api/client";
-import { getUnitTemplate, listVariants } from "@/lib/api/catalogue";
+import {
+  addVariantBarcode,
+  getUnitTemplate,
+  getVariantByBarcode,
+  listVariants,
+} from "@/lib/api/catalogue";
 import { listSuppliers } from "@/lib/api/stock";
-import type { StockReceipt, Supplier, SupplierPayment, UnitTemplate } from "@/types";
+import type {
+  ProductVariant,
+  StockReceipt,
+  Supplier,
+  SupplierPayment,
+  UnitTemplate,
+} from "@/types";
 import { issueText } from "@/lib/messages";
 import { getT } from "@/i18n/server";
 import type { Translate } from "@/i18n";
@@ -133,6 +144,8 @@ export interface ReceiveRequest {
   paid_method: "cash" | "bkash";
   /** False when the cash came from a bank or the owner's pocket, not the drawer. */
   paid_from_drawer?: boolean;
+  /** Codes scanned while writing the delivery up, paired once it is saved. */
+  barcodes?: { variant_id: number; unit_id?: number; code: string }[];
   items: ReceiveLineInput[];
 }
 
@@ -199,11 +212,25 @@ export async function receiveStock(request: ReceiveRequest): Promise<ReceiveResu
     return { status: "error", message: t("stockAction.addLine") };
   }
   try {
+    const { barcodes, ...body } = request;
     const receipt = await apiFetch<StockReceipt>("/stock/receipts", {
       method: "POST",
       auth: true,
-      body: request,
+      body,
     });
+    // Only once the stock is safely in. A code that cannot be paired — because
+    // it already belongs to another medicine — must not undo a saved delivery,
+    // so each one is tried on its own and a failure is simply skipped.
+    for (const pairing of barcodes ?? []) {
+      try {
+        await addVariantBarcode(pairing.variant_id, {
+          code: pairing.code,
+          ...(pairing.unit_id === undefined ? {} : { unit_id: pairing.unit_id }),
+        });
+      } catch {
+        // Nothing to do here: the delivery is what mattered.
+      }
+    }
     revalidatePath("/dashboard");
     revalidatePath("/catalogue");
     revalidatePath("/stock/receipts");
@@ -255,11 +282,16 @@ export async function searchForReceive(term: string) {
   const query = term.trim();
   if (query.length < 2) return [];
   const result = await listVariants({ search: query, status: "active", limit: 20 });
+  return receiveResults(result.data);
+}
+
+/** The delivery table's view of a medicine: its ladder, its MRP, its stock. */
+async function receiveResults(variants: ProductVariant[]) {
   // Most of the catalogue has no sellable units yet, so the ladder to offer
   // (tablet / strip / box) comes from the template for its dosage form.
   const templates = new Map<string, UnitTemplate>();
   await Promise.all(
-    [...new Set(result.data.map((v) => `${v.dosageForm}|${v.packSize ?? ""}`))].map(async (key) => {
+    [...new Set(variants.map((v) => `${v.dosageForm}|${v.packSize ?? ""}`))].map(async (key) => {
       const [dosageForm, packSize] = key.split("|");
       try {
         templates.set(key, await getUnitTemplate({ dosage_form: dosageForm, pack_size: packSize ? Number(packSize) : null }));
@@ -268,7 +300,7 @@ export async function searchForReceive(term: string) {
       }
     }),
   );
-  return result.data.map((v) => ({
+  return variants.map((v) => ({
     id: v.id,
     name: `${v.product.brandName}${v.strength ? ` ${v.strength}` : ""}`,
     dosageForm: v.dosageForm,
@@ -292,3 +324,26 @@ export async function searchForReceive(term: string) {
 }
 
 export type ReceiveSearchResult = Awaited<ReturnType<typeof searchForReceive>>[number];
+
+export type ReceiveScan =
+  | { status: "found"; item: ReceiveSearchResult; unitId: number | null; code: string }
+  | { status: "unknown"; code: string };
+
+/**
+ * A scan at the delivery table. The box is in hand and nobody is waiting,
+ * which makes this the easiest place in the shop to learn a new code — so an
+ * unknown one is handed back to be carried on the line the receiver adds next.
+ */
+export async function scanForReceive(code: string): Promise<ReceiveScan> {
+  const clean = code.trim().toUpperCase();
+  try {
+    const scanned = await getVariantByBarcode(clean);
+    const [item] = await receiveResults([scanned.variant]);
+    return { status: "found", item, unitId: scanned.unit_id, code: clean };
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return { status: "unknown", code: clean };
+    }
+    throw error;
+  }
+}

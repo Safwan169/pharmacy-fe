@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useTransition } from "react";
-import { CircleCheck, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { CircleCheck, Loader2, Plus, ScanLine, Search, Trash2 } from "lucide-react";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
@@ -10,6 +10,7 @@ import { Field, Input, Select } from "@/components/ui/input";
 import {
   quickAddSupplier,
   receiveStock,
+  scanForReceive,
   searchForReceive,
   searchSuppliers,
   type ReceiveResult,
@@ -43,6 +44,10 @@ interface Line {
   mrpRevised: boolean;
   priceWhen: "now" | "after_old_stock";
   pricesOpen: boolean;
+  /** A code scanned for this line. Saved with the delivery, dropped with it. */
+  barcode?: string;
+  /** True when the shop already knew the code — nothing to save. */
+  barcodeKnown?: boolean;
 }
 
 interface SellRow {
@@ -131,6 +136,9 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
   // Cash handed over at the delivery usually comes out of the counter drawer —
   // but not always, and the day's cash count is wrong whenever it didn't.
   const [fromDrawer, setFromDrawer] = useState(true);
+  // A scanned code nobody has paired yet, waiting for the receiver to say
+  // which medicine came in that box.
+  const [pendingCode, setPendingCode] = useState<string | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [result, setResult] = useState<ReceiveResult | null>(null);
   const [saved, setSaved] = useState<StockReceipt | null>(null);
@@ -139,11 +147,14 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
   const keyRef = useRef(0);
   const t = useT();
 
-  function addLine(item: ReceiveSearchResult) {
-    const biggest = [...item.units].sort((a, b) => b.qtyInBase - a.qtyInBase)[0];
-    setLines((current) => [
-      ...current,
-      {
+  /** One delivery line, from a medicine and — when there was one — a scan. */
+  const buildLine = useCallback(
+    (item: ReceiveSearchResult, scan?: { code: string; known: boolean; unitId: number | null }): Line => {
+      const biggest = [...item.units].sort((a, b) => b.qtyInBase - a.qtyInBase)[0];
+      // A code already on file says which pack it is; otherwise the biggest
+      // unit is the usual guess for what a supplier delivers.
+      const scanned = scan?.unitId != null ? item.units.find((u) => u.id === scan.unitId) : undefined;
+      return {
         key: ++keyRef.current,
         variantId: item.id,
         name: item.name,
@@ -154,7 +165,9 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
         packMrp: item.packMrp,
         packSize: item.packSize,
         stockBefore: item.stock ?? 0,
-        unitId: biggest ? biggest.id : "",
+        unitId: (scanned ?? biggest)?.id ?? "",
+        barcode: scan?.code,
+        barcodeKnown: scan?.known,
         quantity: "",
         unitCost: "",
         batchNo: "",
@@ -164,12 +177,46 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
           price: suggestedPrice(r, item.mrp, 0, null),
         })),
         // Something already on the shelf and already priced: default to letting
-        // it sell out at the old price. Otherwise the new price is simply the price.
+        // it sell out at the old price. Otherwise the new price is the price.
         mrpRevised: false,
         priceWhen: (item.stock ?? 0) > 0 && item.units.some((u) => u.price !== null) ? "after_old_stock" : "now",
         // Open straight away when nothing is priced yet — it can't be sold otherwise.
         pricesOpen: !item.units.some((u) => u.isSellable && u.price !== null),
-      },
+      };
+    },
+    [keyRef],
+  );
+
+  /** A scan: a known box becomes a line at once, a new one waits to be named. */
+  const onScan = useCallback((scan: Awaited<ReturnType<typeof scanForReceive>>) => {
+    if (scan.status === "unknown") {
+      setPendingCode(scan.code);
+      return;
+    }
+    setPendingCode(null);
+    const code = scan.code;
+    setLines((current) => {
+      // The same box scanned twice is a second pack, not a second line.
+      const already = current.find((l) => l.variantId === scan.item.id);
+      if (already) {
+        return current.map((l) =>
+          l.key === already.key
+            ? { ...l, quantity: String(Math.max(1, Number(l.quantity) || 0) + 1) }
+            : l,
+        );
+      }
+      return [...current, buildLine(scan.item, { code, known: true, unitId: scan.unitId })];
+    });
+    setResult(null);
+  }, [buildLine]);
+
+  /** Picking a medicine while a scan is waiting is what names that code. */
+  function addLine(item: ReceiveSearchResult) {
+    const waiting = pendingCode;
+    setPendingCode(null);
+    setLines((current) => [
+      ...current,
+      buildLine(item, waiting === null ? undefined : { code: waiting, known: false, unitId: null }),
     ]);
     setResult(null);
   }
@@ -285,6 +332,13 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
         paid_amount: payMode === "full" ? Math.round(total * 100) / 100 : payMode === "credit" ? 0 : Number(paidNow) || 0,
         paid_method: payMethod,
         paid_from_drawer: fromDrawer,
+        barcodes: lines
+          .filter((l) => l.barcode !== undefined && l.barcodeKnown !== true)
+          .map((l) => ({
+            variant_id: l.variantId,
+            ...(l.unitId === "" ? {} : { unit_id: l.unitId }),
+            code: l.barcode as string,
+          })),
         items: lines.map((l) => ({
           variant_id: l.variantId,
           unit_id: l.unitId === "" ? undefined : l.unitId,
@@ -334,7 +388,11 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
           </CardBody>
         </Card>
 
-        <ItemSearch onSelect={addLine} />
+        <ItemSearch
+          onSelect={(item) => addLine(item)}
+          pendingCode={pendingCode}
+          onScan={onScan}
+        />
       </div>
 
       <div className="lg:sticky lg:top-2 lg:col-span-2 lg:self-start">
@@ -377,6 +435,15 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{line.name}</p>
                         <p className="text-xs text-muted">{line.dosageForm}</p>
+                        {line.barcode !== undefined && (
+                          <p className="mt-0.5 flex items-center gap-1 text-[11px] text-muted">
+                            <ScanLine className="h-3 w-3 shrink-0" aria-hidden />
+                            <span className="font-mono">{line.barcode}</span>
+                            <span className={line.barcodeKnown ? "" : "text-primary"}>
+                              {t(line.barcodeKnown ? "receive.codeKnown" : "receive.codeWillSave")}
+                            </span>
+                          </p>
+                        )}
                       </div>
                       <button
                         type="button"
@@ -863,7 +930,21 @@ function SellPriceBlock({
   );
 }
 
-function ItemSearch({ onSelect }: { onSelect: (item: ReceiveSearchResult) => void }) {
+/** A scanner's read looks like this, and a medicine name never does. */
+function looksLikeBarcode(term: string): boolean {
+  return /^[0-9]{6,}$/.test(term.trim());
+}
+
+function ItemSearch({
+  onSelect,
+  pendingCode,
+  onScan,
+}: {
+  onSelect: (item: ReceiveSearchResult) => void;
+  /** A scanned code still waiting to be told which medicine it is. */
+  pendingCode: string | null;
+  onScan: (scan: Awaited<ReturnType<typeof scanForReceive>>) => void;
+}) {
   const [term, setTerm] = useState("");
   const [state, setState] = useState<{ status: "idle" | "searching" | "done" | "failed"; results: ReceiveSearchResult[] }>({
     status: "idle",
@@ -882,6 +963,16 @@ function ItemSearch({ onSelect }: { onSelect: (item: ReceiveSearchResult) => voi
     const id = ++requestId.current;
     const timer = setTimeout(async () => {
       try {
+        // The box is in hand here, so a run of digits is the scanner reading
+        // it rather than anyone typing a medicine's name.
+        if (looksLikeBarcode(query)) {
+          const scan = await scanForReceive(query);
+          if (id !== requestId.current) return;
+          setState({ status: "idle", results: [] });
+          setTerm("");
+          onScan(scan);
+          return;
+        }
         const found = await searchForReceive(query);
         if (id === requestId.current) setState({ status: "done", results: found });
       } catch {
@@ -889,7 +980,7 @@ function ItemSearch({ onSelect }: { onSelect: (item: ReceiveSearchResult) => voi
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [term]);
+  }, [term, onScan]);
 
   return (
     <Card>
@@ -900,8 +991,9 @@ function ItemSearch({ onSelect }: { onSelect: (item: ReceiveSearchResult) => voi
           <input
             type="search"
             value={term}
+            autoFocus
             onChange={(e) => setTerm(e.target.value)}
-            placeholder={t("receive.searchPlaceholder")}
+            placeholder={t("receive.searchOrScan")}
             aria-label={t("pos.searchLabel")}
             className="h-11 w-full rounded-lg border border-border bg-surface pr-10 pl-9 text-sm placeholder:text-muted/70 focus:border-primary focus:outline-2 focus:outline-primary/30"
           />
@@ -909,6 +1001,15 @@ function ItemSearch({ onSelect }: { onSelect: (item: ReceiveSearchResult) => voi
             <Loader2 className="absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 animate-spin text-muted" aria-label={t("filters.searching")} />
           )}
         </div>
+        {pendingCode !== null && (
+          <div className="flex items-start gap-2.5 rounded-lg border border-primary/40 bg-primary/5 p-3">
+            <ScanLine className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+            <div className="min-w-0">
+              <p className="text-sm font-medium">{t("receive.scanNew", { code: pendingCode })}</p>
+              <p className="mt-0.5 text-xs text-muted">{t("receive.scanNewHint")}</p>
+            </div>
+          </div>
+        )}
         {state.status === "failed" && <Alert tone="error">{t("receive.searchFailed")}</Alert>}
         {state.status === "done" && state.results.length === 0 && (
           <p className="rounded-lg bg-background p-4 text-sm text-muted">

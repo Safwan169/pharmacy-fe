@@ -50,7 +50,7 @@ export async function listFavourites(): Promise<CounterSearchResult[]> {
 }
 
 export type ScanResult =
-  | { status: "found"; item: CounterSearchResult }
+  | { status: "found"; item: CounterSearchResult; unitId: number | null }
   | { status: "unknown"; code: string }
   | { status: "unsellable"; item: CounterSearchResult };
 
@@ -62,9 +62,10 @@ export type ScanResult =
 export async function scanBarcode(code: string): Promise<ScanResult> {
   const clean = code.trim().toUpperCase();
   try {
-    const item = toResult(await getVariantByBarcode(clean));
+    const scanned = await getVariantByBarcode(clean);
+    const item = toResult(scanned.variant);
     return item.units.length > 0 && (item.stock ?? 0) > 0
-      ? { status: "found", item }
+      ? { status: "found", item, unitId: scanned.unit_id }
       : { status: "unsellable", item };
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) {
@@ -77,9 +78,16 @@ export async function scanBarcode(code: string): Promise<ScanResult> {
 export type PairResult = { status: "paired" } | { status: "error"; message: string };
 
 /** Remembers a code against a medicine, so the next scan just rings it up. */
-export async function pairBarcode(variantId: number, code: string): Promise<PairResult> {
+export async function pairBarcode(
+  variantId: number,
+  code: string,
+  unitId?: number,
+): Promise<PairResult> {
   try {
-    await addVariantBarcode(variantId, { code: code.trim().toUpperCase() });
+    await addVariantBarcode(variantId, {
+      code: code.trim().toUpperCase(),
+      ...(unitId === undefined ? {} : { unit_id: unitId }),
+    });
   } catch (error) {
     if (error instanceof ApiError) return { status: "error", message: error.message };
     throw error;

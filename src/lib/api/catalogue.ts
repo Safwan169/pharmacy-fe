@@ -33,14 +33,18 @@ export function getFavourites(params: { limit?: number; days?: number } = {}) {
   return apiFetch<ProductVariant[]>(`/variants/favourites${buildQuery(params)}`, { auth: true });
 }
 
-/** The medicine a scanned code opens. Throws ApiError 404 when unpaired. */
+/** The medicine a scanned code opens, and the pack it is printed on. */
 export function getVariantByBarcode(code: string) {
-  return apiFetch<ProductVariant>(`/variants/by-barcode/${encodeURIComponent(code)}`, {
-    auth: true,
-  });
+  return apiFetch<{ unit_id: number | null; variant: ProductVariant }>(
+    `/variants/by-barcode/${encodeURIComponent(code)}`,
+    { auth: true },
+  );
 }
 
-export function addVariantBarcode(id: number, body: { code: string; note?: string }) {
+export function addVariantBarcode(
+  id: number,
+  body: { code: string; unit_id?: number; note?: string },
+) {
   return apiFetch<{ id: number; code: string }>(`/variants/${id}/barcodes`, {
     method: "POST",
     auth: true,

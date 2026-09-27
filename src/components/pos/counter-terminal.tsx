@@ -1042,8 +1042,12 @@ function ItemSearch({
           const result = await scanBarcode(query);
           if (id !== requestId.current) return;
           if (result.status === "found") {
+            // A box's code should ring up a box, so the unit the code was
+            // paired against wins over the medicine's usual one.
             const unit =
-              result.item.units.find((u) => u.isDefault) ?? result.item.units[0];
+              result.item.units.find((u) => u.id === result.unitId) ??
+              result.item.units.find((u) => u.isDefault) ??
+              result.item.units[0];
             setState({ status: "idle", results: [] });
             choose(result.item, unit, splitQuantity(term).quantity);
             return;

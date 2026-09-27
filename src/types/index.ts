@@ -488,6 +488,8 @@ export interface VariantBarcode {
   id: number;
   variantId: number;
   code: string;
+  /** The pack it is printed on, when known. */
+  unitId: number | null;
   note: string | null;
   createdAt: string;
 }
