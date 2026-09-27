@@ -46,6 +46,8 @@ export async function findSalesToReturn(search: string): Promise<Sale[]> {
   const result = await listSales({
     limit: 20,
     with_items: true,
+    // Whoever is on the till takes the return, whichever cashier sold it.
+    scope: "shop",
     ...(term === "" ? { from: weekAgo } : { search: term }),
   });
   // A voided or fully returned bill has nothing left to give back.
