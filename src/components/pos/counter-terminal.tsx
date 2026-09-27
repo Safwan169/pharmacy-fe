@@ -25,6 +25,7 @@ import {
   ScanLine,
   Volume2,
   VolumeX,
+  Camera,
 } from "lucide-react";
 import { Card, CardHeader, CardBody } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ import type { DiscountType, Sale } from "@/types";
 import { SaleReceipt } from "./sale-receipt";
 import { beep, setSoundOn, soundIsOn } from "./beep";
 import { ReturnDialog } from "./return-dialog";
+import { CameraScanner, cameraScanSupported } from "./camera-scanner";
 import { PaymentPanel, type PaymentChoice } from "./payment-panel";
 import { loadHeldSales, newHeldSale, saveHeldSales, splitLine, type HeldSale } from "./held-sales";
 import { PauseCircle, PlayCircle } from "lucide-react";
@@ -986,6 +988,16 @@ function ItemSearch({
   const [scan, setScan] = useState<
     { kind: "learn" | "unsellable"; code: string; name?: string } | null
   >(null);
+  const [camera, setCamera] = useState(false);
+  // Read once on the client: the server cannot know what this browser can do.
+  const [hasCamera, setHasCamera] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time probe of what the browser can do
+    setHasCamera(cameraScanSupported());
+  }, []);
+  // A code the camera read. Treated as a scan whatever it looks like, since
+  // the camera only ever hands back things it decoded from a barcode.
+  const cameraCode = useRef<string | null>(null);
   const scanRef = useRef<typeof scan>(null);
   useEffect(() => {
     scanRef.current = scan;
@@ -1042,7 +1054,8 @@ function ItemSearch({
       try {
         // A scanner types its whole code in milliseconds and no medicine is
         // named in digits, so a long run of them is a scan, not a search.
-        if (looksLikeBarcode(query)) {
+        if (looksLikeBarcode(query) || cameraCode.current === query) {
+          cameraCode.current = null;
           const result = await scanBarcode(query);
           if (id !== requestId.current) return;
           if (result.status === "found") {
@@ -1153,7 +1166,19 @@ function ItemSearch({
         description={t("pos.findHint")}
       />
       <CardBody className="space-y-3">
-        <div className="relative">
+        {camera && (
+          <CameraScanner
+            onClose={() => setCamera(false)}
+            onRead={(code) => {
+              setCamera(false);
+              cameraCode.current = code;
+              applyTerm(code);
+              inputRef.current?.focus();
+            }}
+          />
+        )}
+        <div className="flex items-center gap-2">
+        <div className="relative flex-1">
           <Search
             className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted"
             aria-hidden
@@ -1188,6 +1213,18 @@ function ItemSearch({
               </button>
             )
           )}
+        </div>
+        {hasCamera && (
+          <button
+            type="button"
+            onClick={() => setCamera(true)}
+            aria-label={t("scan.camera")}
+            title={t("scan.camera")}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-muted hover:border-primary hover:text-primary"
+          >
+            <Camera className="h-5 w-5" aria-hidden />
+          </button>
+        )}
         </div>
 
         {failed && (

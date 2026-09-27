@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { CircleCheck, Loader2, Plus, ScanLine, Search, Trash2 } from "lucide-react";
+import { Camera, CircleCheck, Loader2, Plus, ScanLine, Search, Trash2 } from "lucide-react";
+import { CameraScanner, cameraScanSupported } from "@/components/pos/camera-scanner";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
@@ -951,6 +952,15 @@ function ItemSearch({
     results: [],
   });
   const requestId = useRef(0);
+  const [camera, setCamera] = useState(false);
+  const [hasCamera, setHasCamera] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time probe of what the browser can do
+    setHasCamera(cameraScanSupported());
+  }, []);
+  // A camera read is a scan whatever it looks like; only typed digits have
+  // to prove themselves.
+  const cameraCode = useRef<string | null>(null);
   const t = useT();
 
   useEffect(() => {
@@ -965,7 +975,8 @@ function ItemSearch({
       try {
         // The box is in hand here, so a run of digits is the scanner reading
         // it rather than anyone typing a medicine's name.
-        if (looksLikeBarcode(query)) {
+        if (looksLikeBarcode(query) || cameraCode.current === query) {
+          cameraCode.current = null;
           const scan = await scanForReceive(query);
           if (id !== requestId.current) return;
           setState({ status: "idle", results: [] });
@@ -986,7 +997,18 @@ function ItemSearch({
     <Card>
       <CardHeader title={t("receive.addMedicines")} description={t("receive.addMedicinesHint")} />
       <CardBody className="space-y-3">
-        <div className="relative">
+        {camera && (
+          <CameraScanner
+            onClose={() => setCamera(false)}
+            onRead={(code) => {
+              setCamera(false);
+              cameraCode.current = code;
+              setTerm(code);
+            }}
+          />
+        )}
+        <div className="flex items-center gap-2">
+        <div className="relative flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
           <input
             type="search"
@@ -1000,6 +1022,18 @@ function ItemSearch({
           {state.status === "searching" && (
             <Loader2 className="absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 animate-spin text-muted" aria-label={t("filters.searching")} />
           )}
+        </div>
+        {hasCamera && (
+          <button
+            type="button"
+            onClick={() => setCamera(true)}
+            aria-label={t("scan.camera")}
+            title={t("scan.camera")}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-muted hover:border-primary hover:text-primary"
+          >
+            <Camera className="h-5 w-5" aria-hidden />
+          </button>
+        )}
         </div>
         {pendingCode !== null && (
           <div className="flex items-start gap-2.5 rounded-lg border border-primary/40 bg-primary/5 p-3">
