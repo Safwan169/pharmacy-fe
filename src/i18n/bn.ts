@@ -308,6 +308,7 @@ export const bn: Record<MessageKey, string> = {
   "receipt.a4": "A4 ইনভয়েস",
   "receipt.next": "পরের কাস্টমার",
   "receipt.ofTotal": "মোট {amount}",
+  "receipt.returnThis": "এটা ফেরত নিন",
   "receipt.viewSale": "পুরো বিক্রি দেখুন",
   // Counter
   "pos.discountNumbers": "ডিসকাউন্ট শুধু সংখ্যায় লিখুন।",

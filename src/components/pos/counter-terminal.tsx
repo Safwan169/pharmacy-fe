@@ -425,7 +425,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
 
   return (
     <div className="grid gap-5 lg:grid-cols-5">
-      {completed && (
+      {completed && !returning && (
         <SaleReceipt
           sale={completed}
           onNewSale={() => {
@@ -433,14 +433,18 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
             setResult(null);
             searchHandle.current?.focus();
           }}
+          onReturn={() => setReturning(true)}
         />
       )}
       {showKeys && <KeyHelp onClose={() => setShowKeys(false)} />}
       {returning && (
         <ReturnDialog
+          // Straight onto the bill just rung up, when there is one: the
+          // customer changing their mind has not left the counter.
+          sale={completed ?? undefined}
           onClose={() => {
             setReturning(false);
-            searchHandle.current?.focus();
+            if (completed === null) searchHandle.current?.focus();
           }}
         />
       )}

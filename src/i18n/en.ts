@@ -397,6 +397,7 @@ export const en = {
   "receipt.a4": "A4 invoice",
   "receipt.next": "Next customer",
   "receipt.ofTotal": "of {amount} total",
+  "receipt.returnThis": "Take this back",
   "receipt.viewSale": "View the full sale",
   // Sales
   "sales.title": "Sales",

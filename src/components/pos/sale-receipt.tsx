@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import { CircleCheck, Download, Plus, Printer } from "lucide-react";
+import { CircleCheck, Download, Plus, Printer, Undo2 } from "lucide-react";
 import { Card, CardBody } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -28,9 +28,12 @@ function printReceipt(saleId: number) {
 export function SaleReceipt({
   sale,
   onNewSale,
+  onReturn,
 }: {
   sale: Sale;
   onNewSale: () => void;
+  /** Takes this very sale back — the customer who changed their mind is still here. */
+  onReturn: () => void;
 }) {
   const t = useT();
   const method = PAYMENT_METHOD_KEYS[sale.paymentMethod as PaymentMethod];
@@ -51,6 +54,11 @@ export function SaleReceipt({
         return;
       }
       const key = event.key.toLowerCase();
+      if (key === "r") {
+        event.preventDefault();
+        onReturn();
+        return;
+      }
       if (key === "p") {
         event.preventDefault();
         void printReceipt(sale.id);
@@ -62,7 +70,7 @@ export function SaleReceipt({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onNewSale, sale.id]);
+  }, [onNewSale, onReturn, sale.id]);
 
   return (
     <div
@@ -167,12 +175,23 @@ export function SaleReceipt({
             </div>
           </div>
 
-          <Link
-            href={`/sales/${sale.id}`}
-            className="block text-center text-xs font-medium text-muted hover:text-primary hover:underline"
-          >
-            {t("receipt.viewSale")}
-          </Link>
+          <div className="flex items-center justify-center gap-4 text-xs font-medium">
+            <button
+              type="button"
+              onClick={onReturn}
+              className="flex items-center gap-1 text-muted hover:text-primary hover:underline"
+            >
+              <Undo2 className="h-3.5 w-3.5" aria-hidden />
+              {t("receipt.returnThis")}
+              <Hint>R</Hint>
+            </button>
+            <Link
+              href={`/sales/${sale.id}`}
+              className="text-muted hover:text-primary hover:underline"
+            >
+              {t("receipt.viewSale")}
+            </Link>
+          </div>
         </CardBody>
       </Card>
     </div>

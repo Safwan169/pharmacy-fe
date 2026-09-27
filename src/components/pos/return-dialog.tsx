@@ -43,13 +43,20 @@ const METHODS: RefundMethod[] = ["cash", "bkash", "due_adjust"];
  * can offer (medicine name, phone, invoice), every line starts fully ticked,
  * and the whole thing is one keyboard run: find, Enter, Enter.
  */
-export function ReturnDialog({ onClose }: { onClose: () => void }) {
+export function ReturnDialog({
+  onClose,
+  sale,
+}: {
+  onClose: () => void;
+  /** Skip the search: the bill is already known, as it is right after a sale. */
+  sale?: Sale;
+}) {
   const t = useT();
   const [term, setTerm] = useState("");
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [saleCursor, setSaleCursor] = useState(0);
-  const [picked, setPicked] = useState<Sale | null>(null);
+  const [picked, setPicked] = useState<Sale | null>(sale ?? null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const requestId = useRef(0);
@@ -192,6 +199,9 @@ export function ReturnDialog({ onClose }: { onClose: () => void }) {
         ) : (
           <ReturnLines
             sale={picked}
+            // Opened straight onto a bill, Esc belongs to whatever sent us
+            // here — the finished sale — not to a list we never came from.
+            escapeCloses={sale !== undefined}
             onBack={() => {
               setPicked(null);
               inputRef.current?.focus();
@@ -208,10 +218,12 @@ function ReturnLines({
   sale,
   onBack,
   onClose,
+  escapeCloses,
 }: {
   sale: Sale;
   onBack: () => void;
   onClose: () => void;
+  escapeCloses: boolean;
 }) {
   const t = useT();
   const returnable = (sale.items ?? []).filter((item) => left(item) > 0);
@@ -270,7 +282,7 @@ function ReturnLines({
       switch (event.key) {
         case "Escape":
           event.preventDefault();
-          onBack();
+          (escapeCloses ? onClose : onBack)();
           return;
         case "Enter":
           event.preventDefault();
@@ -311,7 +323,7 @@ function ReturnLines({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [returnable, cursor, onBack, onClose, done]);
+  }, [returnable, cursor, onBack, onClose, escapeCloses, done]);
 
   if (result?.status === "success") {
     return (
