@@ -36,9 +36,9 @@ export default async function LoginPage() {
 
         <section className="rounded-2xl border border-border/80 bg-surface p-6 shadow-[0_24px_70px_-32px_rgba(16,24,40,0.38)] sm:p-8">
           <div className="mb-8">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+            {/* <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
               {t("login.portal")}
-            </p>
+            </p> */}
             <h1 className="text-3xl font-semibold tracking-tight text-foreground">
               {t("login.welcome")}
             </h1>

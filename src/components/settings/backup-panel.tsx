@@ -52,9 +52,9 @@ export function BackupPanel({ backups }: { backups: { dir: string; files: Backup
           ))}
         </ul>
       )}
-      <p className="text-xs text-muted">
+      {/* <p className="text-xs text-muted">
         {t("backup.restoreHint")} <code className="font-mono">npm run restore -- &lt;file&gt;</code>
-      </p>
+      </p> */}
     </div>
   );
 }
