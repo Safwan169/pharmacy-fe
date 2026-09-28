@@ -7,3 +7,4 @@ out
 build
 actions-runner
 .env
+.env.local

@@ -21,6 +21,17 @@ npm run dev                    # http://localhost:3001
 
 The dev server runs on **3001** so it doesn't collide with the API on 3000.
 
+## Deploying with Docker
+
+The `Dockerfile` here builds this app and serves it on **5001**. It is not run
+on its own: `docker-compose.yml` in `../pharmacy-nest-backend` brings up
+Postgres, the API and this together, and builds this image from `../pharmacy-fe`.
+Clone the two repositories side by side and run compose from the backend — see
+its README for the whole procedure.
+
+`API_BASE_URL` is read when the container starts, not when the image is built,
+so the same image works against any API.
+
 ## Screens
 
 | Route | Stage | What it does |
