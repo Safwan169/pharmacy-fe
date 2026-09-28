@@ -41,9 +41,13 @@ export function VariantTable({
           <Th>{t("th.medicine")}</Th>
           <Th className="hidden 2xl:table-cell">{t("th.ingredient")}</Th>
           <Th className="hidden md:table-cell">{t("th.company")}</Th>
-          <Th className="text-right">{t("th.price")}</Th>
-          <Th className="text-right">{t("th.inStock")}</Th>
-          <Th>{t("th.status")}</Th>
+          {/* A phone is barely wider than one medicine's name, and splitting
+              it into four columns left names like "3-C 100 mg/5 ml" stacked
+              three words deep. Below sm the row is one column and these move
+              underneath the name. */}
+          <Th className="hidden text-right sm:table-cell">{t("th.price")}</Th>
+          <Th className="hidden text-right sm:table-cell">{t("th.inStock")}</Th>
+          <Th className="hidden sm:table-cell">{t("th.status")}</Th>
         </tr>
       </thead>
       <tbody>
@@ -58,6 +62,15 @@ export function VariantTable({
                 {variant.strength ? ` ${variant.strength}` : ""}
               </Link>
               <p className="text-xs text-muted">{variant.dosageForm}</p>
+              {/* What the hidden columns said. The status badge is left out:
+                  it only restates the price and the count, which are here. */}
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 sm:hidden">
+                <PriceCell
+                  price={variant.price}
+                  unit={variant.units?.find((u) => u.isDefault)?.name}
+                />
+                <StockCell stock={variant.stockQuantity} unit={variant.baseUnit} />
+              </div>
             </Td>
             <Td className="hidden max-w-[16rem] truncate text-muted 2xl:table-cell">
               {variant.generic?.name ?? t("catalogue.notRecorded")}
@@ -65,16 +78,16 @@ export function VariantTable({
             <Td className="hidden max-w-[14rem] truncate text-muted md:table-cell">
               {variant.product.manufacturer?.name ?? "—"}
             </Td>
-            <Td className="text-right">
+            <Td className="hidden text-right sm:table-cell">
               <PriceCell
                 price={variant.price}
                 unit={variant.units?.find((u) => u.isDefault)?.name}
               />
             </Td>
-            <Td className="text-right">
+            <Td className="hidden text-right sm:table-cell">
               <StockCell stock={variant.stockQuantity} unit={variant.baseUnit} />
             </Td>
-            <Td>
+            <Td className="hidden sm:table-cell">
               <SellableBadge
                 isActive={variant.isActive}
                 price={variant.price}
