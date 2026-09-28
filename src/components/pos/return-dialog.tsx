@@ -49,13 +49,16 @@ const METHODS: RefundMethod[] = ["cash", "bkash", "due_adjust"];
 export function ReturnDialog({
   onClose,
   sale,
+  lookFor,
 }: {
   onClose: () => void;
   /** Skip the search: the bill is already known, as it is right after a sale. */
   sale?: Sale;
+  /** Open already searching for this — an invoice number read off a receipt. */
+  lookFor?: string;
 }) {
   const t = useT();
-  const [term, setTerm] = useState("");
+  const [term, setTerm] = useState(lookFor ?? "");
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [saleCursor, setSaleCursor] = useState(0);

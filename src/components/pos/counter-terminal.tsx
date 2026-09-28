@@ -91,6 +91,13 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
   const [lineCursor, setLineCursor] = useState<number | null>(null);
   const [showKeys, setShowKeys] = useState(false);
   const [returning, setReturning] = useState(false);
+  // An invoice number scanned off a receipt, so the return opens already
+  // looking for that bill instead of the week's list.
+  const [returnFor, setReturnFor] = useState<string | null>(null);
+  const openReturnFor = useCallback((invoiceNumber: string) => {
+    setReturnFor(invoiceNumber);
+    setReturning(true);
+  }, []);
   const [sound, setSound] = useState(true);
   const t = useT();
   // Parked baskets. Read once on mount (localStorage isn't there on the server).
@@ -220,6 +227,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
       if (completed || returning) return;
       if (event.key === "F7") {
         event.preventDefault();
+        setReturnFor(null);
         setReturning(true);
         return;
       }
@@ -444,8 +452,10 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
           // Straight onto the bill just rung up, when there is one: the
           // customer changing their mind has not left the counter.
           sale={completed ?? undefined}
+          lookFor={returnFor ?? undefined}
           onClose={() => {
             setReturning(false);
+            setReturnFor(null);
             if (completed === null) searchHandle.current?.focus();
           }}
         />
@@ -459,7 +469,13 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
       </p>
 
       <div className="space-y-4 lg:col-span-3">
-        <ItemSearch onSelect={addItem} justAdded={justAdded} inputRef={searchRef} handleRef={searchHandle} />
+        <ItemSearch
+          onSelect={addItem}
+          justAdded={justAdded}
+          inputRef={searchRef}
+          handleRef={searchHandle}
+          onInvoiceScanned={openReturnFor}
+        />
         <Favourites items={favourites} onSelect={addItem} onShowKeys={() => setShowKeys(true)} />
       </div>
 
@@ -956,6 +972,11 @@ function looksLikeBarcode(term: string): boolean {
   return /^[0-9]{6,}$/.test(term.trim());
 }
 
+/** The QR printed on every receipt holds exactly this. */
+function looksLikeInvoice(term: string): boolean {
+  return /^INV-\d{8}-\d{4}$/i.test(term.trim());
+}
+
 function splitQuantity(raw: string): { query: string; quantity: number } {
   const match = /^(.*?)[\s]*[x*×]\s*(\d{1,4})$/i.exec(raw.trim());
   if (!match || match[1].trim() === "") return { query: raw.trim(), quantity: 1 };
@@ -967,11 +988,14 @@ function ItemSearch({
   justAdded,
   inputRef,
   handleRef,
+  onInvoiceScanned,
 }: {
   onSelect: (item: CounterSearchResult, unit: CounterUnit, quantity?: number) => void;
   justAdded: { id: number; nonce: number } | null;
   inputRef: React.RefObject<HTMLInputElement | null>;
   handleRef: React.RefObject<SearchHandle | null>;
+  /** A receipt was scanned — the customer is here to bring something back. */
+  onInvoiceScanned: (invoiceNumber: string) => void;
 }) {
   const [term, setTerm] = useState("");
   // One object rather than three flags, so a result can never be shown next to
@@ -1052,6 +1076,13 @@ function ItemSearch({
 
     const timer = setTimeout(async () => {
       try {
+        // Only this shop's own receipts look like this, and nobody comes to
+        // the counter holding one unless they want something undone.
+        if (looksLikeInvoice(query)) {
+          applyTerm("");
+          onInvoiceScanned(query.trim().toUpperCase());
+          return;
+        }
         // A scanner types its whole code in milliseconds and no medicine is
         // named in digits, so a long run of them is a scan, not a search.
         if (looksLikeBarcode(query) || cameraCode.current === query) {
@@ -1091,7 +1122,7 @@ function ItemSearch({
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [term, choose, applyTerm]);
+  }, [term, choose, applyTerm, onInvoiceScanned]);
 
   const { status, results } = state;
   const searching = status === "searching";
