@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ModalShell } from "@/components/ui/modal";
 import {
   pairBarcode,
   scanBarcode,
@@ -913,11 +914,9 @@ function KeyHelp({ onClose }: { onClose: () => void }) {
   ];
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={t("pos.keyHelp")}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-foreground/40 p-4 pt-10"
+    <ModalShell
+      label={t("pos.keyHelp")}
+      onDismiss={onClose}
     >
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader
@@ -947,7 +946,7 @@ function KeyHelp({ onClose }: { onClose: () => void }) {
           </dl>
         </CardBody>
       </Card>
-    </div>
+    </ModalShell>
   );
 }
 

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Camera, CircleCheck, Loader2, Plus, ScanLine, Search, Trash2 } from "lucide-react";
 import { CameraScanner, cameraScanSupported } from "@/components/pos/camera-scanner";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { ModalShell } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { Field, Input, Select } from "@/components/ui/input";
@@ -1115,11 +1116,9 @@ function ReceivedDialog({
   }, [onClose]);
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={t("receive.done")}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-foreground/40 p-4 pt-10 backdrop-blur-[1px]"
+    <ModalShell
+      label={t("receive.done")}
+      onDismiss={onClose}
     >
       <Card className="w-full max-w-lg shadow-xl">
         <CardBody className="space-y-4 text-center">
@@ -1171,6 +1170,6 @@ function ReceivedDialog({
           <p className="text-xs text-muted">{t("receive.doneKeys")}</p>
         </CardBody>
       </Card>
-    </div>
+    </ModalShell>
   );
 }

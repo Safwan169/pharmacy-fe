@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, X } from "lucide-react";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { ModalShell } from "@/components/ui/modal";
 import { useT } from "@/i18n/client";
 
 /** Chrome's own decoder. No library, but not every browser has it. */
@@ -137,11 +138,10 @@ export function CameraScanner({
   }, [onClose]);
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={t("scan.camera")}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-foreground/50 p-4 pt-10"
+    <ModalShell
+      label={t("scan.camera")}
+      onDismiss={onClose}
+      tint="bg-foreground/50"
     >
       <Card className="w-full max-w-sm shadow-xl">
         <CardHeader
@@ -191,6 +191,6 @@ export function CameraScanner({
           </p>
         </CardBody>
       </Card>
-    </div>
+    </ModalShell>
   );
 }

@@ -13,6 +13,7 @@ import {
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
+import { ModalShell } from "@/components/ui/modal";
 import { findSalesToReturn, returnItems, type ReturnResult } from "@/lib/actions/returns";
 import { scanBarcode } from "@/lib/actions/search";
 import { CameraScanner, cameraScanSupported } from "./camera-scanner";
@@ -110,6 +111,19 @@ export function ReturnDialog({
     setLoading(true);
   }
 
+  // Clicking away from the dialog does what Escape does from where the
+  // cashier is standing: step back off a bill that was chosen from the list,
+  // and otherwise leave. Closing outright would throw away quantities already
+  // typed into a return.
+  function dismiss() {
+    if (picked !== null && sale === undefined) {
+      setPicked(null);
+      inputRef.current?.focus();
+      return;
+    }
+    onClose();
+  }
+
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (picked !== null) return;
@@ -135,11 +149,9 @@ export function ReturnDialog({
   }, [sales, saleCursor, picked, onClose]);
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={t("ret.title")}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-foreground/40 p-4 pt-10 backdrop-blur-[1px]"
+    <ModalShell
+      label={t("ret.title")}
+      onDismiss={dismiss}
     >
       <Card className="w-full max-w-2xl shadow-xl">
         {picked === null ? (
@@ -270,7 +282,7 @@ export function ReturnDialog({
           />
         )}
       </Card>
-    </div>
+    </ModalShell>
   );
 }
 

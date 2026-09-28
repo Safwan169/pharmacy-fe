@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { CircleCheck, Download, Plus, Printer, Undo2 } from "lucide-react";
 import { Card, CardBody } from "@/components/ui/card";
+import { ModalShell } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { PaymentMethod, Sale } from "@/types";
@@ -73,11 +74,9 @@ export function SaleReceipt({
   }, [onNewSale, onReturn, sale.id]);
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={t("receipt.complete")}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-foreground/40 p-4 pt-10 backdrop-blur-[1px]"
+    <ModalShell
+      label={t("receipt.complete")}
+      onDismiss={onNewSale}
     >
       <Card className="w-full max-w-sm shadow-xl">
         <CardBody className="space-y-4">
@@ -194,7 +193,7 @@ export function SaleReceipt({
           </div>
         </CardBody>
       </Card>
-    </div>
+    </ModalShell>
   );
 }
 
