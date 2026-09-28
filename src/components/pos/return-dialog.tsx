@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
   ArrowLeft,
+  Camera,
   CircleCheck,
   Loader2,
   Search,
@@ -13,6 +14,8 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { findSalesToReturn, returnItems, type ReturnResult } from "@/lib/actions/returns";
+import { scanBarcode } from "@/lib/actions/search";
+import { CameraScanner, cameraScanSupported } from "./camera-scanner";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { RefundMethod, Sale, SaleItem } from "@/types";
 import { useT } from "@/i18n/client";
@@ -56,6 +59,15 @@ export function ReturnDialog({
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [saleCursor, setSaleCursor] = useState(0);
+  const [camera, setCamera] = useState(false);
+  const [hasCamera, setHasCamera] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time probe of what the browser can do
+    setHasCamera(cameraScanSupported());
+  }, []);
+  // What a scanned code turned out to be, said out loud so nobody wonders why
+  // the list suddenly narrowed.
+  const [scanned, setScanned] = useState<string | null>(null);
   const [picked, setPicked] = useState<Sale | null>(sale ?? null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -63,6 +75,22 @@ export function ReturnDialog({
   useEffect(() => {
     const id = ++requestId.current;
     const timer = setTimeout(async () => {
+      // The customer is holding the box, so a scan is the surest way in — but
+      // a bill is found by what was on it, not by a code. Turn the code into
+      // the medicine's name and search for that.
+      if (/^[0-9]{6,}$/.test(term.trim())) {
+        const scan = await scanBarcode(term.trim());
+        if (requestId.current !== id) return;
+        if (scan.status === "unknown") {
+          setScanned(null);
+          setSales([]);
+          setLoading(false);
+          return;
+        }
+        setScanned(scan.item.name);
+        setTerm(scan.item.name);
+        return;
+      }
       const found = await findSalesToReturn(term);
       if (requestId.current !== id) return;
       setSales(found);
@@ -75,6 +103,7 @@ export function ReturnDialog({
   // Every keystroke starts a fresh search, so say so straight away.
   function changeTerm(value: string) {
     setTerm(value);
+    setScanned(null);
     setLoading(true);
   }
 
@@ -127,7 +156,19 @@ export function ReturnDialog({
               }
             />
             <CardBody className="space-y-3">
-              <div className="relative">
+              {camera && (
+                <CameraScanner
+                  onClose={() => setCamera(false)}
+                  onRead={(code) => {
+                    setCamera(false);
+                    setScanned(null);
+                    setTerm(code);
+                    setLoading(true);
+                  }}
+                />
+              )}
+              <div className="flex items-center gap-2">
+              <div className="relative flex-1">
                 <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
                 <input
                   ref={inputRef}
@@ -135,8 +176,8 @@ export function ReturnDialog({
                   autoFocus
                   value={term}
                   onChange={(e) => changeTerm(e.target.value)}
-                  placeholder={t("ret.searchPlaceholder")}
-                  aria-label={t("ret.searchPlaceholder")}
+                  placeholder={t("ret.searchOrScan")}
+                  aria-label={t("ret.searchOrScan")}
                   className="h-11 w-full rounded-lg border border-border bg-surface pr-10 pl-9 text-sm placeholder:text-muted/70 focus:border-primary focus:outline-2 focus:outline-primary/30"
                 />
                 {loading && (
@@ -146,6 +187,22 @@ export function ReturnDialog({
                   />
                 )}
               </div>
+              {hasCamera && (
+                <button
+                  type="button"
+                  onClick={() => setCamera(true)}
+                  aria-label={t("scan.camera")}
+                  title={t("scan.camera")}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-muted hover:border-primary hover:text-primary"
+                >
+                  <Camera className="h-5 w-5" aria-hidden />
+                </button>
+              )}
+              </div>
+
+              {scanned !== null && (
+                <p className="text-xs text-primary">{t("ret.scanned", { name: scanned })}</p>
+              )}
 
               {!loading && sales.length === 0 ? (
                 <p className="py-6 text-center text-sm text-muted">

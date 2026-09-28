@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Dancing_Script } from "next/font/google";
 import {
   LayoutDashboard,
   Search,
@@ -20,6 +21,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useT } from "@/i18n/client";
 import type { MessageKey } from "@/i18n";
+
+const brandFont = Dancing_Script({ subsets: ["latin"], weight: "700" });
 
 /**
  * One entry per stage of the workflow the API is built around: price the
@@ -152,7 +155,7 @@ function Brand({ compact = false }: { compact?: boolean }) {
       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
         <Cross className="h-4 w-4 text-primary-foreground" aria-hidden />
       </span>
-      {!compact && <span className="text-sm font-semibold">Pharmacy</span>}
+      {!compact && <span className={cn(brandFont.className, "text-xl leading-none")}>My Pharmacy</span>}
     </div>
   );
 }
