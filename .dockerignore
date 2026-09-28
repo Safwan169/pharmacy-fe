@@ -8,3 +8,6 @@ build
 actions-runner
 .env
 .env.local
+# Generated, and gitignored — kept out so a build here matches a build from a
+# fresh clone rather than quietly using a file the server will not have.
+next-env.d.ts

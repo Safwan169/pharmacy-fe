@@ -15,7 +15,9 @@ COPY package*.json ./
 RUN npm ci --omit=dev && npm install --no-save typescript && npm cache clean --force
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/public ./public
-COPY next.config.ts tsconfig.json next-env.d.ts ./
+# next-env.d.ts is generated and gitignored, so it is absent on a fresh clone;
+# `next build` writes its own, and nothing at runtime reads it.
+COPY next.config.ts tsconfig.json ./
 EXPOSE 5001
 # Bound to every interface: inside a container, localhost is unreachable from
 # the host and from the other services.
