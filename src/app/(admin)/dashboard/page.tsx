@@ -46,15 +46,23 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       <PeriodTabs current={period} />
 
-      {/* Each half streams on its own, so a slow query can't hold up the page. */}
-      <Suspense key={period} fallback={<SummarySkeleton />}>
-        <SummarySection period={period} />
-      </Suspense>
+      {/* On a phone the count comes first, right under the tabs. Four stat
+          cards are four rows at that width, and the one thing here with a
+          deadline on it was below all of them. A laptop shows the cards in a
+          single row, so there the count keeps its place under them. */}
+      <div className="flex flex-col gap-5">
+        <div className="order-first lg:order-2">
+          <Suspense fallback={null}>
+            <CloseDaySection />
+          </Suspense>
+        </div>
 
-      <div className="mt-5">
-        <Suspense fallback={null}>
-          <CloseDaySection />
-        </Suspense>
+        {/* Each half streams on its own, so a slow query can't hold up the page. */}
+        <div className="lg:order-1">
+          <Suspense key={period} fallback={<SummarySkeleton />}>
+            <SummarySection period={period} />
+          </Suspense>
+        </div>
       </div>
 
       <div className="mt-5">
