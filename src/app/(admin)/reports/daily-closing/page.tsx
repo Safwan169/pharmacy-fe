@@ -7,7 +7,7 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Table, Th, Td } from "@/components/ui/table";
 import { Alert } from "@/components/ui/alert";
-import { Banknote, ReceiptText, Undo2, Wallet } from "lucide-react";
+import { Banknote, ReceiptText, Search, Undo2, Wallet } from "lucide-react";
 import { getDailyClosing } from "@/lib/api/reports";
 import { ApiError } from "@/lib/api/client";
 import { requireOwner } from "@/lib/current-user";
@@ -51,7 +51,14 @@ export default async function DailyClosingPage({ searchParams }: PageProps<"/rep
       <Form className="mb-5 flex items-center gap-2 print:hidden" action="/reports/daily-closing">
         <label htmlFor="date" className="text-sm text-muted">{t("common.day")}</label>
         <input id="date" type="date" name="date" defaultValue={date} max={todayInDhaka()} className="h-10 rounded-lg border border-border bg-surface px-3 text-sm" />
-        <button type="submit" className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-background">{t("common.show")}</button>
+        <button
+          type="submit"
+          aria-label={t("common.show")}
+          className="flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-surface text-sm font-medium hover:bg-background sm:w-auto sm:px-4"
+        >
+          <Search className="h-4 w-4" aria-hidden />
+          <span className="hidden sm:inline">{t("common.show")}</span>
+        </button>
       </Form>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

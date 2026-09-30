@@ -6,7 +6,7 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Table, Th, Td } from "@/components/ui/table";
 import { Alert } from "@/components/ui/alert";
-import { Banknote, Percent, TrendingUp } from "lucide-react";
+import { Banknote, Percent, Search, TrendingUp } from "lucide-react";
 import { getProfit } from "@/lib/api/reports";
 import { ApiError } from "@/lib/api/client";
 import { requireOwner } from "@/lib/current-user";
@@ -52,11 +52,22 @@ export default async function ProfitPage({ searchParams }: PageProps<"/reports/p
       />
       <ReportsNav />
 
-      <Form className="mb-5 flex flex-wrap items-center gap-2 print:hidden" action="/reports/profit">
-        <input type="date" name="from" defaultValue={from} max={today} className="h-10 rounded-lg border border-border bg-surface px-3 text-sm" aria-label={t("common.from")} />
-        <span className="text-sm text-muted">{t("common.to")}</span>
-        <input type="date" name="to" defaultValue={to} max={today} className="h-10 rounded-lg border border-border bg-surface px-3 text-sm" aria-label={t("common.toDate")} />
-        <button type="submit" className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-background">{t("common.show")}</button>
+      {/* Two dates and a button take two ragged rows on a phone if they are
+          left to wrap. The word between the dates is a nicety at that width
+          and the button is the magnifier alone; both come back from the small
+          breakpoint up. */}
+      <Form className="mb-5 grid grid-cols-[1fr_1fr_auto] items-center gap-2 print:hidden sm:flex sm:flex-wrap" action="/reports/profit">
+        <input type="date" name="from" defaultValue={from} max={today} className="h-10 min-w-0 rounded-lg border border-border bg-surface px-2 text-sm sm:px-3" aria-label={t("common.from")} />
+        <span className="hidden text-sm text-muted sm:inline">{t("common.to")}</span>
+        <input type="date" name="to" defaultValue={to} max={today} className="h-10 min-w-0 rounded-lg border border-border bg-surface px-2 text-sm sm:px-3" aria-label={t("common.toDate")} />
+        <button
+          type="submit"
+          aria-label={t("common.show")}
+          className="flex h-10 w-10 items-center justify-center gap-2 rounded-lg border border-border bg-surface text-sm font-medium hover:bg-background sm:w-auto sm:px-4"
+        >
+          <Search className="h-4 w-4" aria-hidden />
+          <span className="hidden sm:inline">{t("common.show")}</span>
+        </button>
       </Form>
 
       {total.uncosted_lines > 0 && (

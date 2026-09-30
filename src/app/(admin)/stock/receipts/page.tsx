@@ -35,10 +35,15 @@ export default async function ReceiptsPage({ searchParams }: PageProps<"/stock/r
       <PageHeader
         title={t("deliveries.title")}
         description={t("deliveries.description")}
+        inlineAction
         action={
-          <LinkButton href="/stock/receive">
+          <LinkButton
+            href="/stock/receive"
+            aria-label={t("catalogue.receiveStock")}
+            className="w-10 justify-center px-0 sm:w-auto sm:px-4"
+          >
             <PackagePlus className="h-4 w-4" aria-hidden />
-            {t("catalogue.receiveStock")}
+            <span className="hidden sm:inline">{t("catalogue.receiveStock")}</span>
           </LinkButton>
         }
       />

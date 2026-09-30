@@ -16,8 +16,9 @@ const TABS: { href: string; label: MessageKey }[] = [
 export function ReportsNav() {
   const pathname = usePathname();
   const t = useT();
+  // One row, scrolled sideways when it will not fit — see StockNav.
   return (
-    <nav className="mb-5 flex flex-wrap gap-1 rounded-lg border border-border bg-surface p-1 print:hidden" aria-label={t("nav.reports")}>
+    <nav className="mb-5 flex gap-1 overflow-x-auto rounded-lg border border-border bg-surface p-1 print:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label={t("nav.reports")}>
       {TABS.map(({ href, label }) => {
         const active = href === "/reports" ? pathname === "/reports" : pathname.startsWith(href);
         return (
@@ -26,7 +27,7 @@ export function ReportsNav() {
             href={href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
+              "shrink-0 rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
               active ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground",
             )}
           >
