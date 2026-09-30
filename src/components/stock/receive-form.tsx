@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { Camera, CircleCheck, Loader2, Plus, ScanLine, Search, Trash2 } from "lucide-react";
+import { ArrowDown, Camera, CircleCheck, Loader2, Plus, ScanLine, Search, Trash2 } from "lucide-react";
 import { CameraScanner, cameraScanSupported } from "@/components/pos/camera-scanner";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { ModalShell } from "@/components/ui/modal";
@@ -152,6 +152,13 @@ export function ReceiveForm({
   // which medicine came in that box.
   const [pendingCode, setPendingCode] = useState<string | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
+  // What was added a moment ago, and a nonce so adding the same medicine
+  // twice replays the beat rather than leaving it lit.
+  const [justAdded, setJustAdded] = useState<{ id: number; nonce: number } | null>(null);
+  const [flights, setFlights] = useState<Flight[]>([]);
+  const flightRef = useRef(0);
+  const linesRef = useRef<HTMLDivElement>(null);
+  const basketRef = useRef<HTMLButtonElement>(null);
   const [result, setResult] = useState<ReceiveResult | null>(null);
   const [saved, setSaved] = useState<StockReceipt | null>(null);
   const [savedPrices, setSavedPrices] = useState({ now: 0, later: 0 });
@@ -199,6 +206,37 @@ export function ReceiveForm({
     [keyRef],
   );
 
+  // One shot: clearing it means a later re-render — a quantity tweak, say —
+  // doesn't replay the flash.
+  useEffect(() => {
+    if (!justAdded) return;
+    const timer = setTimeout(() => setJustAdded(null), 900);
+    return () => clearTimeout(timer);
+  }, [justAdded]);
+
+  const land = useCallback((id: number) => {
+    setFlights((current) => current.filter((f) => f.id !== id));
+  }, []);
+
+  /**
+   * The bubble that leaves the search row for the bar at the bottom.
+   *
+   * On a laptop the delivery sits beside the search and a new line simply
+   * appears in it. On a phone it is a screen further down, so tapping a
+   * medicine looked like nothing happening — the complaint was having to
+   * scroll down after every tap just to check. Watching the name fly into
+   * the bar answers that without the scroll.
+   */
+  function fly(name: string, from?: HTMLElement | null) {
+    if (!from || typeof window === "undefined") return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const box = from.getBoundingClientRect();
+    setFlights((current) => [
+      ...current,
+      { id: ++flightRef.current, name, top: box.top, left: box.left, width: box.width, height: box.height },
+    ]);
+  }
+
   /** A scan: a known box becomes a line at once, a new one waits to be named. */
   const onScan = useCallback((scan: Awaited<ReturnType<typeof scanForReceive>>) => {
     if (scan.status === "unknown") {
@@ -219,17 +257,20 @@ export function ReceiveForm({
       }
       return [...current, buildLine(scan.item, { code, known: true, unitId: scan.unitId })];
     });
+    setJustAdded({ id: scan.item.id, nonce: Date.now() });
     setResult(null);
   }, [buildLine]);
 
   /** Picking a medicine while a scan is waiting is what names that code. */
-  function addLine(item: ReceiveSearchResult) {
+  function addLine(item: ReceiveSearchResult, from?: HTMLElement) {
     const waiting = pendingCode;
     setPendingCode(null);
     setLines((current) => [
       ...current,
       buildLine(item, waiting === null ? undefined : { code: waiting, known: false, unitId: null }),
     ]);
+    setJustAdded({ id: item.id, nonce: Date.now() });
+    fly(item.name, from);
     setResult(null);
   }
 
@@ -375,7 +416,10 @@ export function ReceiveForm({
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-5">
+    <div className="grid gap-5 pb-20 lg:grid-cols-5 lg:pb-0">
+      {flights.map((flight) => (
+        <FlyingBubble key={flight.id} flight={flight} target={basketRef} onLand={land} />
+      ))}
       {saved && (
         <ReceivedDialog receipt={saved} prices={savedPrices} onClose={() => setSaved(null)} />
       )}
@@ -401,13 +445,14 @@ export function ReceiveForm({
         </Card>
 
         <ItemSearch
-          onSelect={(item) => addLine(item)}
+          onSelect={addLine}
+          justAdded={justAdded}
           pendingCode={pendingCode}
           onScan={onScan}
         />
       </div>
 
-      <div className="lg:sticky lg:top-2 lg:col-span-2 lg:self-start">
+      <div ref={linesRef} className="scroll-mt-3 lg:sticky lg:top-2 lg:col-span-2 lg:self-start">
         <Card className="max-h-[calc(100vh-6rem)] overflow-y-auto">
           <CardHeader
             title={t("receive.lines")}
@@ -442,7 +487,14 @@ export function ReceiveForm({
                 // Don't nag about a line the user hasn't started filling in yet.
                 const started = line.quantity !== "" || line.unitCost !== "" || line.batchNo !== "" || line.expiryMonth !== "";
                 return (
-                  <li key={line.key} className={cn("space-y-2 px-5 py-3", problemIndexes.has(index) && "bg-danger/5")}>
+                  <li
+                    key={justAdded?.id === line.variantId ? `${line.key}-${justAdded.nonce}` : line.key}
+                    className={cn(
+                      "space-y-2 px-5 py-3",
+                      justAdded?.id === line.variantId && "animate-basket-pop",
+                      problemIndexes.has(index) && "bg-danger/5",
+                    )}
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{line.name}</p>
@@ -660,7 +712,86 @@ export function ReceiveForm({
             </CardBody>
           )}
         </Card>
+
+        {/* The delivery, kept in reach on a phone. The card above it is a
+            screen away once the search has any results, and a running count
+            that is always visible is the difference between trusting the tap
+            and checking after every one. It is the bubbles' landing spot too,
+            so the fixed position is load-bearing. */}
+        {lines.length > 0 && (
+          <button
+            ref={basketRef}
+            type="button"
+            onClick={() => linesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="fixed inset-x-3 bottom-3 z-40 flex items-center gap-3 rounded-xl bg-primary px-4 py-3 text-primary-foreground shadow-lg lg:hidden"
+          >
+            <span
+              key={lines.length}
+              className="animate-basket-pop flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-foreground/20 text-xs font-semibold tabular-nums"
+            >
+              {lines.length}
+            </span>
+            <span className="truncate text-sm font-medium">{t("receive.seeLines")}</span>
+            <span className="ml-auto shrink-0 text-sm font-semibold tabular-nums">{formatCurrency(total)}</span>
+            <ArrowDown className="h-4 w-4 shrink-0" aria-hidden />
+          </button>
+        )}
       </div>
+    </div>
+  );
+}
+
+/** One medicine's name on its way from the search row to the delivery bar. */
+type Flight = { id: number; name: string; top: number; left: number; width: number; height: number };
+
+/**
+ * The bubble itself. It starts exactly over the row that was tapped, so the
+ * first frame is invisible against it, then moves and shrinks into the bar.
+ * Anyone who has asked for less motion never gets one: `fly` checks before
+ * a flight is ever started, so there is nothing here to sit still.
+ */
+function FlyingBubble({
+  flight,
+  target,
+  onLand,
+}: {
+  flight: Flight;
+  target: React.RefObject<HTMLButtonElement | null>;
+  onLand: (id: number) => void;
+}) {
+  const [moved, setMoved] = useState<{ x: number; y: number } | null>(null);
+  const { id, top, left, width, height } = flight;
+
+  useEffect(() => {
+    // The bar is measured a frame late on purpose: on the first line of a
+    // delivery it is being added in the same commit as the bubble.
+    const frame = requestAnimationFrame(() => {
+      const box = target.current?.getBoundingClientRect();
+      setMoved({
+        x: (box ? box.left + box.width / 2 : window.innerWidth / 2) - (left + width / 2),
+        y: (box ? box.top + box.height / 2 : window.innerHeight - 48) - (top + height / 2),
+      });
+    });
+    const timer = setTimeout(() => onLand(id), 600);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+    };
+  }, [id, top, left, width, height, target, onLand]);
+
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none fixed z-50 truncate rounded-full bg-primary px-3 py-2 text-xs font-medium text-primary-foreground shadow-lg transition-all duration-500 ease-in-out lg:hidden"
+      style={{
+        top,
+        left,
+        width,
+        transform: moved ? `translate(${moved.x}px, ${moved.y}px) scale(0.3)` : undefined,
+        opacity: moved ? 0 : 1,
+      }}
+    >
+      {flight.name}
     </div>
   );
 }
@@ -969,10 +1100,13 @@ function looksLikeBarcode(term: string): boolean {
 
 function ItemSearch({
   onSelect,
+  justAdded,
   pendingCode,
   onScan,
 }: {
-  onSelect: (item: ReceiveSearchResult) => void;
+  onSelect: (item: ReceiveSearchResult, from: HTMLElement) => void;
+  /** The medicine added a moment ago, so its row can say so. */
+  justAdded: { id: number; nonce: number } | null;
   /** A scanned code still waiting to be told which medicine it is. */
   pendingCode: string | null;
   onScan: (scan: Awaited<ReturnType<typeof scanForReceive>>) => void;
@@ -1085,26 +1219,42 @@ function ItemSearch({
           </p>
         )}
         <ul className="divide-y divide-border">
-          {state.results.map((item) => (
-            <li key={item.id}>
-              <button
-                type="button"
-                onClick={() => onSelect(item)}
-                className="flex w-full items-center justify-between gap-3 rounded-md px-1 py-3 text-left hover:bg-background active:bg-primary/10"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{item.name}</p>
-                  <p className="truncate text-xs text-muted">
-                    {item.dosageForm}
-                    {item.manufacturer ? ` · ${item.manufacturer}` : ""}
+          {state.results.map((item) => {
+            const added = justAdded?.id === item.id;
+            return (
+              // Keyed on the nonce as well so the flash replays when the same
+              // medicine is added twice in a row.
+              <li key={added ? `${item.id}-${justAdded.nonce}` : item.id}>
+                <button
+                  type="button"
+                  onClick={(event) => onSelect(item, event.currentTarget)}
+                  className={cn(
+                    "relative flex w-full items-center justify-between gap-3 rounded-md px-1 py-3 text-left hover:bg-background active:bg-primary/10",
+                    added && "animate-add-flash",
+                  )}
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{item.name}</p>
+                    <p className="truncate text-xs text-muted">
+                      {item.dosageForm}
+                      {item.manufacturer ? ` · ${item.manufacturer}` : ""}
+                    </p>
+                  </div>
+                  <p className="shrink-0 text-xs text-muted">
+                    {item.stock === null ? t("receive.notCounted") : `${item.stock} ${item.baseUnit}`}
                   </p>
-                </div>
-                <p className="shrink-0 text-xs text-muted">
-                  {item.stock === null ? t("receive.notCounted") : `${item.stock} ${item.baseUnit}`}
-                </p>
-              </button>
-            </li>
-          ))}
+                  {added && (
+                    <span
+                      role="status"
+                      className="animate-added-badge pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground shadow-sm"
+                    >
+                      {t("pos.added")}
+                    </span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
         </ul>
         <p className="text-xs text-muted">
           {t("receive.newMedicineHint")}{" "}
