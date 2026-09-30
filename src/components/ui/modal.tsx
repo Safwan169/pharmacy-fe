@@ -15,6 +15,10 @@ import { cn } from "@/lib/utils";
  * **Clicking away** listens for `mousedown` landing on the sheet itself. A
  * plain click would also fire here after a drag that began inside the dialog —
  * selecting an invoice number and releasing outside would close it.
+ *
+ * **Alignment** is stated rather than inherited. A dialog opened from a
+ * right-aligned table cell is still that cell's child in the DOM, and every
+ * label in it came out against the right edge.
  */
 export function ModalShell({
   label,
@@ -38,7 +42,7 @@ export function ModalShell({
         if (event.target === event.currentTarget) onDismiss();
       }}
       className={cn(
-        "fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 [&>*]:my-auto",
+        "fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 text-left [&>*]:my-auto",
         tint,
       )}
     >

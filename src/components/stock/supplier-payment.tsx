@@ -124,7 +124,11 @@ function PayForm({
           <option value="outside">{t("cashFrom.outside")}</option>
         </Select>
       )}
-      <Input name="reference" placeholder={`${t("supplierPay.reference")} (${t("common.optional").toLowerCase()})`} maxLength={50} aria-label={t("supplierPay.reference")} />
+      {/* Cash has no transaction id, and a box asking for one under a
+          payment marked "cash" only makes the form look unfinished. */}
+      {method === "bkash" && (
+        <Input name="reference" placeholder={`${t("supplierPay.reference")} (${t("common.optional").toLowerCase()})`} maxLength={50} aria-label={t("supplierPay.reference")} />
+      )}
       <Input name="note" placeholder={`${t("deliveries.note")} (${t("common.optional").toLowerCase()})`} maxLength={255} aria-label={t("deliveries.note")} />
       <div className="flex gap-2">
         <Button type="submit" size="sm" disabled={pending}>{pending ? t("common.saving") : t("supplierPay.record")}</Button>
@@ -135,14 +139,14 @@ function PayForm({
 }
 
 /**
- * "Pay supplier" — a dialog from the payables list, and the form itself on
- * the supplier's own page, which has the width for it.
+ * "Pay supplier" — a button, and the form on a sheet of its own.
  *
- * The compact form used to open inside the row's last cell. That cell is
- * about a hundred pixels wide on a phone, so five boxes and two buttons
- * stacked into a ribbon down the edge of the table.
+ * It used to open in place: inside the payables row's last cell, which is
+ * about a hundred pixels wide on a phone, and as a card partway down the
+ * supplier's page, below the delivery history nobody scrolls to pay. One
+ * dialog on every screen means the button can sit wherever it is wanted.
  */
-export function PaySupplier({ supplierId, dueBalance, compact = false }: { supplierId: number; dueBalance: number; compact?: boolean }) {
+export function PaySupplier({ supplierId, dueBalance }: { supplierId: number; dueBalance: number }) {
   const [open, setOpen] = useState(false);
   const t = useT();
 
@@ -154,14 +158,6 @@ export function PaySupplier({ supplierId, dueBalance, compact = false }: { suppl
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
-
-  if (!compact) {
-    return (
-      <div className="rounded-lg border border-border bg-background p-3">
-        <PayForm supplierId={supplierId} dueBalance={dueBalance} />
-      </div>
-    );
-  }
 
   return (
     <>

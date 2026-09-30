@@ -61,7 +61,7 @@ export default async function SupplierDuePage() {
                   </Td>
                   <Td className="text-right font-semibold tabular-nums text-warning">{formatCurrency(r.due_balance)}</Td>
                   <Td className="text-right">
-                    <PaySupplier supplierId={r.id} dueBalance={r.due_balance} compact />
+                    <PaySupplier supplierId={r.id} dueBalance={r.due_balance} />
                   </Td>
                 </tr>
               ))}

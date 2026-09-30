@@ -548,6 +548,8 @@ export const bn: Record<MessageKey, string> = {
   "movements.after": "পরে",
   "movements.batchNote": "ব্যাচ / নোট",
   "movements.sale": "বিক্রি",
+  "movements.openSale": "বিল দেখুন",
+  "movements.openReceipt": "রসিদ দেখুন",
   // Receive form
   "receive.errQty": "কতগুলো এসেছে লিখুন।",
   "receive.errCost": "প্রতিটির খরচ লিখুন।",
@@ -998,7 +1000,7 @@ export const bn: Record<MessageKey, string> = {
   "receive.paidTooMuch": "এটি ডেলিভারির মোট খরচের চেয়ে বেশি।",
   "supplierPay.button": "সাপ্লায়ারকে দিন",
   "supplierPay.youOwe": "আপনার বাকি {amount}।",
-  "supplierPay.reference": "বিকাশ TrxID / চেক নং",
+  "supplierPay.reference": "বিকাশ TrxID",
   "supplierPay.full": "পুরোটা",
   "supplierPay.half": "অর্ধেক",
   "supplierPay.partHint": "যতটুকু পারেন দিন — বাকিটা তাদের খাতায় থেকে যাবে।",

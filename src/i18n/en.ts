@@ -546,6 +546,8 @@ export const en = {
   "movements.after": "After",
   "movements.batchNote": "Batch / note",
   "movements.sale": "Sale",
+  "movements.openSale": "See the bill",
+  "movements.openReceipt": "See the delivery",
   // Receive form
   "receive.errQty": "Enter how many arrived.",
   "receive.errCost": "Enter what each one cost.",
@@ -996,7 +998,7 @@ export const en = {
   "receive.paidTooMuch": "That's more than the delivery costs.",
   "supplierPay.button": "Pay supplier",
   "supplierPay.youOwe": "You owe {amount}.",
-  "supplierPay.reference": "bKash TrxID / cheque no.",
+  "supplierPay.reference": "bKash TrxID",
   "supplierPay.record": "Record payment",
   "supplierPay.full": "All of it",
   "supplierPay.half": "Half",

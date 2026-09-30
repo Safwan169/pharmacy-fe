@@ -56,6 +56,11 @@ export default async function SupplierPage({ params }: PageProps<"/suppliers/[id
               <Badge tone="success">{t("supplier.nothingOwed")}</Badge>
             )}
             <LinkButton href={`/stock/receive?supplier=${supplier.id}`} variant="secondary">{t("suppliers.receiveFrom")}</LinkButton>
+            {/* What the page is opened for when money is owed, so it sits
+                with the balance rather than in a card below the history. */}
+            {supplier.dueBalance > 0 && (
+              <PaySupplier supplierId={supplier.id} dueBalance={supplier.dueBalance} />
+            )}
           </span>
         }
       />
@@ -140,14 +145,6 @@ export default async function SupplierPage({ params }: PageProps<"/suppliers/[id
         </div>
 
         <div className="space-y-5">
-          {supplier.dueBalance > 0 && (
-            <Card>
-              <CardHeader title={t("supplierPay.button")} />
-              <CardBody>
-                <PaySupplier supplierId={supplier.id} dueBalance={supplier.dueBalance} />
-              </CardBody>
-            </Card>
-          )}
           <Card>
             <CardHeader title={t("catalogue.details")} />
             <CardBody>

@@ -125,10 +125,10 @@ async function MovementList({ filters }: { filters: MovementFilters }) {
                 <Td className="space-y-1">
                   <Badge tone={meta.tone}>{t(meta.label)}</Badge>
                   {m.referenceType === "sale" && m.referenceId && (
-                    <Link href={`/sales/${m.referenceId}`} className="block text-xs text-primary hover:underline sm:ml-2 sm:inline">{t("movements.sale")}</Link>
+                    <Link href={`/sales/${m.referenceId}`} className="block text-xs text-primary hover:underline sm:ml-2 sm:inline">{t("movements.openSale")}</Link>
                   )}
                   {m.referenceType === "receipt" && m.referenceId && (
-                    <Link href={`/stock/receipts/${m.referenceId}`} className="block text-xs text-primary hover:underline sm:ml-2 sm:inline">{t("deliveries.receipt")}</Link>
+                    <Link href={`/stock/receipts/${m.referenceId}`} className="block text-xs text-primary hover:underline sm:ml-2 sm:inline">{t("movements.openReceipt")}</Link>
                   )}
                 </Td>
                 <Td className={`text-right font-medium tabular-nums ${m.quantity < 0 ? "text-danger" : "text-success"}`}>
