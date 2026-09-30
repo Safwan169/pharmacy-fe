@@ -47,11 +47,18 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
         title={customer.name}
         description={[customer.phone, customer.address].filter(Boolean).join(" · ") || t("customer.noContact")}
         action={
-          customer.dueBalance > 0 ? (
-            <Badge tone="warning" className="text-sm">{t("customer.owesAmount", { amount: formatCurrency(customer.dueBalance) })}</Badge>
-          ) : (
-            <Badge tone="success">{t("customer.nothingOwed")}</Badge>
-          )
+          <span className="flex flex-wrap items-center gap-2">
+            {customer.dueBalance > 0 ? (
+              <Badge tone="warning" className="text-sm">{t("customer.owesAmount", { amount: formatCurrency(customer.dueBalance) })}</Badge>
+            ) : (
+              <Badge tone="success">{t("customer.nothingOwed")}</Badge>
+            )}
+            {/* What the page is opened for when money is owed, so it sits
+                with the balance rather than in a card below the history. */}
+            {customer.dueBalance > 0 && (
+              <ReceivePayment customerId={customer.id} dueBalance={customer.dueBalance} />
+            )}
+          </span>
         }
       />
 
@@ -134,14 +141,6 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
         </div>
 
         <div className="space-y-5">
-          {customer.dueBalance > 0 && (
-            <Card>
-              <CardHeader title={t("due.receivePayment")} />
-              <CardBody>
-                <ReceivePayment customerId={customer.id} dueBalance={customer.dueBalance} />
-              </CardBody>
-            </Card>
-          )}
           <Card>
             <CardHeader title={t("catalogue.details")} />
             <CardBody>

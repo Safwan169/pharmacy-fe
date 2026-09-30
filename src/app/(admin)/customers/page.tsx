@@ -1,10 +1,10 @@
 import Link from "next/link";
 import Form from "next/form";
 import { Suspense } from "react";
-import { Contact } from "lucide-react";
+import { Contact, Search } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
-import { CustomerEditToggle, CustomerForm } from "@/components/customers/customer-forms";
-import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { AddCustomerButton, CustomerEditToggle } from "@/components/customers/customer-forms";
+import { Card } from "@/components/ui/card";
 import { Table, Th, Td } from "@/components/ui/table";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -30,30 +30,37 @@ export default async function CustomersPage({ searchParams }: PageProps<"/custom
       <PageHeader
         title={t("customers.title")}
         description={t("customers.description")}
-        action={<LinkButton href="/customers/due" variant="secondary">{t("customers.whoOwes")}</LinkButton>}
+        action={
+          <div className="flex flex-wrap gap-2">
+            <LinkButton href="/customers/due" variant="secondary">{t("customers.whoOwes")}</LinkButton>
+            <AddCustomerButton />
+          </div>
+        }
       />
 
-      <Card className="mb-5">
-        <CardHeader title={t("customers.add")} />
-        <CardBody>
-          <CustomerForm />
-        </CardBody>
-      </Card>
-
-      <Form className="mb-4 flex flex-wrap gap-2" action="/customers">
+      {/* One line at every width: the box takes what is left, the tick box
+          keeps its label and the button is the magnifier alone on a phone. */}
+      <Form className="mb-4 flex gap-2" action="/customers">
         <input
           type="search"
           name="search"
           defaultValue={search}
           placeholder={t("suppliers.searchPlaceholder")}
-          className="h-10 min-w-56 flex-1 rounded-lg border border-border bg-surface px-3 text-sm"
+          className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 text-sm sm:min-w-56"
           aria-label={t("customers.searchLabel")}
         />
-        <label className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-sm">
+        <label className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-xs whitespace-nowrap sm:text-sm">
           <input type="checkbox" name="has_due" value="1" defaultChecked={hasDue} />
           {t("customers.owesMoney")}
         </label>
-        <button type="submit" className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-background">{t("common.search")}</button>
+        <button
+          type="submit"
+          aria-label={t("common.search")}
+          className="flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-surface text-sm font-medium hover:bg-background sm:w-auto sm:px-4"
+        >
+          <Search className="h-4 w-4" aria-hidden />
+          <span className="hidden sm:inline">{t("common.search")}</span>
+        </button>
       </Form>
 
       <Card>
@@ -96,6 +103,8 @@ async function CustomerList({ search, hasDue, page }: { search?: string; hasDue:
             <tr key={c.id} className="align-top">
               <Td>
                 <Link href={`/customers/${c.id}`} className="font-medium text-primary hover:underline">{c.name}</Link>
+                {/* The phone has no column of its own on a phone. */}
+                {c.phone && <p className="text-xs text-muted sm:hidden">{c.phone}</p>}
                 {c.address && <p className="text-xs text-muted">{c.address}</p>}
               </Td>
               <Td className="hidden text-muted sm:table-cell">{c.phone ?? "—"}</Td>

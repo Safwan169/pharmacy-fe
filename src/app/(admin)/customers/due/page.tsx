@@ -57,7 +57,7 @@ export default async function DuePage() {
                   </Td>
                   <Td className="text-right font-semibold tabular-nums text-warning">{formatCurrency(r.due_balance)}</Td>
                   <Td className="text-right">
-                    <ReceivePayment customerId={r.id} dueBalance={r.due_balance} compact />
+                    <ReceivePayment customerId={r.id} dueBalance={r.due_balance} />
                   </Td>
                 </tr>
               ))}
