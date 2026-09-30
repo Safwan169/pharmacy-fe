@@ -184,16 +184,6 @@ export default async function VariantDetailPage({
               <ChangeHistory variantId={variant.id} />
             </Suspense>
           )}
-
-          {variant.genericId && (
-            <Suspense fallback={<AlternativesSkeleton />}>
-              <Alternatives
-                genericId={variant.genericId}
-                currentId={variant.id}
-                genericName={variant.generic?.name ?? t("catalogue.thisIngredient")}
-              />
-            </Suspense>
-          )}
         </div>
 
         {isOwner && (
@@ -239,6 +229,22 @@ export default async function VariantDetailPage({
           </Card>
         </div>
         )}
+
+        {/* Last on the page, and full width where there is width to use.
+            On a phone that puts it after how the medicine is sold and
+            priced — which is what the page was opened for — rather than
+            between that and the batches. */}
+        {variant.genericId && (
+          <div className="lg:col-span-3">
+            <Suspense fallback={<AlternativesSkeleton />}>
+              <Alternatives
+                genericId={variant.genericId}
+                currentId={variant.id}
+                genericName={variant.generic?.name ?? t("catalogue.thisIngredient")}
+              />
+            </Suspense>
+          </div>
+        )}
       </div>
     </>
   );
@@ -282,8 +288,10 @@ async function Alternatives({
             <tr>
               <Th>{t("th.medicine")}</Th>
               <Th className="hidden sm:table-cell">{t("th.company")}</Th>
-              <Th className="text-right">{t("th.price")}</Th>
-              <Th className="text-right">{t("th.inStock")}</Th>
+              {/* Three fixed columns beside the name left it four words
+                  wide on a phone. Price and stock go under it there. */}
+              <Th className="hidden text-right sm:table-cell">{t("th.price")}</Th>
+              <Th className="hidden text-right sm:table-cell">{t("th.inStock")}</Th>
             </tr>
           </thead>
           <tbody>
@@ -297,18 +305,28 @@ async function Alternatives({
                     {alt.product.brandName}
                     {alt.strength ? ` ${alt.strength}` : ""}
                   </Link>
-                  <p className="text-xs text-muted">{alt.dosageForm}</p>
+                  <p className="text-xs text-muted">
+                    {alt.dosageForm}
+                    {alt.product.manufacturer?.name ? ` · ${alt.product.manufacturer.name}` : ""}
+                  </p>
+                  <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm sm:hidden">
+                    <PriceCell
+                      price={alt.price}
+                      unit={alt.units?.find((u) => u.isDefault)?.name}
+                    />
+                    <StockCell stock={alt.stockQuantity} unit={alt.baseUnit} />
+                  </p>
                 </Td>
                 <Td className="hidden max-w-[12rem] truncate text-muted sm:table-cell">
                   {alt.product.manufacturer?.name ?? "—"}
                 </Td>
-                <Td className="text-right">
+                <Td className="hidden text-right sm:table-cell">
                   <PriceCell
                     price={alt.price}
                     unit={alt.units?.find((u) => u.isDefault)?.name}
                   />
                 </Td>
-                <Td className="text-right">
+                <Td className="hidden text-right sm:table-cell">
                   <StockCell stock={alt.stockQuantity} unit={alt.baseUnit} />
                 </Td>
               </tr>
