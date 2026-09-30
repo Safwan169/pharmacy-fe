@@ -20,7 +20,7 @@ export function PeriodTabs({ current }: { current: SummaryPeriod }) {
   const t = useT();
   return (
     <div
-      className="mb-5 inline-flex rounded-lg border border-border bg-surface p-1"
+      className="mb-5 flex flex-wrap gap-1 rounded-lg border border-border bg-surface p-1 sm:inline-flex sm:gap-0"
       role="group"
       aria-label={t("period.choose")}
     >
@@ -32,7 +32,7 @@ export function PeriodTabs({ current }: { current: SummaryPeriod }) {
             href={value === "today" ? "/dashboard" : `/dashboard?period=${value}`}
             aria-current={active ? "true" : undefined}
             className={cn(
-              "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+              "rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
               active
                 ? "bg-primary text-primary-foreground"
                 : "text-muted hover:text-foreground",

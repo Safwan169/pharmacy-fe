@@ -42,7 +42,9 @@ export function Topbar({ user }: { user: UserProfile | null }) {
             </div>
           </div>
 
-          <ChangePassword />
+          {/* The owner resets a cashier's password from the users screen, so
+              the cashier's topbar carries one button fewer on a narrow phone. */}
+          {user?.role === "owner" && <ChangePassword />}
 
           <form action={logout} className="border-l border-border pl-3">
             <button

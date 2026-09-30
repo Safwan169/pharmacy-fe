@@ -33,7 +33,7 @@ export function StockNav({ isOwner = true }: { isOwner?: boolean }) {
             href={href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+              "rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
               active ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground",
             )}
           >
