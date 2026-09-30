@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Dancing_Script } from "next/font/google";
 import {
   LayoutDashboard,
   Search,
@@ -21,8 +20,6 @@ import {
 import { cn } from "@/lib/utils";
 import { useT } from "@/i18n/client";
 import type { MessageKey } from "@/i18n";
-
-const brandFont = Dancing_Script({ subsets: ["latin"], weight: "700" });
 
 /**
  * One entry per stage of the workflow the API is built around: price the
@@ -154,7 +151,17 @@ function Brand({ compact = false }: { compact?: boolean }) {
       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
         <Cross className="h-4 w-4 text-primary-foreground" aria-hidden />
       </span>
-      {!compact && <span className={cn(brandFont.className, "text-xl leading-none")}>My Pharmacy</span>}
+      {/* The wordmark is set in the interface font rather than a script
+          one. A handwriting face beside a square icon read as a sticker on
+          the app instead of part of it, and it was a second font to fetch
+          before anything could be drawn. Tight tracking and the two weights
+          do the work a typeface was doing. */}
+      {!compact && (
+        <span className="text-base leading-none font-semibold tracking-tight">
+          <span className="font-normal text-muted">My</span>
+          <span className="text-foreground"> Pharmacy</span>
+        </span>
+      )}
     </div>
   );
 }
