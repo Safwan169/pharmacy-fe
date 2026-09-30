@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Form from "next/form";
 import { Suspense } from "react";
-import { PackagePlus } from "lucide-react";
+import { PackagePlus, Search } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { StockNav } from "@/components/stock/stock-nav";
 import { Card } from "@/components/ui/card";
@@ -44,20 +44,29 @@ export default async function ReceiptsPage({ searchParams }: PageProps<"/stock/r
       />
       <StockNav isOwner={me.role === "owner"} />
 
-      <Form className="mb-4 flex flex-wrap gap-2" action="/stock/receipts">
+      {/* Three rows on a phone — box, two dates, button — for a filter most
+          people never touch. Two now: the box takes a line, and the dates
+          share one with the button, which is the magnifier alone at that
+          width. The flex row a laptop had is unchanged. */}
+      <Form className="mb-4 grid grid-cols-[1fr_1fr_auto] gap-2 sm:flex sm:flex-wrap" action="/stock/receipts">
         {filters.supplier_id && <input type="hidden" name="supplier_id" value={filters.supplier_id} />}
         <input
           type="search"
           name="search"
           defaultValue={filters.search}
           placeholder={t("deliveries.searchPlaceholder")}
-          className="h-10 min-w-56 flex-1 rounded-lg border border-border bg-surface px-3 text-sm"
+          className="col-span-3 h-10 rounded-lg border border-border bg-surface px-3 text-sm sm:col-span-1 sm:min-w-56 sm:flex-1"
           aria-label={t("deliveries.searchLabel")}
         />
-        <input type="date" name="from" defaultValue={filters.from} className="h-10 rounded-lg border border-border bg-surface px-3 text-sm" aria-label={t("common.from")} />
-        <input type="date" name="to" defaultValue={filters.to} className="h-10 rounded-lg border border-border bg-surface px-3 text-sm" aria-label={t("common.toDate")} />
-        <button type="submit" className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-background">
-          {t("common.search")}
+        <input type="date" name="from" defaultValue={filters.from} className="h-10 min-w-0 rounded-lg border border-border bg-surface px-2 text-sm sm:px-3" aria-label={t("common.from")} />
+        <input type="date" name="to" defaultValue={filters.to} className="h-10 min-w-0 rounded-lg border border-border bg-surface px-2 text-sm sm:px-3" aria-label={t("common.toDate")} />
+        <button
+          type="submit"
+          aria-label={t("common.search")}
+          className="flex h-10 w-10 items-center justify-center gap-2 rounded-lg border border-border bg-surface text-sm font-medium hover:bg-background sm:w-auto sm:px-4"
+        >
+          <Search className="h-4 w-4" aria-hidden />
+          <span className="hidden sm:inline">{t("common.search")}</span>
         </button>
       </Form>
 
