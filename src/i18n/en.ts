@@ -1046,6 +1046,7 @@ export const en = {
   "closeDay.expectedNow": "The drawer should hold {amount} right now.",
   "closeDay.notYet": "Today has not been counted yet.",
   "closeDay.seeDay": "See the day",
+  "closeDay.seeCount": "See the count",
   "closeDay.carriesOver": "Tomorrow opens from the counted amount, so this difference does not carry forward.",
   "closing.openingCash": "Carried over from before",
   "closing.supplierOutside": "\u2026of which not from the drawer",

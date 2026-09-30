@@ -36,5 +36,8 @@ export async function closeDay(_prev: CloseDayState, formData: FormData): Promis
     throw error;
   }
   revalidatePath("/reports/daily-closing");
+  // The dashboard carries the same card, and it is where the count is
+  // usually taken from.
+  revalidatePath("/dashboard");
   return { status: "success", message: t("closeDay.saved") };
 }

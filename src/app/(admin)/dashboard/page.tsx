@@ -14,6 +14,7 @@ import { getExpired, getExpiring, getLowStock, getOutstanding, getSummary } from
 import { getDailyClosing, getStockValue } from "@/lib/api/reports";
 import { ApiError } from "@/lib/api/client";
 import { LinkButton } from "@/components/ui/link-button";
+import { CloseDayButton } from "@/components/reports/close-day-button";
 import { formatCurrency, formatDate, formatNumber, todayInDhaka } from "@/lib/utils";
 import { SUMMARY_PERIODS, type SummaryPeriod } from "@/types";
 import { getT } from "@/i18n/server";
@@ -117,9 +118,16 @@ async function CloseDaySection() {
               : t("closeDay.expectedNow", { amount: formatCurrency(report.cash_in_drawer_expected) })}
           </p>
         </div>
-        <LinkButton href="/reports/daily-closing" variant={closing ? "secondary" : "primary"}>
-          {closing ? t("closeDay.seeDay") : t("closeDay.submit")}
-        </LinkButton>
+        <div className="flex flex-wrap items-center gap-2">
+          <CloseDayButton
+            date={report.date}
+            expected={report.cash_in_drawer_expected}
+            closing={closing ?? null}
+          />
+          <LinkButton href="/reports/daily-closing" variant="secondary">
+            {t("closeDay.seeDay")}
+          </LinkButton>
+        </div>
       </div>
     </Card>
   );
