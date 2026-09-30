@@ -106,7 +106,7 @@ export function BulkPriceForm({ manufacturers, generics }: { manufacturers: Manu
               <thead>
                 <tr>
                   <Th>{t("th.medicine")}</Th>
-                  <Th>{t("th.unit")}</Th>
+                  <Th className="hidden sm:table-cell">{t("th.unit")}</Th>
                   <Th className="text-right">{t("bulk.now")}</Th>
                   <Th className="text-right">{t("bulk.after")}</Th>
                 </tr>
@@ -114,8 +114,11 @@ export function BulkPriceForm({ manufacturers, generics }: { manufacturers: Manu
               <tbody>
                 {preview.sample.map((r, i) => (
                   <tr key={`${r.variant_id}-${r.unit}-${i}`}>
-                    <Td>{r.name}</Td>
-                    <Td className="text-muted">{r.unit}</Td>
+                    <Td>
+                      {r.name}
+                      <span className="text-xs text-muted sm:hidden"> · {r.unit}</span>
+                    </Td>
+                    <Td className="hidden text-muted sm:table-cell">{r.unit}</Td>
                     <Td className="text-right tabular-nums text-muted">{formatCurrency(r.old_price)}</Td>
                     <Td className="text-right font-medium tabular-nums">{formatCurrency(r.new_price)}</Td>
                   </tr>

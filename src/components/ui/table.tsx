@@ -14,7 +14,9 @@ export function Th({ className, ...props }: HTMLAttributes<HTMLTableCellElement>
   return (
     <th
       className={cn(
-        "border-b border-border px-5 py-3 text-left text-xs font-semibold",
+        // Narrower gutters on a phone: two columns' worth of padding is
+        // most of the width a medicine's name needs to stay on one line.
+        "border-b border-border px-3 py-3 text-left text-xs font-semibold sm:px-5",
         "tracking-wide text-muted uppercase whitespace-nowrap",
         className,
       )}
@@ -26,7 +28,7 @@ export function Th({ className, ...props }: HTMLAttributes<HTMLTableCellElement>
 export function Td({ className, ...props }: HTMLAttributes<HTMLTableCellElement>) {
   return (
     <td
-      className={cn("border-b border-border px-5 py-3 align-middle", className)}
+      className={cn("border-b border-border px-3 py-3 align-middle sm:px-5", className)}
       {...props}
     />
   );

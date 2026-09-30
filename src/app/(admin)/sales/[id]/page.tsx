@@ -119,7 +119,7 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
             <thead>
               <tr>
                 <Th>{t("th.medicine")}</Th>
-                <Th className="text-right">{t("th.priceEach")}</Th>
+                <Th className="hidden text-right sm:table-cell">{t("th.priceEach")}</Th>
                 <Th className="text-right">{t("th.quantity")}</Th>
                 <Th className="text-right">{t("th.lineTotal")}</Th>
               </tr>
@@ -132,9 +132,12 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
                       {item.brandNameSnapshot}
                       {item.strengthSnapshot ? ` ${item.strengthSnapshot}` : ""}
                     </p>
-                    <p className="text-xs text-muted">{item.dosageFormSnapshot}</p>
+                    <p className="text-xs text-muted">
+                      {item.dosageFormSnapshot}
+                      <span className="sm:hidden"> · {formatCurrency(item.unitPrice)}</span>
+                    </p>
                   </Td>
-                  <Td className="text-right tabular-nums text-muted">
+                  <Td className="hidden text-right tabular-nums text-muted sm:table-cell">
                     {formatCurrency(item.unitPrice)}
                   </Td>
                   <Td className="text-right tabular-nums">

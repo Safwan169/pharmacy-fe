@@ -66,7 +66,7 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
                 <thead>
                   <tr>
                     <Th>{t("th.invoice")}</Th>
-                    <Th>{t("th.when")}</Th>
+                    <Th className="hidden sm:table-cell">{t("th.when")}</Th>
                     <Th className="text-right">{t("th.total")}</Th>
                     <Th className="text-right">{t("customer.stillOwed")}</Th>
                   </tr>
@@ -80,8 +80,10 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
                           {PAYMENT_METHOD_KEYS[s.paymentMethod as PaymentMethod] ? t(PAYMENT_METHOD_KEYS[s.paymentMethod as PaymentMethod]) : s.paymentMethod}
                           {s.status !== "completed" ? ` · ${t(SALE_STATUS_KEYS[s.status])}` : ""}
                         </p>
+                        {/* The date has no column of its own on a phone. */}
+                        <p className="text-xs text-muted sm:hidden">{formatDateTime(s.createdAt)}</p>
                       </Td>
-                      <Td className="text-muted">{formatDateTime(s.createdAt)}</Td>
+                      <Td className="hidden text-muted sm:table-cell">{formatDateTime(s.createdAt)}</Td>
                       <Td className="text-right tabular-nums">{formatCurrency(s.totalAmount)}</Td>
                       <Td className="text-right tabular-nums">
                         {s.dueAmount > 0 ? <span className="text-warning">{formatCurrency(s.dueAmount)}</span> : <span className="text-muted">—</span>}
@@ -102,8 +104,8 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
                 <thead>
                   <tr>
                     <Th>{t("deliveries.receipt")}</Th>
-                    <Th>{t("th.when")}</Th>
-                    <Th>{t("receipt.by")}</Th>
+                    <Th className="hidden sm:table-cell">{t("th.when")}</Th>
+                    <Th className="hidden sm:table-cell">{t("receipt.by")}</Th>
                     <Th className="text-right">{t("th.amount")}</Th>
                     <Th className="text-right">{t("customer.balanceAfter")}</Th>
                   </tr>
@@ -115,9 +117,12 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
                         <a href={`/api/payment-receipts/${p.id}`} target="_blank" rel="noopener" className="font-mono text-sm text-primary hover:underline">
                           {p.receiptNumber}
                         </a>
+                        <p className="text-xs text-muted sm:hidden">
+                          {formatDateTime(p.createdAt)} · {p.method === "bkash" ? t("paymentMethod.bkash") : t("paymentMethod.cash")}
+                        </p>
                       </Td>
-                      <Td className="text-muted">{formatDateTime(p.createdAt)}</Td>
-                      <Td>{p.method === "bkash" ? t("paymentMethod.bkash") : t("paymentMethod.cash")}{p.bkashTrxId ? ` · ${p.bkashTrxId}` : ""}</Td>
+                      <Td className="hidden text-muted sm:table-cell">{formatDateTime(p.createdAt)}</Td>
+                      <Td className="hidden sm:table-cell">{p.method === "bkash" ? t("paymentMethod.bkash") : t("paymentMethod.cash")}{p.bkashTrxId ? ` · ${p.bkashTrxId}` : ""}</Td>
                       <Td className="text-right font-medium tabular-nums text-success">{formatCurrency(p.amount)}</Td>
                       <Td className="text-right tabular-nums text-muted">{formatCurrency(p.balanceAfter)}</Td>
                     </tr>

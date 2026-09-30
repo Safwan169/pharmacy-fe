@@ -71,7 +71,7 @@ export default async function SupplierPage({ params }: PageProps<"/suppliers/[id
                 <thead>
                   <tr>
                     <Th>{t("deliveries.receipt")}</Th>
-                    <Th>{t("th.date")}</Th>
+                    <Th className="hidden sm:table-cell">{t("th.date")}</Th>
                     <Th className="text-right">{t("th.total")}</Th>
                     <Th className="text-right">{t("supplier.stillOwed")}</Th>
                   </tr>
@@ -84,8 +84,9 @@ export default async function SupplierPage({ params }: PageProps<"/suppliers/[id
                         <Td>
                           <Link href={`/stock/receipts/${r.id}`} className="font-mono text-sm text-primary hover:underline">{r.receiptNumber}</Link>
                           {r.supplierInvoiceNo && <p className="text-xs text-muted">{r.supplierInvoiceNo}</p>}
+                          <p className="text-xs text-muted sm:hidden">{formatDate(r.receivedAt)}</p>
                         </Td>
-                        <Td className="text-muted">{formatDate(r.receivedAt)}</Td>
+                        <Td className="hidden text-muted sm:table-cell">{formatDate(r.receivedAt)}</Td>
                         <Td className="text-right tabular-nums">{formatCurrency(r.totalCost)}</Td>
                         <Td className="text-right tabular-nums">
                           {due > 0 ? <span className="text-warning">{formatCurrency(due)}</span> : <span className="text-muted">—</span>}
@@ -107,8 +108,8 @@ export default async function SupplierPage({ params }: PageProps<"/suppliers/[id
                 <thead>
                   <tr>
                     <Th>{t("supplierPay.number")}</Th>
-                    <Th>{t("th.when")}</Th>
-                    <Th>{t("receipt.by")}</Th>
+                    <Th className="hidden sm:table-cell">{t("th.when")}</Th>
+                    <Th className="hidden sm:table-cell">{t("receipt.by")}</Th>
                     <Th className="text-right">{t("th.amount")}</Th>
                     <Th className="text-right">{t("customer.balanceAfter")}</Th>
                   </tr>
@@ -116,9 +117,14 @@ export default async function SupplierPage({ params }: PageProps<"/suppliers/[id
                 <tbody>
                   {history.payments.map((p) => (
                     <tr key={p.id}>
-                      <Td className="font-mono text-sm">{p.paymentNumber}</Td>
-                      <Td className="text-muted">{formatDateTime(p.createdAt)}</Td>
-                      <Td>
+                      <Td className="font-mono text-sm">
+                        {p.paymentNumber}
+                        <p className="font-sans text-xs text-muted sm:hidden">
+                          {formatDateTime(p.createdAt)} · {p.method === "bkash" ? t("paymentMethod.bkash") : t("paymentMethod.cash")}
+                        </p>
+                      </Td>
+                      <Td className="hidden text-muted sm:table-cell">{formatDateTime(p.createdAt)}</Td>
+                      <Td className="hidden sm:table-cell">
                         {p.method === "bkash" ? t("paymentMethod.bkash") : t("paymentMethod.cash")}
                         {p.reference ? ` · ${p.reference}` : ""}
                         {p.note ? <p className="text-xs text-muted">{p.note}</p> : null}

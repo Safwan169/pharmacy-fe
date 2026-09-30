@@ -457,8 +457,13 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2">
-                      <label className="block text-[11px] text-muted">
+                    {/* Three columns across a phone left each about a
+                        hundred pixels, so every label wrapped three deep and
+                        the boxes were too small to tap. The unit takes the
+                        first row on its own — its options are the longest
+                        text here — and the two numbers share the second. */}
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      <label className="col-span-2 block text-[11px] text-muted sm:col-span-1">
                         {t("receive.unitIn")}
                       <Select
                         className="mt-0.5"
@@ -500,7 +505,7 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
                       </label>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid gap-2 sm:grid-cols-2">
                       <label className="block text-[11px] text-muted">
                         {t("receive.batchNoOptional")}
                         <Input
