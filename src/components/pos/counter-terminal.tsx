@@ -33,6 +33,7 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ModalShell } from "@/components/ui/modal";
+import { Flights, useFlights } from "@/components/ui/flight";
 import {
   pairBarcode,
   scanBarcode,
@@ -78,6 +79,9 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
   const [submitting, startCheckout] = useTransition();
   // The variant that was just added, plus a counter so adding the same item
   // twice in a row restarts the animation instead of being a no-op.
+  const { flights, fly, land } = useFlights();
+  // The bar the bubbles land in, which is also the running total on a phone.
+  const barRef = useRef<HTMLAnchorElement>(null);
   const [justAdded, setJustAdded] = useState<{ id: number; nonce: number } | null>(
     null,
   );
@@ -152,7 +156,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
     [result],
   );
 
-  const addItem = useCallback((item: CounterSearchResult, unit: CounterUnit, quantity = 1) => {
+  const addItem = useCallback((item: CounterSearchResult, unit: CounterUnit, quantity = 1, from?: HTMLElement) => {
     // Adding the same item twice must merge into one line: the API rejects a
     // basket that lists a variant more than once. Picking a different unit
     // for an item already in the basket switches that line to the new unit.
@@ -193,8 +197,11 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
     });
     setResult(null);
     setJustAdded({ id: item.id, nonce: ++addNonce.current });
+    // The flash and the tick are on the row that was tapped; on a phone the
+    // basket they went into is a screen away, so the name travels to the bar.
+    fly(item.name, from);
     beep();
-  }, []);
+  }, [fly]);
 
   function setQuantity(variantId: number, quantity: number) {
     if (quantity < 1) return;
@@ -436,6 +443,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
 
   return (
     <div className="grid gap-5 lg:grid-cols-5">
+      <Flights flights={flights} target={barRef} onLand={land} />
       {completed && !returning && (
         <SaleReceipt
           sale={completed}
@@ -780,10 +788,11 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
           and a jump link in reach while scrolling through medicines. */}
       {basket.length > 0 && (
         <a
+          ref={barRef}
           href="#basket"
           className="fixed inset-x-4 bottom-4 z-40 flex items-center justify-between rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-lg lg:hidden"
         >
-          <span>
+          <span key={basket.length} className="animate-basket-pop">
             <ShoppingCart className="mr-2 inline h-4 w-4" aria-hidden />
             {t(basket.length === 1 ? "pos.itemCount" : "pos.itemsCount", { count: basket.length })}
           </span>
@@ -830,7 +839,7 @@ function Favourites({
   onShowKeys,
 }: {
   items: CounterSearchResult[];
-  onSelect: (item: CounterSearchResult, unit: CounterUnit) => void;
+  onSelect: (item: CounterSearchResult, unit: CounterUnit, quantity?: number, from?: HTMLElement) => void;
   onShowKeys: () => void;
 }) {
   const t = useT();
@@ -862,7 +871,7 @@ function Favourites({
             <button
               key={item.id}
               type="button"
-              onClick={() => onSelect(item, unit)}
+              onClick={(event) => onSelect(item, unit, 1, event.currentTarget)}
               className="group relative flex items-center gap-2.5 rounded-xl border border-border bg-surface p-2.5 text-left transition-all hover:-translate-y-px hover:border-primary/60 hover:shadow-sm active:translate-y-0 active:bg-primary/10"
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
@@ -989,7 +998,7 @@ function ItemSearch({
   handleRef,
   onInvoiceScanned,
 }: {
-  onSelect: (item: CounterSearchResult, unit: CounterUnit, quantity?: number) => void;
+  onSelect: (item: CounterSearchResult, unit: CounterUnit, quantity?: number, from?: HTMLElement) => void;
   justAdded: { id: number; nonce: number } | null;
   inputRef: React.RefObject<HTMLInputElement | null>;
   handleRef: React.RefObject<SearchHandle | null>;
@@ -1054,13 +1063,13 @@ function ItemSearch({
    * here costs the cashier nothing beyond the sale they were making anyway.
    */
   const choose = useCallback(
-    (item: CounterSearchResult, unit: CounterUnit, qty: number) => {
+    (item: CounterSearchResult, unit: CounterUnit, qty: number, from?: HTMLElement) => {
       const waiting = scanRef.current;
       if (waiting?.kind === "learn") {
         void pairBarcode(item.id, waiting.code);
         setScan(null);
       }
-      onSelect(item, unit, qty);
+      onSelect(item, unit, qty, from);
       applyTerm("");
       inputRef.current?.focus();
     },
@@ -1346,7 +1355,7 @@ function ItemSearch({
                         <button
                           key={unit.id}
                           type="button"
-                          onClick={() => enough && choose(item, unit, quantity)}
+                          onClick={(event) => enough && choose(item, unit, quantity, event.currentTarget)}
                           disabled={!enough}
                           title={enough ? undefined : t("pos.notEnoughFor", { unit: unit.name })}
                           className={cn(

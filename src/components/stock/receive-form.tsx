@@ -6,6 +6,7 @@ import { ArrowDown, Camera, CircleCheck, Loader2, Plus, ScanLine, Search, Trash2
 import { CameraScanner, cameraScanSupported } from "@/components/pos/camera-scanner";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { ModalShell } from "@/components/ui/modal";
+import { Flights, useFlights } from "@/components/ui/flight";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { Field, Input, Select } from "@/components/ui/input";
@@ -155,8 +156,7 @@ export function ReceiveForm({
   // What was added a moment ago, and a nonce so adding the same medicine
   // twice replays the beat rather than leaving it lit.
   const [justAdded, setJustAdded] = useState<{ id: number; nonce: number } | null>(null);
-  const [flights, setFlights] = useState<Flight[]>([]);
-  const flightRef = useRef(0);
+  const { flights, fly, land } = useFlights();
   const linesRef = useRef<HTMLDivElement>(null);
   const basketRef = useRef<HTMLButtonElement>(null);
   const [result, setResult] = useState<ReceiveResult | null>(null);
@@ -213,29 +213,6 @@ export function ReceiveForm({
     const timer = setTimeout(() => setJustAdded(null), 900);
     return () => clearTimeout(timer);
   }, [justAdded]);
-
-  const land = useCallback((id: number) => {
-    setFlights((current) => current.filter((f) => f.id !== id));
-  }, []);
-
-  /**
-   * The bubble that leaves the search row for the bar at the bottom.
-   *
-   * On a laptop the delivery sits beside the search and a new line simply
-   * appears in it. On a phone it is a screen further down, so tapping a
-   * medicine looked like nothing happening — the complaint was having to
-   * scroll down after every tap just to check. Watching the name fly into
-   * the bar answers that without the scroll.
-   */
-  function fly(name: string, from?: HTMLElement | null) {
-    if (!from || typeof window === "undefined") return;
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    const box = from.getBoundingClientRect();
-    setFlights((current) => [
-      ...current,
-      { id: ++flightRef.current, name, top: box.top, left: box.left, width: box.width, height: box.height },
-    ]);
-  }
 
   /** A scan: a known box becomes a line at once, a new one waits to be named. */
   const onScan = useCallback((scan: Awaited<ReturnType<typeof scanForReceive>>) => {
@@ -417,9 +394,7 @@ export function ReceiveForm({
 
   return (
     <div className="grid gap-5 pb-20 lg:grid-cols-5 lg:pb-0">
-      {flights.map((flight) => (
-        <FlyingBubble key={flight.id} flight={flight} target={basketRef} onLand={land} />
-      ))}
+      <Flights flights={flights} target={basketRef} onLand={land} />
       {saved && (
         <ReceivedDialog receipt={saved} prices={savedPrices} onClose={() => setSaved(null)} />
       )}
@@ -737,61 +712,6 @@ export function ReceiveForm({
           </button>
         )}
       </div>
-    </div>
-  );
-}
-
-/** One medicine's name on its way from the search row to the delivery bar. */
-type Flight = { id: number; name: string; top: number; left: number; width: number; height: number };
-
-/**
- * The bubble itself. It starts exactly over the row that was tapped, so the
- * first frame is invisible against it, then moves and shrinks into the bar.
- * Anyone who has asked for less motion never gets one: `fly` checks before
- * a flight is ever started, so there is nothing here to sit still.
- */
-function FlyingBubble({
-  flight,
-  target,
-  onLand,
-}: {
-  flight: Flight;
-  target: React.RefObject<HTMLButtonElement | null>;
-  onLand: (id: number) => void;
-}) {
-  const [moved, setMoved] = useState<{ x: number; y: number } | null>(null);
-  const { id, top, left, width, height } = flight;
-
-  useEffect(() => {
-    // The bar is measured a frame late on purpose: on the first line of a
-    // delivery it is being added in the same commit as the bubble.
-    const frame = requestAnimationFrame(() => {
-      const box = target.current?.getBoundingClientRect();
-      setMoved({
-        x: (box ? box.left + box.width / 2 : window.innerWidth / 2) - (left + width / 2),
-        y: (box ? box.top + box.height / 2 : window.innerHeight - 48) - (top + height / 2),
-      });
-    });
-    const timer = setTimeout(() => onLand(id), 600);
-    return () => {
-      cancelAnimationFrame(frame);
-      clearTimeout(timer);
-    };
-  }, [id, top, left, width, height, target, onLand]);
-
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none fixed z-50 truncate rounded-full bg-primary px-3 py-2 text-xs font-medium text-primary-foreground shadow-lg transition-all duration-500 ease-in-out lg:hidden"
-      style={{
-        top,
-        left,
-        width,
-        transform: moved ? `translate(${moved.x}px, ${moved.y}px) scale(0.3)` : undefined,
-        opacity: moved ? 0 : 1,
-      }}
-    >
-      {flight.name}
     </div>
   );
 }
