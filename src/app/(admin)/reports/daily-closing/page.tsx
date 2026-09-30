@@ -2,6 +2,7 @@ import Link from "next/link";
 import Form from "next/form";
 import { PageHeader } from "@/components/layout/page-header";
 import { PrintButton, ReportsNav } from "@/components/reports/reports-nav";
+import { DayCloseForm } from "@/components/reports/day-close-form";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Table, Th, Td } from "@/components/ui/table";
@@ -86,6 +87,13 @@ export default async function DailyClosingPage({ searchParams }: PageProps<"/rep
                 <dd className="tabular-nums">{formatCurrency(report.cash_in_drawer_expected)}</dd>
               </div>
             </dl>
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader title={t("closeDay.title")} description={t("closeDay.description")} />
+          <CardBody>
+            <DayCloseForm date={report.date} expected={report.cash_in_drawer_expected} closing={report.closing} />
           </CardBody>
         </Card>
 

@@ -353,6 +353,17 @@ export interface PendingPrice {
   oldStockLeft?: number;
 }
 
+export interface DayClosingSummary {
+  date: string;
+  expected_cash: number;
+  counted_cash: number;
+  /** Counted less expected. Negative is cash that left without being recorded. */
+  difference: number;
+  note: string | null;
+  closed_at: string;
+  closed_by: string;
+}
+
 export interface DailyClosing {
   date: string;
   sales_count: number;
@@ -366,6 +377,8 @@ export interface DailyClosing {
   supplier_paid: { cash: number; bkash: number; cash_outside: number };
   /** What the drawer held when the day began. Null on a single cashier's view. */
   opening_cash: number | null;
+  /** The night this day was counted, once it has been. */
+  closing: DayClosingSummary | null;
   cash_in_drawer_expected: number;
   voided_count: number;
   top_items: { variant_id: number; name: string; unit: string; quantity: number; amount: number }[];
