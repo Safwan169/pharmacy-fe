@@ -844,6 +844,12 @@ export const en = {
   // Checkout failures
   "checkout.empty": "The basket is empty. Add at least one item before taking payment.",
   "checkout.tenderedShort": "The cash given is less than the total. Enter what they actually handed over.",
+  "payment.payingNow": "Paying now",
+  "payment.payingNowHint": "Leave it empty if they are paying nothing today.",
+  "payment.payingNowIsAll": "That is the whole bill. Take it as cash or bKash instead.",
+  "payment.stillOwed": "{amount} stays on their account.",
+  "checkout.paidNowIsTotal": "That settles the whole bill — take it as cash or bKash instead.",
+  "checkout.paidNowOverTotal": "That is more than this bill. Enter the bill amount or less.",
   "checkout.customerRequired": "A due sale needs a customer. Pick one or add them.",
   "checkout.customerNotFound": "That customer no longer exists. Pick another.",
   "checkout.not_found": "{name} is no longer in the catalogue. Remove it from the basket.",

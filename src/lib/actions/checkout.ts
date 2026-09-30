@@ -13,6 +13,9 @@ export interface CheckoutRequest {
   amount_tendered?: number;
   bkash_trx_id?: string;
   customer_id?: number;
+  /** Due only: part of the bill settled at the counter. */
+  paid_now?: number;
+  paid_now_method?: "cash" | "bkash";
 }
 
 export type CheckoutResult =
@@ -56,6 +59,8 @@ export async function checkout(request: CheckoutRequest): Promise<CheckoutResult
         ...(request.amount_tendered !== undefined ? { amount_tendered: request.amount_tendered } : {}),
         ...(request.bkash_trx_id ? { bkash_trx_id: request.bkash_trx_id } : {}),
         ...(request.customer_id !== undefined ? { customer_id: request.customer_id } : {}),
+        ...(request.paid_now !== undefined ? { paid_now: request.paid_now } : {}),
+        ...(request.paid_now !== undefined ? { paid_now_method: request.paid_now_method ?? "cash" } : {}),
       },
     });
 
@@ -91,7 +96,11 @@ export async function checkout(request: CheckoutRequest): Promise<CheckoutResult
             ? t("checkout.customerRequired")
             : reason === "customer_not_found"
               ? t("checkout.customerNotFound")
-              : error.message;
+              : reason === "paid_now_is_total"
+                ? t("checkout.paidNowIsTotal")
+                : reason === "paid_now_over_total"
+                  ? t("checkout.paidNowOverTotal")
+                  : error.message;
       return { status: "error", message };
     }
     throw error;

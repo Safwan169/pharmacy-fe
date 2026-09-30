@@ -13,6 +13,9 @@ export interface PaymentChoice {
   amountTendered?: number;
   bkashTrxId?: string;
   customer?: Customer;
+  /** Due only: part of the bill settled at the counter. */
+  paidNow?: number;
+  paidNowMethod?: "cash" | "bkash";
 }
 
 /**
@@ -31,6 +34,7 @@ export function PaymentPanel({
 }) {
   const [tendered, setTendered] = useState("");
   const [trx, setTrx] = useState("");
+  const [now, setNow] = useState("");
   const t = useT();
 
   function pick(method: PaymentMethod) {
@@ -49,6 +53,13 @@ export function PaymentPanel({
     onChange({ ...value, bkashTrxId: trx.trim() || undefined });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trx]);
+
+  useEffect(() => {
+    if (value.method !== "due") return;
+    const n = Number(now);
+    onChange({ ...value, paidNow: now && !Number.isNaN(n) && n > 0 ? n : undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [now]);
 
   const tenderedNum = Number(tendered);
   const change = tendered && !Number.isNaN(tenderedNum) ? tenderedNum - total : null;
@@ -111,6 +122,83 @@ export function PaymentPanel({
 
       {value.method === "due" && (
         <CustomerPicker value={value.customer ?? null} onChange={(customer) => onChange({ ...value, customer })} />
+      )}
+
+      {/* Part of the bill, handed over as it is rung up. Most of a shop's
+          credit is settled this way — something now, the rest next week —
+          and doing it here saves walking to the customer's page for a second
+          transaction with people still at the counter. */}
+      {value.method === "due" && value.customer && (
+        <PartPayment
+          total={total}
+          amount={now}
+          onAmount={setNow}
+          method={value.paidNowMethod ?? "cash"}
+          onMethod={(m) => onChange({ ...value, paidNowMethod: m })}
+        />
+      )}
+    </div>
+  );
+}
+
+function PartPayment({
+  total,
+  amount,
+  onAmount,
+  method,
+  onMethod,
+}: {
+  total: number;
+  amount: string;
+  onAmount: (value: string) => void;
+  method: "cash" | "bkash";
+  onMethod: (method: "cash" | "bkash") => void;
+}) {
+  const t = useT();
+  const typed = Number(amount);
+  const entered = amount.trim() !== "" && Number.isFinite(typed) && typed > 0;
+  const left = Math.round((total - typed) * 100) / 100;
+
+  return (
+    <div className="space-y-2 rounded-lg border border-border bg-background p-3">
+      <label htmlFor="paid-now" className="block text-xs font-medium">
+        {t("payment.payingNow")}
+      </label>
+      <div className="grid grid-cols-[1fr_auto] gap-2">
+        <Input
+          id="paid-now"
+          inputMode="decimal"
+          value={amount}
+          onChange={(e) => onAmount(e.target.value)}
+          placeholder="0"
+          className="tabular-nums"
+        />
+        <div className="flex gap-1">
+          {(["cash", "bkash"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="radio"
+              aria-checked={method === option}
+              onClick={() => onMethod(option)}
+              className={cn(
+                "h-10 rounded-lg border px-3 text-xs font-medium whitespace-nowrap transition-colors",
+                method === option
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-surface text-muted hover:text-foreground",
+              )}
+            >
+              {option === "cash" ? t("payment.cash") : "bKash"}
+            </button>
+          ))}
+        </div>
+      </div>
+      {!entered ? (
+        <p className="text-xs text-muted">{t("payment.payingNowHint")}</p>
+      ) : typed >= total ? (
+        <p className="text-xs text-warning">{t("payment.payingNowIsAll")}</p>
+      ) : (
+        <p className="text-xs text-muted">{t("payment.stillOwed", { amount: formatCurrency(left) })}</p>
       )}
     </div>
   );

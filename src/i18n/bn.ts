@@ -846,6 +846,12 @@ export const bn: Record<MessageKey, string> = {
   // Checkout failures
   "checkout.empty": "ঝুড়ি খালি। টাকা নেওয়ার আগে কমপক্ষে একটি আইটেম যোগ করুন।",
   "checkout.tenderedShort": "দেওয়া নগদ মোটের চেয়ে কম। আসলে যা দিয়েছে তা লিখুন।",
+  "payment.payingNow": "এখন দিচ্ছে",
+  "payment.payingNowHint": "আজ কিছু না দিলে ঘরটা ফাঁকা রাখুন।",
+  "payment.payingNowIsAll": "এটা তো পুরো বিল। নগদ বা বিকাশ হিসেবেই নিন।",
+  "payment.stillOwed": "{amount} তার খাতায় বাকি থাকবে।",
+  "checkout.paidNowIsTotal": "এতে পুরো বিল শোধ হয়ে যায় — নগদ বা বিকাশ হিসেবে নিন।",
+  "checkout.paidNowOverTotal": "এটা বিলের চেয়ে বেশি। বিলের সমান বা কম লিখুন।",
   "checkout.customerRequired": "বাকির বিক্রিতে কাস্টমার লাগে। একজন বাছুন বা যোগ করুন।",
   "checkout.customerNotFound": "এই কাস্টমার আর নেই। অন্যজন বাছুন।",
   "checkout.not_found": "{name} আর ক্যাটালগে নেই। ঝুড়ি থেকে সরান।",

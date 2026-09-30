@@ -399,6 +399,9 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
     if (payment.method === "cash" && payment.amountTendered !== undefined && payment.amountTendered < total) {
       return t("pos.cashShort");
     }
+    if (payment.method === "due" && payment.paidNow !== undefined && payment.paidNow >= total) {
+      return t("checkout.paidNowIsTotal");
+    }
     if (payment.method === "due" && !payment.customer) {
       return t("pos.pickCustomer");
     }
@@ -424,6 +427,8 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
         amount_tendered: payment.method === "cash" ? payment.amountTendered : undefined,
         bkash_trx_id: payment.method === "bkash" ? payment.bkashTrxId : undefined,
         customer_id: payment.method === "due" ? payment.customer?.id : undefined,
+        paid_now: payment.method === "due" ? payment.paidNow : undefined,
+        paid_now_method: payment.method === "due" && payment.paidNow !== undefined ? payment.paidNowMethod ?? "cash" : undefined,
       });
 
       setResult(response);
