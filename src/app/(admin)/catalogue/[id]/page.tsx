@@ -117,7 +117,12 @@ export default async function VariantDetailPage({
         <div className="space-y-5 lg:col-span-2">
           <Card>
             <CardHeader title={t("catalogue.details")} />
-            <CardBody className="grid gap-4 sm:grid-cols-2">
+            {/* Nine stacked label-and-value pairs ran to eighteen loose lines
+                on a phone, most of a screen for facts that are read at a
+                glance. Each is one ruled row there, label left and answer
+                right; the two columns of stacked pairs come back where there
+                is width for them. */}
+            <CardBody className="grid gap-0 px-5 py-1 sm:gap-4 sm:py-5 sm:grid-cols-2">
               <Detail label={t("catalogue.brand")} value={variant.product.brandName} />
               <Detail label={t("catalogue.form")} value={variant.dosageForm} />
               <Detail label={t("catalogue.strength")} value={variant.strength ?? t("catalogue.notRecorded")} />
@@ -317,9 +322,9 @@ async function Alternatives({
 
 function Detail({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <p className="text-xs font-medium tracking-wide text-muted uppercase">{label}</p>
-      <p className="mt-1 text-sm text-foreground">{value}</p>
+    <div className="flex items-baseline justify-between gap-4 border-b border-border py-2.5 last:border-0 sm:block sm:border-0 sm:py-0">
+      <p className="shrink-0 text-xs font-medium tracking-wide text-muted uppercase">{label}</p>
+      <p className="min-w-0 text-right text-sm text-foreground sm:mt-1 sm:text-left">{value}</p>
     </div>
   );
 }
