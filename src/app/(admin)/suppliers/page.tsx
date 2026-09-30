@@ -93,8 +93,8 @@ async function SupplierList({ search, status, page }: { search?: string; status:
             <Th>{t("deliveries.supplier")}</Th>
             <Th className="hidden sm:table-cell">{t("th.phone")}</Th>
             <Th className="hidden md:table-cell">{t("th.address")}</Th>
-            <Th className="text-right">{t("supplierDue.weOwe")}</Th>
-            <Th>{t("th.status")}</Th>
+            <Th className="hidden text-right sm:table-cell">{t("supplierDue.weOwe")}</Th>
+            <Th className="hidden sm:table-cell">{t("th.status")}</Th>
             <Th />
           </tr>
         </thead>
@@ -107,6 +107,13 @@ async function SupplierList({ search, status, page }: { search?: string; status:
                     phone. They have a line of their own now, and the phone
                     number the narrow table has no column for joins them. */}
                 {s.phone && <p className="text-xs text-muted sm:hidden">{s.phone}</p>}
+                {/* What is owed and whether the supplier is still used are
+                    two more columns the phone has no room for, so they sit
+                    with the name as badges instead. */}
+                <p className="mt-1 flex flex-wrap items-center gap-1.5 sm:hidden">
+                  {s.dueBalance > 0 && <Badge tone="warning">{formatCurrency(s.dueBalance)}</Badge>}
+                  {!s.isActive && <Badge tone="neutral">{t("suppliers.notUsed")}</Badge>}
+                </p>
                 <p className="mt-0.5 text-xs">
                   <Link href={`/stock/receipts?search=&supplier_id=${s.id}`} className="text-primary hover:underline">
                     {t("stockNav.deliveries")}
@@ -119,10 +126,10 @@ async function SupplierList({ search, status, page }: { search?: string; status:
               </Td>
               <Td className="hidden text-muted sm:table-cell">{s.phone ?? "—"}</Td>
               <Td className="hidden max-w-[16rem] truncate text-muted md:table-cell">{s.address ?? "—"}</Td>
-              <Td className="text-right tabular-nums">
+              <Td className="hidden text-right tabular-nums sm:table-cell">
                 {s.dueBalance > 0 ? <Badge tone="warning">{formatCurrency(s.dueBalance)}</Badge> : <span className="text-muted">—</span>}
               </Td>
-              <Td>{s.isActive ? <Badge tone="success">{t("suppliers.inUse")}</Badge> : <Badge tone="neutral">{t("suppliers.notUsed")}</Badge>}</Td>
+              <Td className="hidden sm:table-cell">{s.isActive ? <Badge tone="success">{t("suppliers.inUse")}</Badge> : <Badge tone="neutral">{t("suppliers.notUsed")}</Badge>}</Td>
               <Td className="text-right">
                 <SupplierEditToggle supplier={s} />
               </Td>

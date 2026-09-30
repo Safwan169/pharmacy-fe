@@ -96,7 +96,11 @@ async function MovementList({ filters }: { filters: MovementFilters }) {
       <Table>
         <thead>
           <tr>
-            <Th>{t("th.when")}</Th>
+            {/* A full timestamp is the widest thing in the table and the
+                least urgent: what changed and by how much is what the ledger
+                is read for. On a phone it moves under the name, where it
+                costs no width at all. */}
+            <Th className="hidden sm:table-cell">{t("th.when")}</Th>
             <Th>{t("th.medicine")}</Th>
             <Th>{t("movements.what")}</Th>
             <Th className="text-right">{t("movements.change")}</Th>
@@ -109,21 +113,22 @@ async function MovementList({ filters }: { filters: MovementFilters }) {
             const meta = TYPE_LABELS[m.type];
             return (
               <tr key={m.id}>
-                <Td className="whitespace-nowrap text-muted">{formatDateTime(m.createdAt)}</Td>
+                <Td className="hidden whitespace-nowrap text-muted sm:table-cell">{formatDateTime(m.createdAt)}</Td>
                 <Td>
                   <Link href={`/catalogue/${m.variantId}`} className="font-medium hover:underline">
                     {m.variant.product.brandName}
                     {m.variant.strength ? ` ${m.variant.strength}` : ""}
                   </Link>
                   <p className="text-xs text-muted">{m.variant.dosageForm}</p>
+                  <p className="text-xs text-muted sm:hidden">{formatDateTime(m.createdAt)}</p>
                 </Td>
-                <Td>
+                <Td className="space-y-1">
                   <Badge tone={meta.tone}>{t(meta.label)}</Badge>
                   {m.referenceType === "sale" && m.referenceId && (
-                    <Link href={`/sales/${m.referenceId}`} className="ml-2 text-xs text-primary hover:underline">{t("movements.sale")}</Link>
+                    <Link href={`/sales/${m.referenceId}`} className="block text-xs text-primary hover:underline sm:ml-2 sm:inline">{t("movements.sale")}</Link>
                   )}
                   {m.referenceType === "receipt" && m.referenceId && (
-                    <Link href={`/stock/receipts/${m.referenceId}`} className="ml-2 text-xs text-primary hover:underline">{t("deliveries.receipt")}</Link>
+                    <Link href={`/stock/receipts/${m.referenceId}`} className="block text-xs text-primary hover:underline sm:ml-2 sm:inline">{t("deliveries.receipt")}</Link>
                   )}
                 </Td>
                 <Td className={`text-right font-medium tabular-nums ${m.quantity < 0 ? "text-danger" : "text-success"}`}>
