@@ -47,6 +47,7 @@ import type { DiscountType, Sale } from "@/types";
 import { SaleReceipt } from "./sale-receipt";
 import { beep, setSoundOn, soundIsOn } from "./beep";
 import { ReturnDialog } from "./return-dialog";
+import { CollectDue, CollectDueButton } from "./collect-due";
 import { CameraScanner, cameraScanSupported } from "./camera-scanner";
 import { PaymentPanel, type PaymentChoice } from "./payment-panel";
 import { loadHeldSales, newHeldSale, saveHeldSales, splitLine, type HeldSale } from "./held-sales";
@@ -96,6 +97,9 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
   const [lineCursor, setLineCursor] = useState<number | null>(null);
   const [showKeys, setShowKeys] = useState(false);
   const [returning, setReturning] = useState(false);
+  // Someone at the counter paying off what they owe, which is neither a
+  // sale nor a return and had no way in from here.
+  const [collecting, setCollecting] = useState(false);
   // An invoice number scanned off a receipt, so the return opens already
   // looking for that bill instead of the week's list.
   const [returnFor, setReturnFor] = useState<string | null>(null);
@@ -461,6 +465,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
         />
       )}
       {showKeys && <KeyHelp onClose={() => setShowKeys(false)} />}
+      {collecting && <CollectDue onClose={() => setCollecting(false)} />}
       {returning && (
         <ReturnDialog
           // Straight onto the bill just rung up, when there is one: the
@@ -531,6 +536,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
                   <Undo2 className="h-3.5 w-3.5" aria-hidden />
                   {t("ret.button")}
                 </button>
+                <CollectDueButton onOpen={() => setCollecting(true)} />
                 {basket.length > 0 && (
                   <button
                     type="button"

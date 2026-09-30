@@ -247,7 +247,8 @@ function suggestNotes(total: number): number[] {
   return [...out].sort((a, b) => a - b).slice(0, 4);
 }
 
-function CustomerPicker({ value, onChange }: { value: Customer | null; onChange: (c: Customer | undefined) => void }) {
+/** Find a customer by name or phone, or add one on the spot. */
+export function CustomerPicker({ value, onChange }: { value: Customer | null; onChange: (c: Customer | undefined) => void }) {
   const [term, setTerm] = useState("");
   const [options, setOptions] = useState<Customer[]>([]);
   const [open, setOpen] = useState(false);

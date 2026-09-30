@@ -142,7 +142,7 @@ export function CustomerEditToggle({ customer }: { customer: Customer }) {
 }
 
 /** Taking money off what a customer owes. */
-function PaymentForm({ customerId, dueBalance, onDone }: { customerId: number; dueBalance: number; onDone: () => void }) {
+export function PaymentForm({ customerId, dueBalance, onDone }: { customerId: number; dueBalance: number; onDone: () => void }) {
   const [state, action, pending] = useActionState(receiveDuePayment, paymentInitial);
   const [method, setMethod] = useState<"cash" | "bkash">("cash");
   const [amount, setAmount] = useState(dueBalance > 0 ? String(Math.round(dueBalance * 100) / 100) : "");
