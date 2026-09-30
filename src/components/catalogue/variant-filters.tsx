@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { Search, X, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Generic, Manufacturer } from "@/types";
 import { useT } from "@/i18n/client";
 
@@ -99,7 +100,13 @@ export function VariantFilters({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Five dropdowns stacked five rows deep on a phone, above the list
+          they filter. Two of them answer nearly every question a shopkeeper
+          asks of the catalogue — whose medicine, and which kind — so those
+          two share one row there and the rest wait for a wider screen. A
+          filter set elsewhere and carried in the URL still applies, and the
+          clear button below is how it is undone. */}
+      <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
         <FilterSelect
           label={t("th.company")}
           value={searchParams.get("manufacturer_id") ?? ""}
@@ -109,6 +116,7 @@ export function VariantFilters({
         />
 
         <FilterSelect
+          className="hidden sm:flex"
           label={t("th.ingredient")}
           value={searchParams.get("generic_id") ?? ""}
           onChange={(v) => apply("generic_id", v)}
@@ -129,6 +137,7 @@ export function VariantFilters({
 
         {showPricingStatus && (
           <FilterSelect
+            className="hidden sm:flex"
             label={t("filters.pricing")}
             value={searchParams.get("pricing_status") ?? ""}
             onChange={(v) => apply("pricing_status", v)}
@@ -142,6 +151,7 @@ export function VariantFilters({
 
         {showAvailability && (
           <FilterSelect
+            className="hidden sm:flex"
             label={t("filters.availability")}
             value={searchParams.get("status") ?? ""}
             onChange={(v) => apply("status", v)}
@@ -158,7 +168,7 @@ export function VariantFilters({
           <button
             type="button"
             onClick={() => startTransition(() => router.replace(pathname, { scroll: false }))}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-medium text-muted transition-colors hover:bg-background hover:text-foreground"
+            className="col-span-2 inline-flex h-9 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-medium text-muted transition-colors hover:bg-background hover:text-foreground sm:col-auto sm:justify-start"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
             {activeCount === 1 ? t("filters.clearOne") : t("filters.clearAll", { count: activeCount })}
@@ -175,20 +185,23 @@ function FilterSelect({
   onChange,
   options,
   allLabel,
+  className,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: { value: string; label: string }[];
   allLabel: string;
+  /** Which of these a phone is narrow enough to do without. */
+  className?: string;
 }) {
   return (
-    <label className="flex items-center gap-2">
+    <label className={cn("flex min-w-0 items-center gap-2", className)}>
       <span className="sr-only">{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9 max-w-52 cursor-pointer rounded-lg border border-border bg-surface px-2.5 text-xs text-foreground focus:border-primary focus:outline-2 focus:outline-primary/30"
+        className="h-9 w-full cursor-pointer rounded-lg border border-border bg-surface px-2.5 text-xs text-foreground focus:border-primary focus:outline-2 focus:outline-primary/30 sm:w-auto sm:max-w-52"
       >
         <option value="">{allLabel}</option>
         {options.map((option) => (

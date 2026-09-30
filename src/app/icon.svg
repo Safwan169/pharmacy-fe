@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Pharmacy">
+  <!--
+    The same mark the sidebar wears: the app's teal in a rounded square with a
+    medical cross cut out of it. Drawn at 32px because that is the size a
+    browser tab actually shows — the bar is thick enough to survive it, and
+    the corner radius is kept shallow so the square still reads as a square
+    once it is 16px in a crowded tab strip.
+  -->
+  <rect width="32" height="32" rx="7" fill="#0d9488"/>
+  <path fill="#ffffff" d="M13 6h6v7h7v6h-7v7h-6v-7H6v-6h7z"/>
+</svg>
