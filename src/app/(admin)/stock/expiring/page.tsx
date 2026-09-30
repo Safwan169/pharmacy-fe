@@ -21,11 +21,15 @@ export const metadata = { title: "Expiry" };
 
 type Tab = ExpiryWindow | "expired";
 
-const TABS: { value: Tab; label: MessageKey }[] = [
-  { value: "expired", label: "expiry.expired" },
-  { value: 30, label: "expiry.within30" },
-  { value: 60, label: "expiry.within60" },
-  { value: 90, label: "expiry.within90" },
+// "Within 30 days" is four buttons' worth of words on a phone and one
+// button's worth on a laptop, so each window carries both spellings and the
+// screen picks. The short one is still the whole sentence a shopkeeper needs:
+// the heading above already says these are expiry dates.
+const TABS: { value: Tab; label: MessageKey; short: MessageKey }[] = [
+  { value: "expired", label: "expiry.expired", short: "expiry.expiredShort" },
+  { value: 30, label: "expiry.within30", short: "expiry.within30Short" },
+  { value: 60, label: "expiry.within60", short: "expiry.within60Short" },
+  { value: 90, label: "expiry.within90", short: "expiry.within90Short" },
 ];
 
 export default async function ExpiringPage({ searchParams }: PageProps<"/stock/expiring">) {
@@ -53,7 +57,7 @@ export default async function ExpiringPage({ searchParams }: PageProps<"/stock/e
         role="group"
         aria-label={t("expiry.chooseWindow")}
       >
-        {TABS.map(({ value, label }) => {
+        {TABS.map(({ value, label, short }) => {
           const active = value === tab;
           return (
             <Link
@@ -65,7 +69,8 @@ export default async function ExpiringPage({ searchParams }: PageProps<"/stock/e
                 active ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground",
               )}
             >
-              {t(label)}
+              <span className="sm:hidden">{t(short)}</span>
+              <span className="hidden sm:inline">{t(label)}</span>
             </Link>
           );
         })}
