@@ -638,7 +638,7 @@ export const en = {
   "suppliers.notUsed": "Not used",
   "suppliers.empty": "No suppliers yet",
   "suppliers.emptyHint": "Use the Add supplier button to list the companies and distributors you buy from.",
-  "suppliers.receiveFrom": "Receive from them",
+  "suppliers.receiveFrom": "Receive",
   "suppliers.stopUsing": "Stop using",
   "suppliers.useAgain": "Use again",
   "customers.title": "Customers",
