@@ -4,7 +4,7 @@ import { ReportsNav } from "@/components/reports/reports-nav";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
-import { Boxes, CalendarClock, Tag, Warehouse } from "lucide-react";
+import { Boxes, CalendarClock, ChevronRight, HandCoins, TrendingUp, Tag, Wallet, Warehouse } from "lucide-react";
 import { getStockValue } from "@/lib/api/reports";
 import { ApiError } from "@/lib/api/client";
 import { requireOwner } from "@/lib/current-user";
@@ -12,6 +12,34 @@ import { formatCurrency, formatNumber } from "@/lib/utils";
 import { getT } from "@/i18n/server";
 
 export const metadata = { title: "Reports" };
+
+function ReportLink({
+  href,
+  icon: Icon,
+  title,
+  what,
+}: {
+  href: string;
+  icon: typeof Wallet;
+  title: string;
+  what: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3 transition-colors hover:border-primary/60 hover:bg-background"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <Icon className="h-4 w-4" aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium">{title}</span>
+        <span className="block truncate text-xs text-muted">{what}</span>
+      </span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-muted" aria-hidden />
+    </Link>
+  );
+}
 
 export default async function ReportsPage() {
   await requireOwner();
@@ -41,13 +69,17 @@ export default async function ReportsPage() {
         </Alert>
       )}
 
+      {/* These were four sentences run together on one line, each naming the
+          report and then explaining its arithmetic. Nobody reads a link that
+          says "revenue less cost of goods". A tile each: what it is called,
+          and the question it answers in the words a shopkeeper would use. */}
       <Card className="mt-5">
         <CardHeader title={t("reports.other")} />
-        <CardBody className="flex flex-wrap gap-4 text-sm">
-          <Link href="/reports/daily-closing" className="text-primary hover:underline">{t("reports.dailyClosingLink")}</Link>
-          <Link href="/reports/profit" className="text-primary hover:underline">{t("reports.profitLink")}</Link>
-          <Link href="/customers/due" className="text-primary hover:underline">{t("customers.whoOwes")}</Link>
-          <Link href="/stock/expiring" className="text-primary hover:underline">{t("stockNav.expiry")}</Link>
+        <CardBody className="grid gap-3 sm:grid-cols-2">
+          <ReportLink href="/reports/daily-closing" icon={Wallet} title={t("reports.dailyClosing")} what={t("reports.dailyClosingWhat")} />
+          <ReportLink href="/reports/profit" icon={TrendingUp} title={t("reports.profit")} what={t("reports.profitWhat")} />
+          <ReportLink href="/customers/due" icon={HandCoins} title={t("customers.whoOwes")} what={t("reports.whoOwesWhat")} />
+          <ReportLink href="/stock/expiring" icon={CalendarClock} title={t("stockNav.expiry")} what={t("reports.expiryWhat")} />
         </CardBody>
       </Card>
     </>
