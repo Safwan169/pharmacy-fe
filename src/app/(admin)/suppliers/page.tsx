@@ -5,8 +5,8 @@ import { Suspense } from "react";
 import { Truck } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { StockNav } from "@/components/stock/stock-nav";
-import { SupplierEditToggle, SupplierForm } from "@/components/stock/supplier-form";
-import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { AddSupplierButton, SupplierEditToggle } from "@/components/stock/supplier-form";
+import { Card } from "@/components/ui/card";
 import { Table, Th, Td } from "@/components/ui/table";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -33,16 +33,14 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
       <PageHeader
         title={t("suppliers.title")}
         description={t("suppliers.description")}
-        action={<LinkButton href="/suppliers/due" variant="secondary">{t("supplierDue.title")}</LinkButton>}
+        action={
+          <div className="flex flex-wrap gap-2">
+            <LinkButton href="/suppliers/due" variant="secondary">{t("supplierDue.title")}</LinkButton>
+            <AddSupplierButton />
+          </div>
+        }
       />
       <StockNav />
-
-      <Card className="mb-5">
-        <CardHeader title={t("suppliers.add")} />
-        <CardBody>
-          <SupplierForm />
-        </CardBody>
-      </Card>
 
       <Form className="mb-4 flex flex-wrap gap-2" action="/suppliers">
         <input
@@ -104,14 +102,20 @@ async function SupplierList({ search, status, page }: { search?: string; status:
           {result.data.map((s) => (
             <tr key={s.id} className="align-top">
               <Td>
-                <Link href={`/suppliers/${s.id}`} className="font-medium text-primary hover:underline">{s.name}</Link>
-                <Link href={`/stock/receipts?search=&supplier_id=${s.id}`} className="text-xs text-primary hover:underline">
-                  {t("stockNav.deliveries")}
-                </Link>
-                {" · "}
-                <Link href={`/stock/receive?supplier=${s.id}`} className="text-xs text-primary hover:underline">
-                  {t("suppliers.receiveFrom")}
-                </Link>
+                <Link href={`/suppliers/${s.id}`} className="block font-medium text-primary hover:underline">{s.name}</Link>
+                {/* Three links on one line ran into the end of the name on a
+                    phone. They have a line of their own now, and the phone
+                    number the narrow table has no column for joins them. */}
+                {s.phone && <p className="text-xs text-muted sm:hidden">{s.phone}</p>}
+                <p className="mt-0.5 text-xs">
+                  <Link href={`/stock/receipts?search=&supplier_id=${s.id}`} className="text-primary hover:underline">
+                    {t("stockNav.deliveries")}
+                  </Link>
+                  <span className="text-muted"> · </span>
+                  <Link href={`/stock/receive?supplier=${s.id}`} className="text-primary hover:underline">
+                    {t("suppliers.receiveFrom")}
+                  </Link>
+                </p>
               </Td>
               <Td className="hidden text-muted sm:table-cell">{s.phone ?? "—"}</Td>
               <Td className="hidden max-w-[16rem] truncate text-muted md:table-cell">{s.address ?? "—"}</Td>
