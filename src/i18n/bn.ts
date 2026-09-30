@@ -1051,6 +1051,8 @@ export const bn: Record<MessageKey, string> = {
   "closeDay.notYet": "আজকের টাকা এখনো গোনা হয়নি।",
   "closeDay.seeDay": "দিনটা দেখুন",
   "closeDay.seeCount": "গোনা দেখুন",
+  "closeDay.recount": "আবার গুনুন",
+  "closeDay.recountHint": "গোনার পরে যা খরচ হয়েছে সেটাও আজকেরই, তাই আবার গুনে নিলে হিসাব মিলে যাবে।",
   "closeDay.carriesOver": "\u0995\u09be\u09b2\u0995\u09c7\u09b0 \u09b9\u09bf\u09b8\u09be\u09ac \u0997\u09c1\u09a8\u09c7 \u09aa\u09be\u0993\u09af\u09bc\u09be \u099f\u09be\u0995\u09be \u09a5\u09c7\u0995\u09c7 \u09b6\u09c1\u09b0\u09c1 \u09b9\u09ac\u09c7, \u09a4\u09be\u0987 \u098f\u0987 \u0997\u09b0\u09ae\u09bf\u09b2 \u0986\u09b0 \u099f\u09be\u09a8\u09ac\u09c7 \u09a8\u09be\u0964",
   "closing.openingCash": "\u0986\u0997\u09c7\u09b0 \u099c\u09c7\u09b0",
   "closing.supplierOutside": "\u2026\u098f\u09b0 \u09ae\u09a7\u09cd\u09af\u09c7 \u09ac\u09be\u0995\u09cd\u09b8 \u09a5\u09c7\u0995\u09c7 \u09a8\u09df",

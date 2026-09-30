@@ -32,6 +32,10 @@ export function DayCloseForm({
 }) {
   const [state, action, busy] = useActionState(closeDay, initial);
   const [counted, setCounted] = useState("");
+  // A night can be counted again — the API replaces the count rather than
+  // adding a second one — and it has to be, because paying a supplier after
+  // counting leaves the drawer holding less than the number on file.
+  const [recounting, setRecounting] = useState(false);
   const t = useT();
 
   const typed = Number(counted);
@@ -40,9 +44,11 @@ export function DayCloseForm({
 
   // Truthiness, not a null check: an API that predates the closings table
   // sends no field at all, and treating that as "already closed" would render
-  // a summary of nothing.
-  if (closing && state.status !== "error") {
-    return <ClosedSummary closing={closing} />;
+  // a summary of nothing. A fresh count puts the summary back as soon as it
+  // saves, since the page revalidates and `closing` arrives updated.
+  const editing = recounting && state.status !== "success";
+  if (closing && !editing && state.status !== "error") {
+    return <ClosedSummary closing={closing} onRecount={() => setRecounting(true)} />;
   }
 
   return (
@@ -73,6 +79,9 @@ export function DayCloseForm({
           it is typed, so the answer is known before the button is pressed
           rather than after the page reloads. */}
       <div className="flex flex-wrap items-center gap-2">
+        {/* Only when there is a positive figure to match: a drawer the books
+            make out to be overdrawn has no amount worth offering. */}
+        {expected > 0 && (
         <button
           type="button"
           onClick={() => setCounted(String(Math.round(expected * 100) / 100))}
@@ -80,6 +89,7 @@ export function DayCloseForm({
         >
           {t("closeDay.sameAsExpected")} · {formatCurrency(expected)}
         </button>
+        )}
         {entered && (
           <p
             className={cn(
@@ -109,7 +119,7 @@ export function DayCloseForm({
 }
 
 /** What was found, and how far it was from what was expected. */
-function ClosedSummary({ closing }: { closing: DayClosingSummary }) {
+function ClosedSummary({ closing, onRecount }: { closing: DayClosingSummary; onRecount: () => void }) {
   const t = useT();
   const short = closing.difference < 0;
   const even = closing.difference === 0;
@@ -146,6 +156,14 @@ function ClosedSummary({ closing }: { closing: DayClosingSummary }) {
         {t("closeDay.by", { name: closing.closed_by, when: formatDateTime(closing.closed_at) })}
       </p>
       <p className="text-xs text-muted">{t("closeDay.carriesOver")}</p>
+
+      <div className="border-t border-border pt-3">
+        <Button type="button" size="sm" variant="secondary" onClick={onRecount}>
+          <Wallet className="h-3.5 w-3.5" aria-hidden />
+          {t("closeDay.recount")}
+        </Button>
+        <p className="mt-1.5 text-xs text-muted">{t("closeDay.recountHint")}</p>
+      </div>
     </div>
   );
 }

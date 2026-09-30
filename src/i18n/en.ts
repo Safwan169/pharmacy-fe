@@ -1049,6 +1049,8 @@ export const en = {
   "closeDay.notYet": "Today has not been counted yet.",
   "closeDay.seeDay": "See the day",
   "closeDay.seeCount": "See the count",
+  "closeDay.recount": "Count again",
+  "closeDay.recountHint": "Anything paid out after the count belongs to today, so counting again is how it is put right.",
   "closeDay.carriesOver": "Tomorrow opens from the counted amount, so this difference does not carry forward.",
   "closing.openingCash": "Carried over from before",
   "closing.supplierOutside": "\u2026of which not from the drawer",
