@@ -1,12 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { CircleCheck, Wallet } from "lucide-react";
 import { closeDay, type CloseDayState } from "@/lib/actions/reports";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { Field, Input } from "@/components/ui/input";
-import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { cn, formatCurrency, formatDateTime } from "@/lib/utils";
 import type { DayClosingSummary } from "@/types";
 import { useT } from "@/i18n/client";
 
@@ -31,7 +31,12 @@ export function DayCloseForm({
   closing: DayClosingSummary | null;
 }) {
   const [state, action, busy] = useActionState(closeDay, initial);
+  const [counted, setCounted] = useState("");
   const t = useT();
+
+  const typed = Number(counted);
+  const entered = counted.trim() !== "" && Number.isFinite(typed) && typed >= 0;
+  const difference = Math.round((typed - expected) * 100) / 100;
 
   // Truthiness, not a null check: an API that predates the closings table
   // sends no field at all, and treating that as "already closed" would render
@@ -57,8 +62,37 @@ export function DayCloseForm({
           autoComplete="off"
           placeholder="0"
           required
+          value={counted}
+          onChange={(e) => setCounted(e.target.value)}
+          className="h-12 text-lg tabular-nums"
         />
       </Field>
+
+      {/* Most nights the drawer does match, and typing the figure printed
+          two lines above is pure friction. The difference is worked out as
+          it is typed, so the answer is known before the button is pressed
+          rather than after the page reloads. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setCounted(String(Math.round(expected * 100) / 100))}
+          className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium whitespace-nowrap text-muted transition-colors hover:text-foreground"
+        >
+          {t("closeDay.sameAsExpected")} · {formatCurrency(expected)}
+        </button>
+        {entered && (
+          <p
+            className={cn(
+              "text-sm font-medium tabular-nums",
+              difference === 0 ? "text-success" : difference < 0 ? "text-warning" : "text-success",
+            )}
+          >
+            {difference === 0
+              ? t("closeDay.matched")
+              : `${difference < 0 ? t("closeDay.short") : t("closeDay.over")} ${formatCurrency(Math.abs(difference))}`}
+          </p>
+        )}
+      </div>
 
       <Field label={t("closeDay.note")} htmlFor="note" hint={t("closeDay.noteHint")}>
         <Input id="note" name="note" maxLength={255} autoComplete="off" placeholder={t("closeDay.notePlaceholder")} />

@@ -1,7 +1,7 @@
 import { requireOwner } from "@/lib/current-user";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Banknote, Boxes, CalendarClock, HandCoins, PackageCheck, ReceiptText, Wallet, Warehouse } from "lucide-react";
+import { Banknote, Boxes, CalendarClock, CircleCheck, HandCoins, PackageCheck, ReceiptText, Wallet, Warehouse } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { PeriodTabs } from "@/components/dashboard/period-tabs";
@@ -11,9 +11,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { getExpired, getExpiring, getLowStock, getOutstanding, getSummary } from "@/lib/api/sales";
-import { getStockValue } from "@/lib/api/reports";
+import { getDailyClosing, getStockValue } from "@/lib/api/reports";
 import { ApiError } from "@/lib/api/client";
-import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
+import { LinkButton } from "@/components/ui/link-button";
+import { formatCurrency, formatDate, formatNumber, todayInDhaka } from "@/lib/utils";
 import { SUMMARY_PERIODS, type SummaryPeriod } from "@/types";
 import { getT } from "@/i18n/server";
 import type { MessageKey } from "@/i18n";
@@ -51,6 +52,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       <div className="mt-5">
         <Suspense fallback={null}>
+          <CloseDaySection />
+        </Suspense>
+      </div>
+
+      <div className="mt-5">
+        <Suspense fallback={null}>
           <OutstandingSection />
         </Suspense>
       </div>
@@ -67,6 +74,54 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </Suspense>
       </div>
     </>
+  );
+}
+
+/**
+ * The end-of-day count, from the screen the owner already has open.
+ *
+ * It lives three taps away under Reports, and an owner who does not find it
+ * does not count the drawer — which is the one thing keeping the expected
+ * figure from drifting further from the cash every day. Here it says what
+ * the drawer should hold and goes straight there.
+ */
+async function CloseDaySection() {
+  const t = await getT();
+  let report;
+  try {
+    report = await getDailyClosing(todayInDhaka());
+  } catch {
+    // An API that predates the closings table answers with nothing useful,
+    // and the dashboard is not the place to report that.
+    return null;
+  }
+
+  const closing = report.closing;
+  return (
+    <Card>
+      <div className="flex flex-wrap items-center justify-between gap-3 p-5">
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 text-sm font-semibold">
+            {closing ? (
+              <CircleCheck className="h-4 w-4 shrink-0 text-success" aria-hidden />
+            ) : (
+              <Wallet className="h-4 w-4 shrink-0 text-muted" aria-hidden />
+            )}
+            {closing ? t("closeDay.done") : t("closeDay.notYet")}
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            {closing
+              ? closing.difference === 0
+                ? t("closeDay.matched")
+                : `${closing.difference < 0 ? t("closeDay.short") : t("closeDay.over")} ${formatCurrency(Math.abs(closing.difference))}`
+              : t("closeDay.expectedNow", { amount: formatCurrency(report.cash_in_drawer_expected) })}
+          </p>
+        </div>
+        <LinkButton href="/reports/daily-closing" variant={closing ? "secondary" : "primary"}>
+          {closing ? t("closeDay.seeDay") : t("closeDay.submit")}
+        </LinkButton>
+      </div>
+    </Card>
   );
 }
 

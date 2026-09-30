@@ -61,8 +61,19 @@ export default async function DailyClosingPage({ searchParams }: PageProps<"/rep
         <StatCard label={t("closing.refunds")} value={formatCurrency(report.refunds)} hint={t("closing.voided", { count: formatNumber(report.voided_count) })} icon={Undo2} tone={report.refunds > 0 ? "warning" : "default"} />
       </div>
 
+      {/* Counting the drawer is what this page is opened for; the working
+          out behind the expected figure is what it is checked against. On a
+          phone that means the form comes first, above a list of a dozen rows
+          nobody scrolls past. The two columns on a laptop stay as they were. */}
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
-        <Card>
+        <Card className="lg:order-2">
+          <CardHeader title={t("closeDay.title")} description={t("closeDay.description")} />
+          <CardBody>
+            <DayCloseForm date={report.date} expected={report.cash_in_drawer_expected} closing={report.closing} />
+          </CardBody>
+        </Card>
+
+        <Card className="lg:order-1">
           <CardHeader title={t("closing.byMethod")} />
           <CardBody>
             <dl className="space-y-2 text-sm">
@@ -90,14 +101,7 @@ export default async function DailyClosingPage({ searchParams }: PageProps<"/rep
           </CardBody>
         </Card>
 
-        <Card>
-          <CardHeader title={t("closeDay.title")} description={t("closeDay.description")} />
-          <CardBody>
-            <DayCloseForm date={report.date} expected={report.cash_in_drawer_expected} closing={report.closing} />
-          </CardBody>
-        </Card>
-
-        <Card>
+        <Card className="lg:order-3">
           <CardHeader title={t("closing.byCashier")} />
           {report.cashier_breakdown.length === 0 ? (
             <p className="p-5 text-sm text-muted">{t("closing.noSales")}</p>
@@ -123,7 +127,7 @@ export default async function DailyClosingPage({ searchParams }: PageProps<"/rep
           )}
         </Card>
 
-        <Card className="lg:col-span-2">
+        <Card className="lg:order-4 lg:col-span-2">
           <CardHeader title={t("closing.topSellers")} />
           {report.top_items.length === 0 ? (
             <p className="p-5 text-sm text-muted">{t("profit.nothingSold")}</p>
