@@ -977,6 +977,8 @@ export const en = {
   "pricing.recalc": "Recalculate from the {unit} price",
   "pricing.offRate": "far from the {rate} / {unit} you typed — check this",
   // Supplier dues
+  "receive.payLaterNoSupplier": "Pick the supplier above: the whole cost goes on their account, because paying them is the owner’s to do.",
+  "receive.payLater": "The whole cost goes on {name}’s account. Paying the supplier is the owner’s to do.",
   "receive.paymentTitle": "Paying the supplier",
   "receive.payFull": "Paid in full",
   "receive.payPartial": "Part now",

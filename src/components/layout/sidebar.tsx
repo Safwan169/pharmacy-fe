@@ -59,7 +59,6 @@ export const navigation = [
     label: "nav.stock" as MessageKey,
     icon: Boxes,
     hint: "nav.stock.hint" as MessageKey,
-    ownerOnly: true,
   },
   {
     href: "/sales",

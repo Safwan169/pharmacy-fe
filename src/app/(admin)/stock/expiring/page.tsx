@@ -14,6 +14,7 @@ import { ApiError } from "@/lib/api/client";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { EXPIRY_WINDOWS, type ExpiringItem, type ExpiryWindow } from "@/types";
 import { getT } from "@/i18n/server";
+import { getCurrentUser } from "@/lib/current-user";
 import type { MessageKey, Translate } from "@/i18n";
 
 export const metadata = { title: "Expiry" };
@@ -28,6 +29,7 @@ const TABS: { value: Tab; label: MessageKey }[] = [
 ];
 
 export default async function ExpiringPage({ searchParams }: PageProps<"/stock/expiring">) {
+  const me = await getCurrentUser();
   const t = await getT();
   const params = await searchParams;
   const raw = typeof params.tab === "string" ? params.tab : "30";
@@ -44,7 +46,7 @@ export default async function ExpiringPage({ searchParams }: PageProps<"/stock/e
         title={t("expiry.title")}
         description={t("expiry.description")}
       />
-      <StockNav />
+      <StockNav isOwner={me.role === "owner"} />
 
       <div
         className="mb-5 inline-flex rounded-lg border border-border bg-surface p-1"

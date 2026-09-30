@@ -125,14 +125,24 @@ function endOfMonth(ym: string): string | undefined {
  * Counts are in whatever unit the supplier delivers in — box, strip, bottle —
  * and converted to base units by the API.
  */
-export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSupplierId?: number; markupPercent: number | null }) {
+export function ReceiveForm({
+  initialSupplierId,
+  markupPercent,
+  canPay = true,
+}: {
+  initialSupplierId?: number;
+  markupPercent: number | null;
+  /** Handing money to the supplier is the owner's; a cashier records the
+   * delivery and its prices and leaves the whole cost on account. */
+  canPay?: boolean;
+}) {
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [invoiceNo, setInvoiceNo] = useState("");
   const [receivedAt, setReceivedAt] = useState(todayInDhaka());
   const [note, setNote] = useState("");
   // "full" = paid at the door, "credit" = all on the supplier's account,
   // "partial" = some now, rest on account.
-  const [payMode, setPayMode] = useState<"full" | "credit" | "partial">("full");
+  const [payMode, setPayMode] = useState<"full" | "credit" | "partial">(canPay ? "full" : "credit");
   const [paidNow, setPaidNow] = useState("");
   const [payMethod, setPayMethod] = useState<"cash" | "bkash">("cash");
   // Cash handed over at the delivery usually comes out of the counter drawer —
@@ -564,6 +574,20 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
                 <span className="tabular-nums">{formatCurrency(total)}</span>
               </div>
 
+              {!canPay ? (
+                <div className="space-y-2">
+                  <p className="rounded-lg bg-background p-3 text-xs text-muted">
+                    {supplier === null
+                      ? t("receive.payLaterNoSupplier")
+                      : t("receive.payLater", { name: supplier.name })}
+                  </p>
+                  {/* On account means the account has to belong to someone, so
+                      the supplier a cashier may leave blank elsewhere is
+                      required here — and the reason must be visible, or Save
+                      is greyed out with nothing said. */}
+                  {paymentError && <p className="text-xs text-danger">{paymentError}</p>}
+                </div>
+              ) : (
               <div className="space-y-2">
                 <p className="text-sm font-medium">{t("receive.paymentTitle")}</p>
                 <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t("receive.paymentTitle")}>
@@ -628,6 +652,7 @@ export function ReceiveForm({ initialSupplierId, markupPercent }: { initialSuppl
                 )}
                 {paymentError && <p className="text-xs text-danger">{paymentError}</p>}
               </div>
+              )}
 
               <Button type="button" onClick={submit} disabled={submitting || hasErrors || !!paymentError} className="h-11 w-full">
                 {submitting ? t("common.saving") : t("receive.save")}

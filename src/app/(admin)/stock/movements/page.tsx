@@ -15,6 +15,7 @@ import { ApiError } from "@/lib/api/client";
 import { formatDateTime } from "@/lib/utils";
 import { MOVEMENT_TYPES, type MovementType } from "@/types";
 import { getT } from "@/i18n/server";
+import { requireOwner } from "@/lib/current-user";
 import type { MessageKey } from "@/i18n";
 
 export const metadata = { title: "Stock history" };
@@ -28,6 +29,8 @@ const TYPE_LABELS: Record<MovementType, { label: MessageKey; tone: "neutral" | "
 };
 
 export default async function MovementsPage({ searchParams }: PageProps<"/stock/movements">) {
+  // Every count the shop has ever changed, and why: the owner's ledger.
+  await requireOwner();
   const t = await getT();
   const params = await searchParams;
   const type = typeof params.type === "string" && MOVEMENT_TYPES.includes(params.type as MovementType) ? (params.type as MovementType) : undefined;

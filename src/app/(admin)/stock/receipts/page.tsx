@@ -14,10 +14,12 @@ import { listReceipts, type ReceiptFilters } from "@/lib/api/stock";
 import { ApiError } from "@/lib/api/client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { getT } from "@/i18n/server";
+import { getCurrentUser } from "@/lib/current-user";
 
 export const metadata = { title: "Deliveries" };
 
 export default async function ReceiptsPage({ searchParams }: PageProps<"/stock/receipts">) {
+  const me = await getCurrentUser();
   const t = await getT();
   const params = await searchParams;
   const filters: ReceiptFilters = {
@@ -40,7 +42,7 @@ export default async function ReceiptsPage({ searchParams }: PageProps<"/stock/r
           </LinkButton>
         }
       />
-      <StockNav />
+      <StockNav isOwner={me.role === "owner"} />
 
       <Form className="mb-4 flex flex-wrap gap-2" action="/stock/receipts">
         {filters.supplier_id && <input type="hidden" name="supplier_id" value={filters.supplier_id} />}

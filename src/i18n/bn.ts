@@ -979,6 +979,8 @@ export const bn: Record<MessageKey, string> = {
   "pricing.recalc": "{unit} এর দাম থেকে আবার হিসাব করুন",
   "pricing.offRate": "আপনার লেখা {rate} / {unit} থেকে অনেক দূরে — দেখে নিন",
   // Supplier dues
+  "receive.payLaterNoSupplier": "উপরে সাপ্লায়ার বেছে নিন — পুরো খরচটা তার খাতায় বাকি হিসাবে লেখা হবে। সাপ্লায়ারকে টাকা দেওয়ার কাজটা মালিকের।",
+  "receive.payLater": "পুরো খরচটা {name}-এর খাতায় বাকি হিসাবে লেখা হবে। সাপ্লায়ারকে টাকা দেওয়ার কাজটা মালিকের।",
   "receive.paymentTitle": "সাপ্লায়ারকে টাকা",
   "receive.payFull": "পুরো দিলাম",
   "receive.payPartial": "কিছু এখন",
