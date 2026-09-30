@@ -89,6 +89,9 @@ export function NewMedicineForm({
         <Field label={t("newMedicine.packSize")} htmlFor="pack_size" hint={t("newMedicine.packSizeHint")}>
           <Input id="pack_size" name="pack_size" inputMode="numeric" autoComplete="off" />
         </Field>
+        <Field label={t("newMedicine.barcode")} htmlFor="barcode" hint={t("newMedicine.barcodeHint")}>
+          <Input id="barcode" name="barcode" inputMode="numeric" maxLength={32} autoComplete="off" className="font-mono" placeholder={t("scan.codePlaceholder")} />
+        </Field>
         <Field label={t("filters.kind")} htmlFor="type">
           <Select id="type" name="type" defaultValue="allopathic">
             <option value="allopathic">{t("kind.allopathic")}</option>

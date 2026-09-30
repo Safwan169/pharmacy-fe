@@ -9,6 +9,7 @@ import {
   listVariants,
 } from "@/lib/api/catalogue";
 import type { ProductVariant } from "@/types";
+import { getT } from "@/i18n/server";
 
 export interface CounterUnit {
   id: number;
@@ -94,6 +95,34 @@ export async function pairBarcode(
   }
   revalidatePath(`/catalogue/${variantId}`);
   return { status: "paired" };
+}
+
+export interface TypedCodeState {
+  status: "idle" | "success" | "error";
+  message?: string;
+}
+
+/** A pack's code is printed under its bars, and a shop without a working
+ * scanner can only get it in by reading it off the box. Slower than scanning
+ * and worth avoiding, but a shop whose scanner has died must not be left
+ * unable to teach the system anything at all. */
+export async function typeBarcode(
+  _prev: TypedCodeState,
+  formData: FormData,
+): Promise<TypedCodeState> {
+  const t = await getT();
+  const variantId = Number(formData.get("variant_id"));
+  const code = String(formData.get("code") ?? "").trim().toUpperCase();
+  if (!Number.isInteger(variantId) || variantId < 1) {
+    return { status: "error", message: t("action.reload") };
+  }
+  if (!/^[0-9A-Z-]{4,32}$/.test(code)) {
+    return { status: "error", message: t("scan.codeInvalid") };
+  }
+  const result = await pairBarcode(variantId, code);
+  return result.status === "error"
+    ? { status: "error", message: result.message }
+    : { status: "success", message: t("scan.added") };
 }
 
 export async function searchForCounter(

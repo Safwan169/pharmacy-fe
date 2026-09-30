@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { ApiError } from "@/lib/api/client";
 import { createVariant } from "@/lib/api/catalogue";
 import { getT } from "@/i18n/server";
+import { pairBarcode, scanBarcode } from "./search";
 
 export interface NewMedicineState {
   status: "idle" | "error";
@@ -28,6 +29,20 @@ export async function addMedicine(_prev: NewMedicineState, formData: FormData): 
   if (!form) return { status: "error", message: t("newMedicine.errForm") };
   if (packRaw && !/^\d{1,6}$/.test(packRaw)) return { status: "error", message: t("newMedicine.errPack") };
 
+  // Checked before the medicine is created, not after: a code already spoken
+  // for would otherwise leave a new SKU behind with nothing said about why the
+  // code did not stick.
+  const code = text("barcode").toUpperCase();
+  if (code) {
+    if (!/^[0-9A-Z-]{4,32}$/.test(code)) {
+      return { status: "error", message: t("scan.codeInvalid") };
+    }
+    const taken = await scanBarcode(code);
+    if (taken.status !== "unknown") {
+      return { status: "error", message: t("newMedicine.barcodeTaken", { name: taken.item.name }) };
+    }
+  }
+
   let id: number;
   try {
     const variant = await createVariant({
@@ -50,6 +65,8 @@ export async function addMedicine(_prev: NewMedicineState, formData: FormData): 
     }
     throw error;
   }
+
+  if (code) await pairBarcode(id, code);
 
   revalidatePath("/catalogue");
   redirect(`/catalogue/${id}?created=1`);
