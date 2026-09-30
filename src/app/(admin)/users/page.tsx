@@ -1,9 +1,9 @@
 import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Table, Th, Td } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
-import { AddUserForm, UserRowActions } from "@/components/users/user-forms";
+import { AddUserButton, UserRowActions } from "@/components/users/user-forms";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { requireOwner } from "@/lib/current-user";
 import { formatDate } from "@/lib/utils";
@@ -28,14 +28,8 @@ export default async function UsersPage() {
       <PageHeader
         title={t("users.title")}
         description={t("users.description")}
+        action={<AddUserButton />}
       />
-
-      <Card className="mb-5">
-        <CardHeader title={t("users.add")} />
-        <CardBody>
-          <AddUserForm />
-        </CardBody>
-      </Card>
 
       <Card>
         <Table>
