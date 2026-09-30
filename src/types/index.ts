@@ -339,6 +339,8 @@ export interface ShopSettings {
   receipt_width_mm: string;
   /** Suggested profit % over cost when pricing at delivery. "" = no suggestion. */
   default_markup_percent: string;
+  /** What the drawer held before the shop used this app. "" = nothing. */
+  opening_cash: string;
 }
 
 /** A selling-price change parked until the stock received before a delivery sells out. */

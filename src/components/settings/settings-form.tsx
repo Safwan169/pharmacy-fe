@@ -57,6 +57,11 @@ export function SettingsForm({ settings }: { settings: ShopSettings }) {
           <Field label={t("settings.markup")} htmlFor="default_markup_percent" hint={t("settings.markupHint")}>
             <Input id="default_markup_percent" name="default_markup_percent" inputMode="decimal" placeholder="12" defaultValue={settings.default_markup_percent ?? ""} onChange={(e) => set("default_markup_percent", e.target.value)} />
           </Field>
+          <div className="sm:col-span-2">
+            <Field label={t("settings.openingCash")} htmlFor="opening_cash" hint={t("settings.openingCashHint")}>
+              <Input id="opening_cash" name="opening_cash" inputMode="decimal" placeholder="1000" defaultValue={settings.opening_cash ?? ""} onChange={(e) => set("opening_cash", e.target.value)} />
+            </Field>
+          </div>
         </div>
 
         <Button type="submit" disabled={pending}>{pending ? t("common.saving") : t("settings.save")}</Button>
