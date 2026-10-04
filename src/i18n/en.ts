@@ -129,6 +129,8 @@ export const en = {
   "dashboard.nothingLow": "Nothing needs restocking",
   "dashboard.nothingLowHint": "Every medicine that has been counted has enough stock on the shelf. Items nobody has counted yet aren't listed here.",
   "dashboard.addStock": "Add stock",
+  "dashboard.showAllLow": "Show {count} more",
+  "dashboard.showFewerLow": "Show fewer",
   "dashboard.checkingShelves": "Checking the shelves…",
   "th.medicine": "Medicine",
   "th.madeBy": "Made by",

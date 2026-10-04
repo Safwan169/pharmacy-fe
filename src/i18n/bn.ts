@@ -131,6 +131,8 @@ export const bn: Record<MessageKey, string> = {
   "dashboard.nothingLow": "কিছু আনার দরকার নেই",
   "dashboard.nothingLowHint": "যেসব ওষুধ গোনা হয়েছে সবগুলোর তাকে যথেষ্ট স্টক আছে। যেগুলো এখনো গোনা হয়নি সেগুলো এখানে নেই।",
   "dashboard.addStock": "স্টক যোগ করুন",
+  "dashboard.showAllLow": "আরও {count}টি দেখুন",
+  "dashboard.showFewerLow": "কম দেখুন",
   "dashboard.checkingShelves": "তাক দেখা হচ্ছে…",
   "th.medicine": "ওষুধ",
   "th.madeBy": "কোম্পানি",

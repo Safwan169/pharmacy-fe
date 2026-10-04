@@ -5,6 +5,7 @@ import { Banknote, Boxes, CalendarClock, CircleCheck, HandCoins, PackageCheck, R
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { PeriodTabs } from "@/components/dashboard/period-tabs";
+import { LowStockList } from "@/components/dashboard/low-stock-list";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Table, Th, Td } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -324,47 +325,7 @@ async function LowStockSection() {
           description={t("dashboard.nothingLowHint")}
         />
       ) : (
-        <Table>
-          <thead>
-            <tr>
-              <Th>{t("th.medicine")}</Th>
-              <Th className="hidden md:table-cell">{t("th.madeBy")}</Th>
-              <Th className="text-right">{t("th.left")}</Th>
-              <Th className="text-right">{t("th.action")}</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <tr key={item.variant_id} className="hover:bg-background/60">
-                <Td>
-                  <p className="font-medium">
-                    {item.brand_name}
-                    {item.strength ? ` ${item.strength}` : ""}
-                  </p>
-                  <p className="text-xs text-muted">{item.dosage_form}</p>
-                </Td>
-                <Td className="hidden text-muted md:table-cell">{item.manufacturer}</Td>
-                <Td className="text-right">
-                  {item.stock_quantity === 0 ? (
-                    <Badge tone="danger">{t("stock.outOfStock")}</Badge>
-                  ) : (
-                    <span className="font-medium tabular-nums text-warning">
-                      {item.stock_quantity} {item.base_unit} {t("stock.left")}
-                    </span>
-                  )}
-                </Td>
-                <Td className="text-right">
-                  <Link
-                    href={`/catalogue/${item.variant_id}`}
-                    className="text-xs font-medium text-primary hover:underline"
-                  >
-                    {t("dashboard.addStock")}
-                  </Link>
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
+        <LowStockList items={items} />
       )}
     </Card>
   );
