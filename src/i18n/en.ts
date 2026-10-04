@@ -550,6 +550,7 @@ export const en = {
   "movements.openReceipt": "See the delivery",
   // Receive form
   "receive.errQty": "Enter how many arrived.",
+  "receive.costUnknownHint": "Leave empty if you do not know what it cost. Profit cannot be worked out for it, but it can be sold.",
   "receive.errCost": "Enter what each one cost.",
   "receive.errExpiry": "Expiry must be a month and year.",
   "receive.errSellPrice": "The selling price for {unit} must be a number.",

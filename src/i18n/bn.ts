@@ -552,6 +552,7 @@ export const bn: Record<MessageKey, string> = {
   "movements.openReceipt": "রসিদ দেখুন",
   // Receive form
   "receive.errQty": "কতগুলো এসেছে লিখুন।",
+  "receive.costUnknownHint": "কেনা দাম জানা না থাকলে ঘরটা ফাঁকা রাখুন। তাহলে এর লাভ হিসাব হবে না, কিন্তু বিক্রি করা যাবে।",
   "receive.errCost": "প্রতিটির খরচ লিখুন।",
   "receive.errExpiry": "মেয়াদ মাস ও বছর হতে হবে।",
   "receive.errSellPrice": "{unit} এর বিক্রির দাম সংখ্যা হতে হবে।",

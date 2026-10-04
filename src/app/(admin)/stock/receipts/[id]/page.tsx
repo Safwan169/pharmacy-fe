@@ -73,8 +73,12 @@ export default async function ReceiptDetailPage({ params }: PageProps<"/stock/re
                       <p className="text-xs text-muted">= {item.baseQuantity.toLocaleString()} {item.variant?.baseUnit ?? t("common.units")}</p>
                     )}
                   </Td>
-                  <Td className="text-right tabular-nums text-muted">{formatCurrency(item.unitCost)}</Td>
-                  <Td className="text-right font-medium tabular-nums">{formatCurrency(item.lineCost)}</Td>
+                  <Td className="text-right tabular-nums text-muted">
+                    {item.unitCost === null ? "—" : formatCurrency(item.unitCost)}
+                  </Td>
+                  <Td className="text-right font-medium tabular-nums">
+                    {item.lineCost === null ? "—" : formatCurrency(item.lineCost)}
+                  </Td>
                 </tr>
               ))}
             </tbody>

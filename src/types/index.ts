@@ -169,8 +169,9 @@ export interface StockReceiptItem {
   /** In the purchase unit. */
   quantity: number;
   baseQuantity: number;
-  unitCost: number;
-  lineCost: number;
+  /** Null when the delivery arrived without a cost — stock already on the shelf. */
+  unitCost: number | null;
+  lineCost: number | null;
 }
 
 /** A goods-received note — one delivery. */

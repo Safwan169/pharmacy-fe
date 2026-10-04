@@ -123,7 +123,7 @@ export interface ReceiveLineInput {
   variant_id: number;
   unit_id?: number;
   quantity: number;
-  unit_cost: number;
+  unit_cost?: number;
   batch_no?: string;
   expiry_date?: string;
   /** Selling prices to set with this delivery; units not listed keep theirs. */

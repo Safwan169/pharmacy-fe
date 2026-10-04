@@ -265,7 +265,9 @@ export function ReceiveForm({
     const qty = Number(l.quantity);
     const cost = Number(l.unitCost);
     if (!l.quantity || !Number.isInteger(qty) || qty < 1) return t("receive.errQty");
-    if (l.unitCost === "" || Number.isNaN(cost) || cost < 0) return t("receive.errCost");
+    // Empty means "nobody knows", which is a real answer for stock that was
+     // already on the shelf. A typed value still has to be a number.
+    if (l.unitCost !== "" && (Number.isNaN(cost) || cost < 0)) return t("receive.errCost");
     if (l.expiryMonth && !endOfMonth(l.expiryMonth)) return t("receive.errExpiry");
     for (const row of l.sellRows) {
       if (row.price === "") continue;
@@ -373,7 +375,7 @@ export function ReceiveForm({
           variant_id: l.variantId,
           unit_id: l.unitId === "" ? undefined : l.unitId,
           quantity: Number(l.quantity),
-          unit_cost: Number(l.unitCost),
+          ...(l.unitCost === "" ? {} : { unit_cost: Number(l.unitCost) }),
           batch_no: l.batchNo.trim() || undefined,
           expiry_date: endOfMonth(l.expiryMonth),
           ...sellPricePayload(l),
@@ -539,6 +541,11 @@ export function ReceiveForm({
                             onChange={(e) => update(line.key, { unitCost: e.target.value })}
                           />
                         </div>
+                        {line.unitCost === "" && (
+                          <span className="mt-0.5 block text-[11px] text-muted">
+                            {t("receive.costUnknownHint")}
+                          </span>
+                        )}
                       </label>
                     </div>
 
