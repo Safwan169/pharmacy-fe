@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Search, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Generic, Manufacturer } from "@/types";
@@ -42,10 +42,17 @@ export function VariantFilters({
   // rather than in an effect avoids a second render pass.
   const [typed, setTyped] = useState<string | null>(null);
   const [lastUrlSearch, setLastUrlSearch] = useState(urlSearch);
+  // The last search this box asked for. Against 21,000 medicines the page
+  // takes a moment to come back, and by then two more letters have been
+  // typed — so the arriving URL is behind the box, not ahead of it, and
+  // letting it win was what yanked half the word back out mid-sentence.
+  const requested = useRef<string | null>(null);
 
   if (lastUrlSearch !== urlSearch) {
     setLastUrlSearch(urlSearch);
-    setTyped(null);
+    // Only a change from somewhere else — the clear button, the back
+    // button — may take the box back from whoever is typing in it.
+    if (urlSearch !== requested.current) setTyped(null);
   }
 
   const search = typed ?? urlSearch;
@@ -61,6 +68,7 @@ export function VariantFilters({
   }, [typed, urlSearch]);
 
   function apply(key: string, value: string) {
+    if (key === "search") requested.current = value;
     const params = new URLSearchParams(searchParams);
     if (value) params.set(key, value);
     else params.delete(key);

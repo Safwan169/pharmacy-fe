@@ -1,9 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { ApiError } from "@/lib/api/client";
-import { createVariant } from "@/lib/api/catalogue";
+import { createVariant, LOOKUP_TAG } from "@/lib/api/catalogue";
 import { getT } from "@/i18n/server";
 import { pairBarcode, scanBarcode } from "./search";
 
@@ -69,5 +69,8 @@ export async function addMedicine(_prev: NewMedicineState, formData: FormData): 
   if (code) await pairBarcode(id, code);
 
   revalidatePath("/catalogue");
+  // A brand new company or ingredient belongs in the filter dropdowns now,
+  // not when their five minutes are up.
+  updateTag(LOOKUP_TAG);
   redirect(`/catalogue/${id}?created=1`);
 }

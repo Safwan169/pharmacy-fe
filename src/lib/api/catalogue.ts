@@ -133,12 +133,27 @@ export function listGenerics(params: { search?: string; limit?: number } = {}) {
 /** Every company / ingredient, for dropdowns — the API allows up to 5000 here. */
 export const LOOKUP_LIMIT = 5000;
 
+/**
+ * Held for five minutes, because these two lists sit beside a search box and
+ * would otherwise be fetched again — ten thousand rows of them — on every
+ * letter typed. A new medicine drops them at once through the tag, so the
+ * dropdowns never lag behind what the shop just added.
+ */
+export const LOOKUP_TAG = "catalogue-lookups";
+const LOOKUP_CACHE = { seconds: 300, tag: LOOKUP_TAG };
+
 export function listAllManufacturers() {
-  return listManufacturers({ limit: LOOKUP_LIMIT }).then((r) => r.data);
+  return apiFetch<Paginated<Manufacturer>>(
+    `/manufacturers${buildQuery({ limit: LOOKUP_LIMIT })}`,
+    { cacheFor: LOOKUP_CACHE },
+  ).then((r) => r.data);
 }
 
 export function listAllGenerics() {
-  return listGenerics({ limit: LOOKUP_LIMIT }).then((r) => r.data);
+  return apiFetch<Paginated<Generic>>(
+    `/generics${buildQuery({ limit: LOOKUP_LIMIT })}`,
+    { cacheFor: LOOKUP_CACHE },
+  ).then((r) => r.data);
 }
 
 /** Alternative brands built on the same active ingredient. */

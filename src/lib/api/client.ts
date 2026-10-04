@@ -58,6 +58,14 @@ interface FetchOptions extends Omit<RequestInit, "body"> {
    * report the problem so the form can show it.
    */
   redirectOnUnauthorized?: boolean;
+  /**
+   * Keep this answer for a while instead of asking again, and name a tag that
+   * can throw it away early. Only for the long lists that fill a dropdown:
+   * every keystroke in the catalogue search re-renders the page, and fetching
+   * five thousand companies and five thousand ingredients each time is what
+   * made the search feel like it was fighting the person typing.
+   */
+  cacheFor?: { seconds: number; tag: string };
 }
 
 /**
@@ -73,6 +81,7 @@ export async function apiFetch<T>(
   const {
     auth = false,
     redirectOnUnauthorized = false,
+    cacheFor,
     body,
     headers,
     ...init
@@ -103,8 +112,12 @@ export async function apiFetch<T>(
       headers: requestHeaders,
       body: isFormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
       // Catalogue and sales data change as the admin works, so a stale page
-      // would show prices and stock that no longer hold.
-      cache: "no-store",
+      // would show prices and stock that no longer hold. The exception is a
+      // dropdown's list of companies or ingredients, which the caller may ask
+      // to hold on to — see `cacheFor`.
+      ...(cacheFor
+        ? { next: { revalidate: cacheFor.seconds, tags: [cacheFor.tag] } }
+        : { cache: "no-store" as const }),
     });
   } catch {
     throw new ApiError(0, t("api.unreachable"), null);

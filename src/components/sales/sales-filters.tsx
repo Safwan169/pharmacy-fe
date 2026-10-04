@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Search, X, Loader2 } from "lucide-react";
 import { todayInDhaka } from "@/lib/utils";
 import { useT } from "@/i18n/client";
@@ -29,10 +29,12 @@ export function SalesFilters() {
   // resets during render whenever the URL changes from elsewhere.
   const [typed, setTyped] = useState<string | null>(null);
   const [lastUrlSearch, setLastUrlSearch] = useState(urlSearch);
+  /** See VariantFilters: a URL catching up must not overwrite live typing. */
+  const requested = useRef<string | null>(null);
 
   if (lastUrlSearch !== urlSearch) {
     setLastUrlSearch(urlSearch);
-    setTyped(null);
+    if (urlSearch !== requested.current) setTyped(null);
   }
 
   const search = typed ?? urlSearch;
@@ -46,6 +48,7 @@ export function SalesFilters() {
   }, [typed, urlSearch]);
 
   function apply(changes: Record<string, string>) {
+    if ("search" in changes) requested.current = changes.search;
     const params = new URLSearchParams(searchParams);
     for (const [key, value] of Object.entries(changes)) {
       if (value) params.set(key, value);

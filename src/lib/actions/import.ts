@@ -1,7 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { apiFetch, ApiError } from "@/lib/api/client";
+import { LOOKUP_TAG } from "@/lib/api/catalogue";
 import type { ImportResult } from "@/types";
 import { getT } from "@/i18n/server";
 import type { Translate } from "@/i18n";
@@ -58,6 +59,9 @@ export async function importCatalogue(
 
     revalidatePath("/catalogue");
     revalidatePath("/pricing");
+    // A sheet usually brings companies and ingredients the shop had not
+    // heard of; the filter dropdowns should know them immediately.
+    updateTag(LOOKUP_TAG);
 
     return {
       status: "success",
