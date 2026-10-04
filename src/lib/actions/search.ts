@@ -44,10 +44,14 @@ export interface CounterSearchResult {
  * SKUs are returned — a withdrawn one can't be sold, so offering it would just
  * lead to a rejected checkout.
  */
+/** Priced, on the shelf, ringable — the only thing a counter can offer. */
+const isSellable = (item: CounterSearchResult) =>
+  item.units.length > 0 && (item.stock ?? 0) > 0;
+
 /** The counter's quick-pick tiles: what this shop sells most. */
 export async function listFavourites(): Promise<CounterSearchResult[]> {
   const variants = await getFavourites({ limit: 18, days: 30 });
-  return variants.map(toResult).filter((item) => item.units.length > 0 && (item.stock ?? 0) > 0);
+  return variants.map(toResult).filter(isSellable);
 }
 
 export type ScanResult =
@@ -131,20 +135,33 @@ export async function searchForCounter(
   const query = term.trim();
   if (query.length < 1) return [];
 
-  const result = await listVariants({
-    search: query,
-    status: "active",
-    limit: 20,
-  });
-  if (result.data.length > 0) return result.data.map(toResult);
+  const found = await sellableMatches(query);
+  if (found.length > 0) return found;
 
   // Nothing matched: try again on a shorter stem, so a slip like "nappa" or a
   // half-remembered ending still reaches "Napa" instead of an empty list.
   const words = query.split(/\s+/);
   const stem = words[0].slice(0, Math.max(3, words[0].length - 2));
   if (stem.length < 3 || stem === query) return [];
-  const retry = await listVariants({ search: stem, status: "active", limit: 20 });
-  return retry.data.map(toResult);
+  return sellableMatches(stem);
+}
+
+/**
+ * The counter offers only what it can actually ring up.
+ *
+ * One brand is a dozen catalogue rows — every strength, every form the
+ * manufacturer makes — and typing "napa" used to answer with eight of them
+ * marked "no price set" before the two boxes on the shelf. The catalogue is
+ * where those are looked up; this is where medicine is sold.
+ */
+async function sellableMatches(search: string): Promise<CounterSearchResult[]> {
+  const result = await listVariants({
+    search,
+    status: "active",
+    pricing_status: "set",
+    limit: 20,
+  });
+  return result.data.map(toResult).filter(isSellable);
 }
 
 function toResult(variant: ProductVariant): CounterSearchResult {

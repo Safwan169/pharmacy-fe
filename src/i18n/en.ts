@@ -383,7 +383,7 @@ export const en = {
   "pos.favouritesHint": "One tap adds it to the basket.",
   "pos.focus": "Full screen",
   "pos.exitFocus": "Leave full screen",
-  "pos.nothingFound": "Nothing found for “{query}”. Check the spelling, or try part of the name instead.",
+  "pos.nothingFound": "Nothing in stock for “{query}”. Check the spelling, or receive stock for it first.",
   "pos.noPrice": "No price set",
   "pos.inStock": "in stock",
   "pos.notEnoughFor": "Not enough in stock for a full {unit}",

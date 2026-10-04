@@ -412,7 +412,7 @@ export const bn: Record<MessageKey, string> = {
   "pos.favouritesHint": "এক টাচেই ঝুড়িতে যোগ হবে।",
   "pos.focus": "পুরো পর্দা",
   "pos.exitFocus": "পুরো পর্দা বন্ধ",
-  "pos.nothingFound": "“{query}” এর জন্য কিছু পাওয়া যায়নি। বানান দেখুন, বা নামের একটা অংশ লিখুন।",
+  "pos.nothingFound": "“{query}” এর কিছু স্টকে নেই। বানান দেখুন, নয়তো আগে স্টক তুলুন।",
   "pos.noPrice": "দাম দেওয়া নেই",
   "pos.inStock": "স্টকে",
   "pos.notEnoughFor": "পুরো একটি {unit} এর মতো স্টক নেই",
