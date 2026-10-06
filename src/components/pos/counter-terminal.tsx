@@ -48,6 +48,7 @@ import { SaleReceipt } from "./sale-receipt";
 import { beep, setSoundOn, soundIsOn } from "./beep";
 import { ReturnDialog } from "./return-dialog";
 import { CollectDue, CollectDueButton } from "./collect-due";
+import { OutsideMatches } from "./outside-buy";
 import { CameraScanner, cameraScanSupported } from "./camera-scanner";
 import { PaymentPanel, type PaymentChoice } from "./payment-panel";
 import { loadHeldSales, newHeldSale, saveHeldSales, splitLine, type HeldSale } from "./held-sales";
@@ -1317,6 +1318,20 @@ function ItemSearch({
           <p className="rounded-lg bg-background p-4 text-sm text-muted">
             {t("pos.nothingFound", { query })}
           </p>
+        )}
+
+        {/* Fetched from the shop next door: taken in and sold here, rather
+            than written up in the stock pages with a customer waiting. */}
+        {status === "done" && query.length > 0 && (
+          <OutsideMatches
+            query={query}
+            auto={results.length === 0}
+            onAdded={(item) => {
+              const unit = item.units.find((u) => u.isDefault) ?? item.units[0];
+              if (unit !== undefined) choose(item, unit, quantity);
+              applyTerm("");
+            }}
+          />
         )}
 
         <ul className="divide-y divide-border">

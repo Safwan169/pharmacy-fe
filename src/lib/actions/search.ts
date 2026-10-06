@@ -5,9 +5,11 @@ import { ApiError } from "@/lib/api/client";
 import {
   addVariantBarcode,
   getFavourites,
+  getVariant,
   getVariantByBarcode,
   listVariants,
 } from "@/lib/api/catalogue";
+import { receiveStock } from "@/lib/actions/stock";
 import type { ProductVariant } from "@/types";
 import { getT } from "@/i18n/server";
 
@@ -196,4 +198,90 @@ function toResult(variant: ProductVariant): CounterSearchResult {
         };
       }),
   };
+}
+
+/**
+ * What the counter found but cannot sell: no price on it, or none left on the
+ * shelf. Offered only so a medicine fetched from the shop next door can be
+ * rung up without leaving the counter.
+ */
+export async function searchOutside(term: string): Promise<CounterSearchResult[]> {
+  const query = term.trim();
+  if (query.length < 1) return [];
+  const result = await listVariants({ search: query, status: "active", limit: 20 });
+  return result.data
+    .map(toResult)
+    .filter((item) => !isSellable(item))
+    .slice(0, 8);
+}
+
+export interface OutsideBuyInput {
+  variantId: number;
+  quantity: number;
+  /** Per base unit, what the other shop charges. */
+  cost: number;
+  /** Per base unit, what this shop will charge for it. */
+  price: number;
+  /** The shop it came from. Required: the money goes on their account. */
+  supplierId: number;
+}
+
+export type OutsideBuyResult =
+  | { status: "ok"; item: CounterSearchResult }
+  | { status: "error"; message: string };
+
+/**
+ * A medicine fetched from another shop, taken in and sold in one go.
+ *
+ * It is an ordinary delivery underneath — a batch with its cost, the amount
+ * left on that shop's account — so stock, profit and what is owed all stay
+ * true without anyone revisiting it later. Writing it up in the stock pages
+ * while a customer waits was the thing nobody had time for.
+ */
+export async function buyInForCounter(
+  input: OutsideBuyInput,
+): Promise<OutsideBuyResult> {
+  const t = await getT();
+  if (!Number.isInteger(input.quantity) || input.quantity < 1) {
+    return { status: "error", message: t("pos.outsideQtyInvalid") };
+  }
+
+  let baseUnit: string;
+  try {
+    baseUnit = (await getVariant(input.variantId)).baseUnit;
+  } catch (error) {
+    return {
+      status: "error",
+      message: error instanceof ApiError ? error.message : t("common.refresh"),
+    };
+  }
+
+  const received = await receiveStock({
+    supplier_id: input.supplierId,
+    note: t("pos.outsideNote"),
+    // On their account by the shop's own choosing, and a cashier could not
+    // hand money over anyway.
+    paid_amount: 0,
+    paid_method: "cash",
+    items: [
+      {
+        variant_id: input.variantId,
+        quantity: input.quantity,
+        unit_cost: input.cost,
+        sell_prices: [{ unit_name: baseUnit, qty_in_base: 1, price: input.price }],
+      },
+    ],
+  });
+
+  if (received.status === "rejected") {
+    return { status: "error", message: received.problems[0].message };
+  }
+  if (received.status === "error") {
+    return { status: "error", message: received.message };
+  }
+
+  const item = toResult(await getVariant(input.variantId));
+  return isSellable(item)
+    ? { status: "ok", item }
+    : { status: "error", message: t("pos.outsideNotReady") };
 }
