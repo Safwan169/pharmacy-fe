@@ -381,6 +381,7 @@ export const en = {
   "scan.added": "Barcode added.",
   "pos.favourites": "Sells most",
   "pos.favouritesHint": "One tap adds it to the basket.",
+  "pos.favouritesMore": "Show {count} more",
   "pos.focus": "Full screen",
   "pos.exitFocus": "Leave full screen",
   "pos.nothingFound": "Nothing in stock for “{query}”. Check the spelling, or receive stock for it first.",

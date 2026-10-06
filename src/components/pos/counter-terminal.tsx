@@ -855,7 +855,12 @@ function Favourites({
   onShowKeys: () => void;
 }) {
   const t = useT();
+  const [showAll, setShowAll] = useState(false);
   if (items.length === 0) return null;
+
+  // Eighteen tiles is two phone screens of them before the basket starts, so
+  // a phone gets the first six and asks. A wider screen has the room.
+  const previewOnPhone = 6;
 
   return (
     <section aria-label={t("pos.favourites")} className="space-y-2">
@@ -884,7 +889,10 @@ function Favourites({
               key={item.id}
               type="button"
               onClick={(event) => onSelect(item, unit, 1, event.currentTarget)}
-              className="group relative flex items-center gap-2.5 rounded-xl border border-border bg-surface p-2.5 text-left transition-all hover:-translate-y-px hover:border-primary/60 hover:shadow-sm active:translate-y-0 active:bg-primary/10"
+              className={cn(
+                "group relative items-center gap-2.5 rounded-xl border border-border bg-surface p-2.5 text-left transition-all hover:-translate-y-px hover:border-primary/60 hover:shadow-sm active:translate-y-0 active:bg-primary/10",
+                index >= previewOnPhone && !showAll ? "hidden sm:flex" : "flex",
+              )}
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                 <Pill className="h-4 w-4 group-hover:hidden" aria-hidden />
@@ -911,6 +919,16 @@ function Favourites({
           );
         })}
       </div>
+
+      {items.length > previewOnPhone && !showAll && (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="w-full rounded-lg border border-border py-2 text-xs font-medium text-primary sm:hidden"
+        >
+          {t("pos.favouritesMore", { count: items.length - previewOnPhone })}
+        </button>
+      )}
     </section>
   );
 }

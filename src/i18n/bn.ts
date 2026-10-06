@@ -410,6 +410,7 @@ export const bn: Record<MessageKey, string> = {
   "scan.added": "\u09ac\u09be\u09b0\u0995\u09cb\u09a1 \u09af\u09c1\u0995\u09cd\u09a4 \u09b9\u09b2\u09cb\u0964",
   "pos.favourites": "সবচেয়ে বেশি বিক্রি",
   "pos.favouritesHint": "এক টাচেই ঝুড়িতে যোগ হবে।",
+  "pos.favouritesMore": "আরও {count}টি দেখুন",
   "pos.focus": "পুরো পর্দা",
   "pos.exitFocus": "পুরো পর্দা বন্ধ",
   "pos.nothingFound": "“{query}” এর কিছু স্টকে নেই। বানান দেখুন, নয়তো আগে স্টক তুলুন।",
