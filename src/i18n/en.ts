@@ -54,6 +54,7 @@ export const en = {
   // Common
   "common.saving": "Saving…",
   "common.save": "Save",
+  "common.ok": "OK",
   "common.cancel": "Cancel",
   "common.search": "Search",
   "common.show": "Show",

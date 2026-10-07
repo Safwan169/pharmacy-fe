@@ -1,11 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useTransition } from "react";
 import { costOpeningStock, type OpeningCostState } from "@/lib/actions/settings";
 import { Button } from "@/components/ui/button";
-import { Alert } from "@/components/ui/alert";
 import { Field, Input } from "@/components/ui/input";
 import { useT } from "@/i18n/client";
+import { popupConfirm, popupError, popupSuccess } from "@/lib/popup";
 
 const initial: OpeningCostState = { status: "idle" };
 
@@ -16,7 +16,14 @@ const initial: OpeningCostState = { status: "idle" };
  */
 export function OpeningCostPanel() {
   const [state, action, pending] = useActionState(costOpeningStock, initial);
+  const [, startTransition] = useTransition();
   const t = useT();
+
+  useEffect(() => {
+    if (!state.message) return;
+    if (state.status === "success") void popupSuccess(state.message, t("common.ok"));
+    if (state.status === "error") void popupError(state.message, t("common.ok"));
+  }, [state, t]);
 
   return (
     <div className="space-y-4">
@@ -26,10 +33,15 @@ export function OpeningCostPanel() {
       </div>
 
       <form
-        action={action}
-        onSubmit={(e) => {
-          const percent = new FormData(e.currentTarget).get("percent");
-          if (!window.confirm(t("openingCost.confirm", { percent: String(percent) }))) e.preventDefault();
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const data = new FormData(e.currentTarget);
+          const ok = await popupConfirm(
+            t("openingCost.confirm", { percent: String(data.get("percent")) }),
+            t("openingCost.apply"),
+            t("common.cancel"),
+          );
+          if (ok) startTransition(() => action(data));
         }}
         className="flex flex-wrap items-end gap-3"
       >
@@ -40,9 +52,6 @@ export function OpeningCostPanel() {
           {pending ? t("common.saving") : t("openingCost.apply")}
         </Button>
       </form>
-
-      {state.status === "success" && state.message && <Alert tone="success">{state.message}</Alert>}
-      {state.status === "error" && state.message && <Alert tone="error">{state.message}</Alert>}
     </div>
   );
 }

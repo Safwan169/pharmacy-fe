@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { Lock, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { updatePricing, type PricingState } from "@/lib/actions/pricing";
 import { Field, Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
+import { popupError, popupSuccess } from "@/lib/popup";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { UnitTemplate, VariantUnit } from "@/types";
 import { pluralise } from "@/lib/utils";
@@ -81,6 +82,14 @@ export function PricingForm({
 }) {
   const [state, formAction, pending] = useActionState(updatePricing, initialState);
   const t = useT();
+
+  // The form is long; the message at its top is off screen by the time the
+  // shop presses save, so it also comes up in the middle of the screen.
+  useEffect(() => {
+    if (!state.message) return;
+    if (state.status === "success") void popupSuccess(state.message, t("common.ok"));
+    if (state.status === "error") void popupError(state.message, t("common.ok"));
+  }, [state, t]);
 
   const [rows, setRows] = useState<Row[]>(() =>
     units.length > 0

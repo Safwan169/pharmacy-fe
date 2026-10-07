@@ -56,6 +56,7 @@ export const bn: Record<MessageKey, string> = {
   // Common
   "common.saving": "সেভ হচ্ছে…",
   "common.save": "সেভ",
+  "common.ok": "ঠিক আছে",
   "common.cancel": "বাতিল",
   "common.search": "খুঁজুন",
   "common.show": "দেখান",
