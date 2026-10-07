@@ -1,11 +1,11 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
+import { useActionState, useTransition } from "react";
 import { costOpeningStock, type OpeningCostState } from "@/lib/actions/settings";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { useT } from "@/i18n/client";
-import { popupConfirm, popupError, popupSuccess } from "@/lib/popup";
+import { popupConfirm, useResultPopup } from "@/lib/popup";
 
 const initial: OpeningCostState = { status: "idle" };
 
@@ -19,11 +19,7 @@ export function OpeningCostPanel() {
   const [, startTransition] = useTransition();
   const t = useT();
 
-  useEffect(() => {
-    if (!state.message) return;
-    if (state.status === "success") void popupSuccess(state.message, t("common.ok"));
-    if (state.status === "error") void popupError(state.message, t("common.ok"));
-  }, [state, t]);
+  useResultPopup(state, t("common.ok"));
 
   return (
     <div className="space-y-4">

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Swal from "sweetalert2";
 
 /**
@@ -34,4 +35,16 @@ export async function popupConfirm(text: string, confirmLabel: string, cancelLab
     focusCancel: true,
   });
   return result.isConfirmed;
+}
+
+/**
+ * Shows a form action's message as a popup each time it comes back. Long
+ * forms put their message at the top, out of sight from the save button.
+ */
+export function useResultPopup(state: { status: string; message?: string }, okLabel: string) {
+  useEffect(() => {
+    if (!state.message) return;
+    if (state.status === "success") void popupSuccess(state.message, okLabel);
+    if (state.status === "error") void popupError(state.message, okLabel);
+  }, [state, okLabel]);
 }

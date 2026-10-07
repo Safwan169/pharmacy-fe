@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useTransition } from "react";
 import { addMedicine, type NewMedicineState } from "@/lib/actions/catalogue";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { Field, Input, Select } from "@/components/ui/input";
 import { useT } from "@/i18n/client";
+import { useResultPopup } from "@/lib/popup";
 import type { Generic, Manufacturer } from "@/types";
 
 const initial: NewMedicineState = { status: "idle" };
@@ -37,10 +38,23 @@ export function NewMedicineForm({
   initialName?: string;
 }) {
   const [state, action, pending] = useActionState(addMedicine, initial);
+  const [, startTransition] = useTransition();
   const t = useT();
+  useResultPopup(state, t("common.ok"));
 
   return (
-    <form action={action} className="space-y-4" noValidate>
+    <form
+      // Submitted by hand rather than through `action`: React empties a form
+      // after its action runs, which would wipe everything typed whenever
+      // the medicine is turned back with a message.
+      onSubmit={(e) => {
+        e.preventDefault();
+        const data = new FormData(e.currentTarget);
+        startTransition(() => action(data));
+      }}
+      className="space-y-4"
+      noValidate
+    >
       {state.status === "error" && state.message && (
         <Alert tone="error">
           {state.message}
