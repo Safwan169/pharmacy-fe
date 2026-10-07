@@ -67,3 +67,32 @@ export async function runBackup(_prev: BackupState): Promise<BackupState> {
     throw error;
   }
 }
+
+export interface OpeningCostState {
+  status: "idle" | "success" | "error";
+  message?: string;
+}
+
+/** One-off: costs stock that came in without a cost, at selling price less a percent. */
+export async function costOpeningStock(_prev: OpeningCostState, formData: FormData): Promise<OpeningCostState> {
+  const t = await getT();
+  const raw = String(formData.get("percent") ?? "").trim();
+  if (!/^\d{1,2}(\.\d{1,2})?$/.test(raw)) return { status: "error", message: t("openingCost.errPercent") };
+  try {
+    const result = await apiFetch<{ batches_costed: number; value_at_cost: number; batches_skipped: number }>(
+      "/stock/opening-cost",
+      { method: "POST", auth: true, body: { percent_below_price: Number(raw) } },
+    );
+    revalidatePath("/reports", "layout");
+    revalidatePath("/catalogue", "layout");
+    if (result.batches_costed === 0) return { status: "success", message: t("openingCost.nothing") };
+    const done = t("openingCost.done", { count: result.batches_costed, value: result.value_at_cost.toFixed(2) });
+    return {
+      status: "success",
+      message: result.batches_skipped > 0 ? `${done} ${t("openingCost.skipped", { count: result.batches_skipped })}` : done,
+    };
+  } catch (error) {
+    if (error instanceof ApiError) return { status: "error", message: error.message };
+    throw error;
+  }
+}

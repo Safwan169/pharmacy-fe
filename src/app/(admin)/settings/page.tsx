@@ -5,6 +5,7 @@ import { Alert } from "@/components/ui/alert";
 import { getSettings } from "@/lib/api/customers";
 import { listBackups } from "@/lib/api/reports";
 import { BackupPanel } from "@/components/settings/backup-panel";
+import { OpeningCostPanel } from "@/components/settings/opening-cost-panel";
 import { ApiError } from "@/lib/api/client";
 import { requireOwner } from "@/lib/current-user";
 import { getT } from "@/i18n/server";
@@ -32,6 +33,11 @@ export default async function SettingsPage() {
       <Card>
         <CardBody>
           <SettingsForm settings={settings} />
+        </CardBody>
+      </Card>
+      <Card className="mt-5">
+        <CardBody>
+          <OpeningCostPanel />
         </CardBody>
       </Card>
       <Card className="mt-5">
