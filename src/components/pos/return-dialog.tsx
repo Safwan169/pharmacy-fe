@@ -479,6 +479,13 @@ function ReturnLines({
                     })}
                     {damaged ? ` · ${t("ret.damaged")}` : ""}
                   </span>
+                  {item.stockSource !== "tracked" && (
+                    <span className="block text-xs text-warning">
+                      {item.stockSource === "borrowed"
+                        ? t("pos.borrowedFrom", { name: item.sourceStoreName ?? "" })
+                        : t("pos.oldStock")}
+                    </span>
+                  )}
                   {problem && <span className="block text-xs text-danger">{problem}</span>}
                 </button>
 

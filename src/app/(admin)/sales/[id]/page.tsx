@@ -136,6 +136,13 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
                       {item.dosageFormSnapshot}
                       <span className="sm:hidden"> · {formatCurrency(item.unitPrice)}</span>
                     </p>
+                    {item.stockSource !== "tracked" && (
+                      <p className="text-xs text-warning">
+                        {item.stockSource === "borrowed"
+                          ? t("pos.borrowedFrom", { name: item.sourceStoreName ?? "" })
+                          : t("pos.oldStock")}
+                      </p>
+                    )}
                   </Td>
                   <Td className="hidden text-right tabular-nums text-muted sm:table-cell">
                     {formatCurrency(item.unitPrice)}

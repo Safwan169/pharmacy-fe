@@ -45,6 +45,10 @@ export function listReceipts(filters: ReceiptFilters = {}) {
   });
 }
 
+export function listBorrowStoreNames() {
+  return apiFetch<string[]>("/stock/receipts/borrow-stores", { auth: true });
+}
+
 export function getReceipt(id: number) {
   return apiFetch<StockReceipt>(`/stock/receipts/${id}`, { auth: true });
 }

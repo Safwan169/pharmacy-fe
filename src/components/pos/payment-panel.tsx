@@ -88,7 +88,7 @@ export function PaymentPanel({
               value={tendered}
               onChange={(e) => setTendered(e.target.value)}
               placeholder={formatWholeCurrency(total)}
-              className="tabular-nums"
+              className="text-right tabular-nums"
             />
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -104,11 +104,16 @@ export function PaymentPanel({
             ))}
           </div>
           {change !== null && (
-            <p className={cn("text-sm", change < 0 ? "text-danger" : "text-success")}>
-              {change < 0
-                ? t("payment.shortBy", { amount: formatWholeCurrency(-change) })
-                : t("payment.changeBack", { amount: formatWholeCurrency(change) })}
-            </p>
+            change < 0 ? (
+              <p className={cn("text-right text-sm", "text-danger")}>
+                {t("payment.shortBy", { amount: formatWholeCurrency(-change) })}
+              </p>
+            ) : (
+              <div className="flex items-center justify-between gap-2 text-sm text-success">
+                <span>{t("payment.changeBackLabel")}</span>
+                <span className="text-right tabular-nums">{formatWholeCurrency(change)}</span>
+              </div>
+            )
           )}
         </div>
       )}
@@ -236,17 +241,19 @@ function MethodButton({
 
 /** Nearest sensible banknotes above the total, for one-tap "cash given". */
 function suggestNotes(total: number): number[] {
-  const notes = [50, 100, 200, 500, 1000, 2000, 5000];
-  const out = new Set<number>();
-  const exact = Math.ceil(total);
-  if (exact > 0) out.add(exact);
-  for (const n of notes) {
-    if (n >= total) out.add(n);
-    if (out.size >= 4) break;
-  }
+  const notes = [50, 100, 200, 500, 1000];
+  const out = new Set<number>([500, 1000]);
   const nextHundred = Math.ceil(total / 100) * 100;
-  if (nextHundred > total) out.add(nextHundred);
-  return [...out].sort((a, b) => a - b).slice(0, 4);
+  const candidates = [
+    ...(total > 0 ? [Math.ceil(total)] : []),
+    ...notes.filter((note) => note >= total),
+    ...(nextHundred > total ? [nextHundred] : []),
+  ];
+  for (const candidate of candidates) {
+    if (out.size >= 6) break;
+    out.add(candidate);
+  }
+  return [...out].sort((a, b) => a - b).slice(0, 6);
 }
 
 /** Find a customer by name or phone, or add one on the spot. */

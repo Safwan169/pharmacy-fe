@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  type FormEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -26,6 +27,7 @@ import {
   Volume2,
   VolumeX,
   Camera,
+  ChevronDown,
 } from "lucide-react";
 import { Card, CardHeader, CardBody } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,6 +43,7 @@ import {
   type CounterSearchResult,
   type CounterUnit,
 } from "@/lib/actions/search";
+import { getBorrowStoreNames, receiveStock } from "@/lib/actions/stock";
 import { checkout, type CheckoutResult } from "@/lib/actions/checkout";
 import { formatCurrency, formatWholeCurrency, cn } from "@/lib/utils";
 import type { DiscountType, Sale } from "@/types";
@@ -48,7 +51,6 @@ import { SaleReceipt } from "./sale-receipt";
 import { beep, setSoundOn, soundIsOn } from "./beep";
 import { ReturnDialog } from "./return-dialog";
 import { CollectDue, CollectDueButton } from "./collect-due";
-import { OutsideMatches } from "./outside-buy";
 import { CameraScanner, cameraScanSupported } from "./camera-scanner";
 import { PaymentPanel, type PaymentChoice } from "./payment-panel";
 import { loadHeldSales, newHeldSale, saveHeldSales, splitLine, type HeldSale } from "./held-sales";
@@ -65,13 +67,13 @@ interface BasketLine {
   qtyInBase: number;
   unitPrice: number;
   minimumPrice: number | null;
-  /** Empty means this product uses the whole-sale discount, if any. */
-  discountPercent: string;
   nextPrice?: { price: number; oldStockLeft: number };
   /** Base-unit stock at the time it was added — a guard rail, not the final word. */
   stockAtAdd: number;
   /** In the sold unit. */
   quantity: number;
+  stockSource?: "old_stock" | "borrowed";
+  sourceStoreName?: string;
 }
 
 function saleSegments(line: BasketLine) {
@@ -80,25 +82,6 @@ function saleSegments(line: BasketLine) {
   if (split.oldUnits > 0) segments.push({ unitPrice: line.unitPrice, quantity: split.oldUnits });
   if (split.newUnits > 0 && line.nextPrice) segments.push({ unitPrice: line.nextPrice.price, quantity: split.newUnits });
   return segments;
-}
-
-function maximumDiscountPercent(line: BasketLine): number {
-  if (line.minimumPrice === null) return 100;
-  const floor = line.minimumPrice * line.qtyInBase;
-  return Math.min(...saleSegments(line).map(({ unitPrice }) =>
-    unitPrice <= 0 ? 0 : Math.max(0, ((unitPrice - floor) / unitPrice) * 100),
-  ));
-}
-
-function productDiscountAmount(line: BasketLine, percent: number): number {
-  const floor = line.minimumPrice === null ? 0 : line.minimumPrice * line.qtyInBase;
-  return saleSegments(line).reduce((sum, segment) => {
-    const grossMinor = Math.round(segment.unitPrice * 100) * segment.quantity;
-    const floorMinor = Math.round(floor * 100) * segment.quantity;
-    const targetMinor = Math.round(((grossMinor * percent) / 100) / 100) * 100;
-    const wholeTakaCapacity = Math.floor(Math.max(0, grossMinor - floorMinor) / 100) * 100;
-    return sum + Math.min(targetMinor, wholeTakaCapacity);
-  }, 0) / 100;
 }
 
 export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearchResult[] }) {
@@ -173,7 +156,6 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
     setBasket(entry.lines.map((line) => ({
       ...line,
       minimumPrice: line.minimumPrice ?? null,
-      discountPercent: line.discountPercent ?? "",
     })));
     setDiscountType(entry.discountType);
     setDiscountValue(entry.discountValue);
@@ -195,7 +177,13 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
     [result],
   );
 
-  const addItem = useCallback((item: CounterSearchResult, unit: CounterUnit, quantity = 1, from?: HTMLElement) => {
+  const addItem = useCallback((
+    item: CounterSearchResult,
+    unit: CounterUnit,
+    quantity = 1,
+    from?: HTMLElement,
+    source?: { type: "old_stock" | "borrowed"; storeName?: string },
+  ) => {
     // Adding the same item twice must merge into one line: the API rejects a
     // basket that lists a variant more than once. Picking a different unit
     // for an item already in the basket switches that line to the new unit.
@@ -230,9 +218,10 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
           unitPrice: unit.price,
           nextPrice: unit.nextPrice,
           minimumPrice: item.minimumPrice,
-          discountPercent: "",
           stockAtAdd: item.stock ?? 0,
           quantity,
+          stockSource: source?.type,
+          sourceStoreName: source?.storeName,
         },
       ];
     });
@@ -274,13 +263,14 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
     function onKey(event: KeyboardEvent) {
       // A dialog on top owns the keyboard while it is open.
       if (completed || returning) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('[role="dialog"][aria-modal="true"]')) return;
       if (event.key === "F7") {
         event.preventDefault();
         setReturnFor(null);
         setReturning(true);
         return;
       }
-      const target = event.target as HTMLElement | null;
       const typingElsewhere =
         target !== null &&
         target !== searchRef.current &&
@@ -411,24 +401,10 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
   }, [basket, lineCursor, favourites, addItem, completed, showKeys, returning]);
 
   const subtotal = basket.reduce((sum, line) => sum + splitLine(line).total, 0);
-  const productDiscountMode = basket.some((line) => Number(line.discountPercent) > 0);
   const globalDiscountActive = discountValue.trim() !== "" && Number.isFinite(Number(discountValue)) && Number(discountValue) > 0;
   const parsedDiscount = Number(discountValue);
-  const itemDiscountErrors = basket.map((line) => {
-    if (line.discountPercent.trim() === "") return undefined;
-    const percent = Number(line.discountPercent);
-    if (!Number.isFinite(percent) || percent < 0) return t("pos.discountNumbers");
-    if (percent > maximumDiscountPercent(line) + 0.000001) {
-      return t("pos.lineDiscountTooHigh", { max: String(Math.floor(maximumDiscountPercent(line))) });
-    }
-    return undefined;
-  });
-  const manualDiscountAmount = basket.reduce((sum, line) => {
-    const percent = Number(line.discountPercent);
-    return sum + (percent > 0 ? productDiscountAmount(line, percent) : 0);
-  }, 0);
   const globalDiscountAmount = (() => {
-    if (!globalDiscountActive || productDiscountMode) return 0;
+    if (!globalDiscountActive) return 0;
     const segments = basket.flatMap((line) => saleSegments(line).map((segment) => ({
       ...segment,
       floor: line.minimumPrice === null ? 0 : line.minimumPrice * line.qtyInBase,
@@ -442,7 +418,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
     const requestedTaka = Math.round(requestedMinorRaw / 100);
     const exactShares = weights.map((weight) => (requestedTaka * weight) / subtotalMinor);
     const shares = exactShares.map(Math.floor);
-    let remainder = requestedTaka - shares.reduce((sum, value) => sum + value, 0);
+    const remainder = requestedTaka - shares.reduce((sum, value) => sum + value, 0);
     const order = exactShares.map((share, index) => ({ index, fraction: share - shares[index] }))
       .sort((a, b) => b.fraction - a.fraction);
     for (let i = 0; i < remainder; i += 1) shares[order[i % order.length].index] += 1;
@@ -453,16 +429,11 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
       return sum + Math.min(shares[index], wholeTakaCapacity);
     }, 0);
   })();
-  const discountAmount = Math.min(
-    Math.round(productDiscountMode ? manualDiscountAmount : globalDiscountAmount),
-    subtotal,
-  );
+  const discountAmount = Math.min(Math.round(globalDiscountAmount), subtotal);
 
   const total = subtotal - discountAmount;
 
   const discountError = (() => {
-    const itemError = itemDiscountErrors.find(Boolean);
-    if (itemError) return itemError;
     if (!discountValue) return undefined;
     if (Number.isNaN(parsedDiscount)) return t("pos.discountNumbers");
     if (parsedDiscount < 0) return t("pos.discountNegative");
@@ -500,14 +471,12 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
           unit_id: line.unitId,
           quantity: line.quantity,
           name: `${line.name} (${line.unitName})`,
-          ...(productDiscountMode && Number(line.discountPercent) > 0
-            ? { discount_percent: Number(line.discountPercent) }
-            : {}),
+          ...(line.stockSource ? { stock_source: line.stockSource } : {}),
+          ...(line.sourceStoreName ? { source_store_name: line.sourceStoreName } : {}),
         })),
-        discount:
-          !productDiscountMode && globalDiscountAmount > 0 && !Number.isNaN(parsedDiscount)
-            ? { type: discountType, value: parsedDiscount }
-            : undefined,
+        discount: globalDiscountAmount > 0 && !Number.isNaN(parsedDiscount)
+          ? { type: discountType, value: parsedDiscount }
+          : undefined,
         payment_method: payment.method,
         amount_tendered: payment.method === "cash" ? payment.amountTendered : undefined,
         bkash_trx_id: payment.method === "bkash" ? payment.bkashTrxId : undefined,
@@ -732,6 +701,13 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
                             {line.dosageForm} · {formatCurrency(line.unitPrice)} / {line.unitName}
                             {line.qtyInBase > 1 ? ` ×${line.qtyInBase}` : ""}
                           </p>
+                          {line.stockSource && (
+                            <p className="text-xs text-warning">
+                              {line.stockSource === "borrowed"
+                                ? t("pos.borrowedFrom", { name: line.sourceStoreName ?? "" })
+                                : t("pos.oldStock")}
+                            </p>
+                          )}
                         </div>
                         <button
                           type="button"
@@ -788,39 +764,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
                         </p>
                       )}
 
-                      <div className="mt-2 flex items-center gap-2">
-                        <label htmlFor={`product-discount-${line.variantId}`} className="shrink-0 text-xs text-muted">
-                          {t("pos.productDiscount")}
-                        </label>
-                        <div className="relative min-w-0 flex-1">
-                          <input
-                            id={`product-discount-${line.variantId}`}
-                            type="text"
-                            inputMode="decimal"
-                            value={line.discountPercent}
-                            disabled={globalDiscountActive}
-                            onChange={(event) => {
-                              const value = event.target.value;
-                              if (Number(value) > 0) setDiscountValue("");
-                              setBasket((current) => current.map((item) => item.variantId === line.variantId
-                                ? { ...item, discountPercent: value }
-                                : item));
-                              setResult(null);
-                            }}
-                            placeholder="0"
-                            aria-label={t("pos.productDiscountFor", { name: line.name })}
-                            aria-invalid={!!itemDiscountErrors[index]}
-                            className="h-8 w-full rounded-md border border-border bg-surface px-2 pr-7 text-right text-xs tabular-nums focus:border-primary focus:outline-2 focus:outline-primary/30 disabled:opacity-60 aria-[invalid=true]:border-danger"
-                          />
-                          <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs text-muted">%</span>
-                        </div>
-                        <span className="shrink-0 text-[11px] text-muted">
-                          {t("pos.maximumProductDiscount", { percent: String(Math.floor(maximumDiscountPercent(line))) })}
-                        </span>
-                      </div>
-                      {itemDiscountErrors[index] && <p className="mt-1 text-xs text-danger">{itemDiscountErrors[index]}</p>}
-
-                      {line.quantity * line.qtyInBase > line.stockAtAdd && (
+                      {line.stockSource === undefined && line.quantity * line.qtyInBase > line.stockAtAdd && (
                         <p className="mt-1.5 text-xs text-warning">
                           {t("pos.stockWarning", { count: Math.floor(line.stockAtAdd / line.qtyInBase), unit: line.unitName })}
                         </p>
@@ -833,20 +777,18 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
               <p className="hidden px-5 pb-1 text-xs text-muted lg:block">{t("pos.basketKeys")}</p>
 
               <CardBody className="space-y-4 border-t border-border">
-                <div>
+                <div className="grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2">
                   <label
                     htmlFor="discount"
-                    className="text-sm font-medium text-foreground"
+                    className="text-xs text-muted"
                   >
-                    {t("pos.discount")}{" "}
-                    <span className="font-normal text-muted">({t("common.optional").toLowerCase()})</span>
+                    {t("pos.discount")}
                   </label>
-                  <div className="mt-1.5 flex gap-2">
+                  <div className="flex min-w-0 gap-2">
                     <select
                       value={discountType}
                       onChange={(e) => setDiscountType(e.target.value as DiscountType)}
                       aria-label={t("pos.discountType")}
-                      disabled={productDiscountMode}
                       className="h-10 cursor-pointer rounded-lg border border-border bg-surface px-2 text-sm focus:border-primary focus:outline-2 focus:outline-primary/30"
                     >
                       <option value="percentage">%</option>
@@ -857,24 +799,17 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
                       type="text"
                       inputMode="decimal"
                       value={discountValue}
-                      disabled={productDiscountMode}
                       onChange={(e) => {
-                        const value = e.target.value;
-                        if (Number(value) > 0) {
-                          setBasket((current) => current.map((line) => ({ ...line, discountPercent: "" })));
-                        }
-                        setDiscountValue(value);
+                        setDiscountValue(e.target.value);
+                        setResult(null);
                       }}
                       placeholder="0"
                       aria-invalid={!!discountError}
-                      className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm tabular-nums focus:border-primary focus:outline-2 focus:outline-primary/30 aria-[invalid=true]:border-danger"
+                      className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-right text-sm tabular-nums focus:border-primary focus:outline-2 focus:outline-primary/30 aria-[invalid=true]:border-danger"
                     />
                   </div>
-                  {productDiscountMode && <p className="mt-1 text-xs text-muted">{t("pos.useProductDiscounts")}</p>}
-                  {discountError && (
-                    <p className="mt-1 text-xs text-danger">{discountError}</p>
-                  )}
                 </div>
+                {discountError && <p className="text-xs text-danger">{discountError}</p>}
 
                 <dl className="space-y-1.5 text-sm">
                   <div className="flex justify-between">
@@ -1142,6 +1077,11 @@ function splitQuantity(raw: string): { query: string; quantity: number } {
   return { query: match[1].trim(), quantity: Math.max(1, Number(match[2])) };
 }
 
+function defaultUnitIndex(item: CounterSearchResult): number {
+  const index = item.units.findIndex((unit) => unit.isDefault);
+  return index < 0 ? 0 : index;
+}
+
 function ItemSearch({
   onSelect,
   justAdded,
@@ -1149,7 +1089,13 @@ function ItemSearch({
   handleRef,
   onInvoiceScanned,
 }: {
-  onSelect: (item: CounterSearchResult, unit: CounterUnit, quantity?: number, from?: HTMLElement) => void;
+  onSelect: (
+    item: CounterSearchResult,
+    unit: CounterUnit,
+    quantity?: number,
+    from?: HTMLElement,
+    source?: { type: "old_stock" | "borrowed"; storeName?: string },
+  ) => void;
   justAdded: { id: number; nonce: number } | null;
   inputRef: React.RefObject<HTMLInputElement | null>;
   handleRef: React.RefObject<SearchHandle | null>;
@@ -1172,6 +1118,11 @@ function ItemSearch({
     { kind: "learn" | "unsellable"; code: string; name?: string } | null
   >(null);
   const [camera, setCamera] = useState(false);
+  const [outOfStockUnitIds, setOutOfStockUnitIds] = useState<Record<number, number>>({});
+  const [outOfStock, setOutOfStock] = useState<{ item: CounterSearchResult; unit: CounterUnit } | null>(null);
+  const [stockToast, setStockToast] = useState<string | null>(null);
+  const rowRefs = useRef(new Map<number, HTMLLIElement>());
+  const focusReturnId = useRef<number | null>(null);
   // Read once on the client: the server cannot know what this browser can do.
   const [hasCamera, setHasCamera] = useState(false);
   useEffect(() => {
@@ -1186,6 +1137,23 @@ function ItemSearch({
     scanRef.current = scan;
   }, [scan]);
   const t = useT();
+  useEffect(() => {
+    if (!stockToast) return;
+    const timer = setTimeout(() => setStockToast(null), 5000);
+    return () => clearTimeout(timer);
+  }, [stockToast]);
+  useEffect(() => {
+    if (outOfStock !== null || focusReturnId.current === null) return;
+    const id = focusReturnId.current;
+    focusReturnId.current = null;
+    requestAnimationFrame(() => rowRefs.current.get(id)?.focus());
+  }, [outOfStock]);
+
+  const closeOutOfStock = useCallback(() => {
+    if (!outOfStock) return;
+    focusReturnId.current = outOfStock.item.id;
+    setOutOfStock(null);
+  }, [outOfStock]);
 
   // The term is mirrored in a ref so that keystrokes arriving faster than a
   // re-render — a fast typist, or a barcode scanner "typing" a whole code in a
@@ -1214,13 +1182,19 @@ function ItemSearch({
    * here costs the cashier nothing beyond the sale they were making anyway.
    */
   const choose = useCallback(
-    (item: CounterSearchResult, unit: CounterUnit, qty: number, from?: HTMLElement) => {
+    (
+      item: CounterSearchResult,
+      unit: CounterUnit,
+      qty: number,
+      from?: HTMLElement,
+      source?: { type: "old_stock" | "borrowed"; storeName?: string },
+    ) => {
       const waiting = scanRef.current;
       if (waiting?.kind === "learn") {
         void pairBarcode(item.id, waiting.code);
         setScan(null);
       }
-      onSelect(item, unit, qty, from);
+      onSelect(item, unit, qty, from, source);
       applyTerm("");
       inputRef.current?.focus();
     },
@@ -1259,6 +1233,17 @@ function ItemSearch({
             choose(result.item, unit, splitQuantity(term).quantity);
             return;
           }
+          if (
+            result.status === "unsellable" &&
+            result.item.units.length > 0 &&
+            (result.item.stock ?? 0) <= 0
+          ) {
+            setScan(null);
+            applyTerm("");
+            setState({ status: "done", results: [result.item] });
+            setCursor({ row: 0, unit: defaultUnitIndex(result.item) });
+            return;
+          }
           setScan(
             result.status === "unknown"
               ? { kind: "learn", code: result.code }
@@ -1272,6 +1257,11 @@ function ItemSearch({
         // A slow earlier request must not overwrite a newer one's results.
         if (id === requestId.current) {
           setState({ status: "done", results: found });
+          const firstActionable = found.find((item) => item.units.length > 0);
+          setCursor({
+            row: 0,
+            unit: firstActionable ? defaultUnitIndex(firstActionable) : 0,
+          });
         }
       } catch {
         if (id === requestId.current) {
@@ -1289,24 +1279,34 @@ function ItemSearch({
   const failed = status === "failed";
 
   const { query, quantity } = splitQuantity(term);
-  // Only rows that can actually be rung up take part in keyboard selection.
-  const sellableRows = results.filter((item) => item.units.length > 0 && (item.stock ?? 0) > 0);
-  const row = Math.min(cursor.row, Math.max(sellableRows.length - 1, 0));
-  const current = sellableRows[row];
+  const actionableRows = results.filter((item) => item.units.length > 0);
+  const row = Math.min(cursor.row, Math.max(actionableRows.length - 1, 0));
+  const current = actionableRows[row];
   const currentUnit =
     current === undefined
       ? undefined
       : current.units[Math.min(cursor.unit, current.units.length - 1)] ??
         current.units.find((u) => u.isDefault) ??
         current.units[0];
+  const activate = useCallback(
+    (item: CounterSearchResult, unit: CounterUnit, qty: number, from?: HTMLElement) => {
+      if ((item.stock ?? 0) <= 0) {
+        setStockToast(null);
+        setOutOfStock({ item, unit });
+        return;
+      }
+      choose(item, unit, qty, from);
+    },
+    [choose],
+  );
 
   // The counter listens for keys on the whole page, so the same moves work
   // whether the cashier last touched the search box, a tile or the basket.
   // The handle reads through a ref of the latest render, which keeps it stable
   // without going stale.
-  const latest = useRef({ row, cursor, current, currentUnit, quantity, sellableRows, onSelect });
+  const latest = useRef({ row, cursor, current, currentUnit, quantity, actionableRows, activate });
   useEffect(() => {
-    latest.current = { row, cursor, current, currentUnit, quantity, sellableRows, onSelect };
+    latest.current = { row, cursor, current, currentUnit, quantity, actionableRows, activate };
   });
 
   useEffect(() => {
@@ -1324,21 +1324,32 @@ function ItemSearch({
         set("");
       },
       term: () => termRef.current,
-      hasResults: () => latest.current.sellableRows.length > 0,
+      hasResults: () => latest.current.actionableRows.length > 0,
       move(delta) {
-        const rows = latest.current.sellableRows;
+        const rows = latest.current.actionableRows;
         if (rows.length === 0) return;
-        setCursor({ row: (latest.current.row + delta + rows.length) % rows.length, unit: 0 });
+        const nextRow = (latest.current.row + delta + rows.length) % rows.length;
+        setCursor({
+          row: nextRow,
+          unit: defaultUnitIndex(rows[nextRow]),
+        });
       },
       cycleUnit() {
         const { current: item, cursor: at, row: atRow } = latest.current;
         if (item === undefined || item.units.length < 2) return;
-        setCursor({ row: atRow, unit: (at.unit + 1) % item.units.length });
+        const unit = (at.unit + 1) % item.units.length;
+        setCursor({ row: atRow, unit });
+        if ((item.stock ?? 0) <= 0) {
+          setOutOfStockUnitIds((currentIds) => ({
+            ...currentIds,
+            [item.id]: item.units[unit].id,
+          }));
+        }
       },
       commit() {
-        const { current: item, currentUnit: unit, quantity: qty } = latest.current;
+        const { current: item, currentUnit: unit, quantity: qty, activate: activateRow } = latest.current;
         if (item === undefined || unit === undefined) return false;
-        choose(item, unit, qty);
+        activateRow(item, unit, qty, rowRefs.current.get(item.id));
         return true;
       },
       type: (char) => set(termRef.current + char),
@@ -1348,7 +1359,7 @@ function ItemSearch({
     return () => {
       handle.current = null;
     };
-  }, [applyTerm, choose, handleRef, inputRef]);
+  }, [activate, applyTerm, choose, handleRef, inputRef]);
 
   return (
     <Card>
@@ -1448,7 +1459,7 @@ function ItemSearch({
           </div>
         )}
 
-        {sellableRows.length > 0 && (
+        {actionableRows.length > 0 && (
           <p className="text-xs text-muted">
             {quantity > 1 ? t("pos.keysWithQty", { count: quantity }) : t("pos.keys")}
           </p>
@@ -1460,36 +1471,59 @@ function ItemSearch({
           </p>
         )}
 
-        {/* Fetched from the shop next door: taken in and sold here, rather
-            than written up in the stock pages with a customer waiting. */}
-        {status === "done" && query.length > 0 && (
-          <OutsideMatches
-            query={query}
-            auto={results.length === 0}
-            onAdded={(item) => {
-              const unit = item.units.find((u) => u.isDefault) ?? item.units[0];
-              if (unit !== undefined) choose(item, unit, quantity);
-              applyTerm("");
-            }}
-          />
-        )}
-
         <ul className="divide-y divide-border">
           {results.map((item) => {
             const stock = item.stock ?? 0;
             const priced = item.units.length > 0;
             const sellable = priced && stock > 0;
+            const outOfStockUnit =
+              item.units.find((unit) => unit.id === outOfStockUnitIds[item.id]) ??
+              (current?.id === item.id ? currentUnit : undefined) ??
+              item.units.find((unit) => unit.isDefault) ??
+              item.units[0];
             const added = justAdded?.id === item.id;
+            const actionIndex = actionableRows.findIndex((rowItem) => rowItem.id === item.id);
             return (
               // Re-keying on the nonce remounts the row, which restarts the
               // flash when the same item is added twice in a row.
               <li
                 key={added ? `${item.id}-${justAdded.nonce}` : item.id}
                 className={cn(
-                  "relative rounded-lg px-1 py-3",
+                  "relative rounded-lg px-1 py-3 transition-colors",
+                  priced
+                    ? "cursor-pointer hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                    : "cursor-not-allowed text-muted/70 opacity-60",
                   added && "animate-add-flash",
-                  current?.id === item.id && "bg-primary/5 ring-1 ring-primary/40",
+                  current?.id === item.id && "bg-primary/5 ring-1 ring-primary/40 hover:bg-primary/5",
                 )}
+                tabIndex={priced ? 0 : -1}
+                aria-disabled={!priced}
+                aria-keyshortcuts={priced ? "Enter" : undefined}
+                ref={(element) => {
+                  if (element) rowRefs.current.set(item.id, element);
+                  else rowRefs.current.delete(item.id);
+                }}
+                onFocus={() => {
+                  if (actionIndex >= 0) {
+                    setCursor((previous) =>
+                      previous.row === actionIndex
+                        ? previous
+                        : { row: actionIndex, unit: defaultUnitIndex(item) },
+                    );
+                  }
+                }}
+                onClick={(event) => {
+                  if (!priced || (event.target as HTMLElement).closest("button, select, input, textarea, a")) {
+                    return;
+                  }
+                  const unit =
+                    stock <= 0
+                      ? outOfStockUnit
+                      : current?.id === item.id
+                        ? currentUnit
+                        : item.units.find((candidate) => candidate.isDefault) ?? item.units[0];
+                  if (unit) activate(item, unit, quantity, event.currentTarget);
+                }}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -1501,9 +1535,7 @@ function ItemSearch({
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    {!priced ? (
-                      <Badge tone="warning">{t("pos.noPrice")}</Badge>
-                    ) : stock === 0 ? (
+                    {stock <= 0 ? (
                       <Badge tone="danger">{t("stock.outOfStock")}</Badge>
                     ) : (
                       <p className="text-xs text-muted">
@@ -1511,6 +1543,7 @@ function ItemSearch({
                         {t("pos.inStock")}
                       </p>
                     )}
+                    {!priced && <Badge tone="warning">{t("pos.noPrice")}</Badge>}
                   </div>
                 </div>
 
@@ -1556,6 +1589,50 @@ function ItemSearch({
                   </p>
                 )}
 
+                {stock <= 0 && priced && outOfStockUnit && (
+                  <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    {item.units.length > 1 && (
+                      <div className="relative inline-flex min-w-0 self-start">
+                        <select
+                          aria-label={t("pos.selectUnit", { name: item.name })}
+                          value={outOfStockUnit.id}
+                          onChange={(event) => {
+                            const unitId = Number(event.target.value);
+                            setOutOfStockUnitIds((currentIds) => ({
+                              ...currentIds,
+                              [item.id]: unitId,
+                            }));
+                            const unitIndex = item.units.findIndex((unit) => unit.id === unitId);
+                            if (actionIndex >= 0 && unitIndex >= 0) {
+                              setCursor({ row: actionIndex, unit: unitIndex });
+                            }
+                          }}
+                          className="h-8 max-w-full appearance-none rounded-full border border-border bg-background px-3 pr-8 text-xs text-muted opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1"
+                        >
+                          {item.units.map((unit) => (
+                            <option key={unit.id} value={unit.id}>
+                              {unit.name}{unit.qtyInBase > 1 ? ` ×${unit.qtyInBase}` : ""} {formatCurrency(unit.price)}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown
+                          className="pointer-events-none absolute top-1/2 right-2 h-3.5 w-3.5 -translate-y-1/2 text-muted"
+                          aria-hidden
+                        />
+                      </div>
+                    )}
+                    {item.units.length === 1 && (
+                      <span className="inline-flex h-8 items-center gap-1.5 self-start rounded-full border border-border bg-background px-3 text-xs text-muted opacity-80">
+                        <span className="font-medium">{outOfStockUnit.name}</span>
+                        {outOfStockUnit.qtyInBase > 1 && (
+                          <span>×{outOfStockUnit.qtyInBase}</span>
+                        )}
+                        <span className="tabular-nums">{formatCurrency(outOfStockUnit.price)}</span>
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 {added && (
                   <span
                     aria-hidden
@@ -1569,7 +1646,295 @@ function ItemSearch({
             );
           })}
         </ul>
+
+        {outOfStock && (
+          <OutOfStockModal
+            item={outOfStock.item}
+            unit={outOfStock.unit}
+            onDismiss={closeOutOfStock}
+            onError={setStockToast}
+            onAdded={(addedQuantity) => {
+              const updatedItem = {
+                ...outOfStock.item,
+                stock: (outOfStock.item.stock ?? 0) + addedQuantity * outOfStock.unit.qtyInBase,
+              };
+              setState((currentState) => ({
+                ...currentState,
+                results: currentState.results.map((item) =>
+                  item.id === updatedItem.id ? updatedItem : item,
+                ),
+              }));
+              onSelect(updatedItem, outOfStock.unit, addedQuantity, rowRefs.current.get(updatedItem.id));
+              closeOutOfStock();
+            }}
+          />
+        )}
+        {stockToast && (
+          <Alert tone="error" className="fixed right-4 bottom-4 z-[60] max-w-sm shadow-lg">
+            {stockToast}
+          </Alert>
+        )}
       </CardBody>
     </Card>
+  );
+}
+
+function OutOfStockModal({
+  item,
+  unit,
+  onDismiss,
+  onError,
+  onAdded,
+}: {
+  item: CounterSearchResult;
+  unit: CounterUnit;
+  onDismiss: () => void;
+  onError: (message: string) => void;
+  onAdded: (quantity: number) => void;
+}) {
+  const t = useT();
+  const [source, setSource] = useState<"borrow" | "uncounted_old">("borrow");
+  const [quantity, setQuantity] = useState("1");
+  const [storeName, setStoreName] = useState("");
+  const [storeNames, setStoreNames] = useState<string[]>([]);
+  const [storesLoading, setStoresLoading] = useState(true);
+  const [storesLoadFailed, setStoresLoadFailed] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    void getBorrowStoreNames().then((result) => {
+      if (!active) return;
+      if (result.status === "success") setStoreNames(result.names);
+      else setStoresLoadFailed(true);
+      setStoresLoading(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    dialogRef.current?.querySelector<HTMLElement>("[data-modal-autofocus]")?.focus();
+  }, []);
+
+  const parsedQuantity = Number(quantity);
+  const valid =
+    Number.isInteger(parsedQuantity) &&
+    parsedQuantity >= 1 &&
+    (source !== "borrow" || storeName.trim().length > 0);
+  const storeListId = `borrow-stores-${item.id}`;
+  const details = [item.dosageForm, item.generic, item.manufacturer]
+    .filter((value): value is string => Boolean(value))
+    .join(" · ");
+  const unitLabel = `${unit.name}${unit.qtyInBase > 1 ? ` ×${unit.qtyInBase}` : ""} · ${formatCurrency(unit.price)}`;
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!valid || submitting) return;
+    setSubmitting(true);
+
+    let result: Awaited<ReturnType<typeof receiveStock>>;
+    try {
+      result = await receiveStock({
+        source_type: source,
+        ...(source === "borrow" ? { source_name: storeName.trim() } : {}),
+        paid_amount: 0,
+        paid_method: "cash",
+        items: [
+          {
+            variant_id: item.id,
+            unit_id: unit.id,
+            quantity: parsedQuantity,
+          },
+        ],
+      });
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
+      setSubmitting(false);
+      onError(error.message);
+      return;
+    }
+
+    if (result.status === "error") {
+      setSubmitting(false);
+      onError(result.message);
+      return;
+    }
+    if (result.status === "rejected") {
+      setSubmitting(false);
+      onError(result.problems.map((problem) => problem.message).join(" "));
+      return;
+    }
+
+    onAdded(parsedQuantity);
+  }
+
+  return (
+    <ModalShell
+      label={t("pos.addOutOfStockTitle")}
+      onDismiss={() => {
+        if (!submitting) onDismiss();
+      }}
+    >
+      <div
+        ref={dialogRef}
+        className="w-full max-w-md"
+        onKeyDown={(event) => {
+          event.stopPropagation();
+          if (event.key === "Escape") {
+            event.preventDefault();
+            if (!submitting) onDismiss();
+            return;
+          }
+          if (event.key === "Enter" && (event.target as HTMLElement).tagName !== "BUTTON") {
+            event.preventDefault();
+            formRef.current?.requestSubmit();
+            return;
+          }
+          if (event.key === "Tab") {
+            const focusable = Array.from(
+              dialogRef.current?.querySelectorAll<HTMLElement>(
+                'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+              ) ?? [],
+            ).filter((element) => element.offsetParent !== null);
+            if (focusable.length === 0) {
+              event.preventDefault();
+              return;
+            }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+              event.preventDefault();
+              last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+              event.preventDefault();
+              first.focus();
+            }
+          }
+        }}
+      >
+        <Card className="w-full">
+          <div className="flex items-start gap-4 border-b border-border px-5 py-4">
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-base font-semibold" title={item.name}>
+                {item.name}
+              </h2>
+              <p className="truncate text-xs text-muted" title={details}>
+                {details}
+              </p>
+              <p className="mt-1 truncate text-xs font-medium text-primary" title={unitLabel}>
+                {unitLabel}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onDismiss}
+              aria-label={t("common.close")}
+              disabled={submitting}
+              className="shrink-0 rounded-md p-1 text-muted hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          </div>
+          <CardBody>
+            <form ref={formRef} onSubmit={submit} className="space-y-4">
+              <div>
+                <label htmlFor="out-of-stock-source" className="mb-1 block text-sm font-medium">
+                  {t("pos.source")}
+                </label>
+                <select
+                  id="out-of-stock-source"
+                  data-modal-autofocus
+                  value={source}
+                  onChange={(event) => {
+                    if (event.target.value === "borrow" || event.target.value === "uncounted_old") {
+                      setSource(event.target.value);
+                    }
+                  }}
+                  className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm focus:border-primary focus:outline-2 focus:outline-primary/30"
+                >
+                  <option value="borrow" title={t("pos.sourceBorrow")}>
+                    {t("pos.sourceBorrow")}
+                  </option>
+                  <option value="uncounted_old" title={t("pos.sourceOldStock")}>
+                    {t("pos.sourceOldStock")}
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="out-of-stock-quantity" className="mb-1 block text-sm font-medium">
+                  {t("pos.quantity")} · {unit.name}
+                </label>
+                <input
+                  id="out-of-stock-quantity"
+                  type="number"
+                  min={1}
+                  step={1}
+                  inputMode="numeric"
+                  value={quantity}
+                  onChange={(event) => setQuantity(event.target.value)}
+                  className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm focus:border-primary focus:outline-2 focus:outline-primary/30"
+                />
+              </div>
+
+              {source === "borrow" && (
+                <div>
+                  <label htmlFor="out-of-stock-store" className="mb-1 block text-sm font-medium">
+                    {t("pos.storeName")}
+                  </label>
+                  <input
+                    id="out-of-stock-store"
+                    type="text"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-controls={storeListId}
+                    aria-expanded={storeNames.length > 0}
+                    aria-required="true"
+                    list={storeListId}
+                    value={storeName}
+                    onChange={(event) => setStoreName(event.target.value)}
+                    maxLength={100}
+                    autoComplete="off"
+                    title={storeName || t("pos.storeName")}
+                    className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm focus:border-primary focus:outline-2 focus:outline-primary/30"
+                  />
+                  <datalist id={storeListId}>
+                    {storeNames.map((name) => (
+                      <option key={name} value={name} />
+                    ))}
+                  </datalist>
+                  {storesLoading && (
+                    <p className="mt-1 text-xs text-muted">{t("pos.borrowStoresLoading")}</p>
+                  )}
+                  {storesLoadFailed && (
+                    <p className="mt-1 text-xs text-warning">{t("pos.borrowStoresFailed")}</p>
+                  )}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={submitting}
+                  onClick={onDismiss}
+                  title={t("common.cancel")}
+                >
+                  {t("common.cancel")}
+                </Button>
+                <Button type="submit" disabled={!valid || submitting}>
+                  {submitting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+                  {submitting ? t("pos.savingToBasket") : t("pos.addToBasket")}
+                </Button>
+              </div>
+            </form>
+          </CardBody>
+        </Card>
+      </div>
+    </ModalShell>
   );
 }

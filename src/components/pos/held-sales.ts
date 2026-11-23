@@ -27,7 +27,8 @@ export interface HeldLine {
   stockAtAdd: number;
   quantity: number;
   minimumPrice?: number | null;
-  discountPercent?: string;
+  stockSource?: "old_stock" | "borrowed";
+  sourceStoreName?: string;
 }
 
 /**

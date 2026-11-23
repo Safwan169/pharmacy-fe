@@ -7,7 +7,14 @@ import type { CheckoutItemFailure, DiscountType, PaymentMethod, Sale } from "@/t
 import { getT } from "@/i18n/server";
 
 export interface CheckoutRequest {
-  items: { variant_id: number; unit_id: number; quantity: number; name: string; discount_percent?: number }[];
+  items: {
+    variant_id: number;
+    unit_id: number;
+    quantity: number;
+    name: string;
+    stock_source?: "old_stock" | "borrowed";
+    source_store_name?: string;
+  }[];
   discount?: { type: DiscountType; value: number };
   payment_method: PaymentMethod;
   amount_tendered?: number;
@@ -49,11 +56,12 @@ export async function checkout(request: CheckoutRequest): Promise<CheckoutResult
       method: "POST",
       auth: true,
       body: {
-        items: request.items.map(({ variant_id, unit_id, quantity, discount_percent }) => ({
+        items: request.items.map(({ variant_id, unit_id, quantity, stock_source, source_store_name }) => ({
           variant_id,
           unit_id,
           quantity,
-          ...(discount_percent === undefined ? {} : { discount_percent }),
+          ...(stock_source ? { stock_source } : {}),
+          ...(source_store_name ? { source_store_name } : {}),
         })),
         ...(request.discount ? { discount: request.discount } : {}),
         payment_method: request.payment_method,

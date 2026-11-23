@@ -180,6 +180,8 @@ export interface StockReceiptItem {
 export interface StockReceipt {
   id: number;
   receiptNumber: string;
+  sourceType: "supplier" | "borrow" | "uncounted_old";
+  sourceName: string | null;
   supplierId: number | null;
   supplier: Supplier | null;
   supplierInvoiceNo: string | null;
@@ -290,6 +292,8 @@ export interface SaleItem {
   /** How many of `quantity` have come back. */
   returnedQuantity: number;
   lineTotal: number;
+  stockSource: "tracked" | "old_stock" | "borrowed";
+  sourceStoreName: string | null;
 }
 
 export const PAYMENT_METHODS = ["cash", "bkash", "due"] as const;

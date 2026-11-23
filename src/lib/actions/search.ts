@@ -139,7 +139,7 @@ export async function searchForCounter(
   const query = term.trim();
   if (query.length < 1) return [];
 
-  const found = await sellableMatches(query);
+  const found = await counterMatches(query);
   if (found.length > 0) return found;
 
   // Nothing matched: try again on a shorter stem, so a slip like "nappa" or a
@@ -147,25 +147,16 @@ export async function searchForCounter(
   const words = query.split(/\s+/);
   const stem = words[0].slice(0, Math.max(3, words[0].length - 2));
   if (stem.length < 3 || stem === query) return [];
-  return sellableMatches(stem);
+  return counterMatches(stem);
 }
 
 /**
- * The counter offers only what it can actually ring up.
- *
- * One brand is a dozen catalogue rows — every strength, every form the
- * manufacturer makes — and typing "napa" used to answer with eight of them
- * marked "no price set" before the two boxes on the shelf. The catalogue is
- * where those are looked up; this is where medicine is sold.
+ * The counter lists active catalogue matches, including medicines that have
+ * no stock yet, so stock can be received without leaving the sale.
  */
-async function sellableMatches(search: string): Promise<CounterSearchResult[]> {
-  const result = await listVariants({
-    search,
-    status: "active",
-    pricing_status: "set",
-    limit: 20,
-  });
-  return result.data.map(toResult).filter(isSellable);
+async function counterMatches(search: string): Promise<CounterSearchResult[]> {
+  const result = await listVariants({ search, status: "active", limit: 20 });
+  return result.data.map(toResult);
 }
 
 function toResult(variant: ProductVariant): CounterSearchResult {

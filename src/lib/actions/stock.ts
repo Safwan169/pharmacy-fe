@@ -9,7 +9,10 @@ import {
   getVariantByBarcode,
   listVariants,
 } from "@/lib/api/catalogue";
-import { listSuppliers } from "@/lib/api/stock";
+import {
+  listBorrowStoreNames as fetchBorrowStoreNames,
+  listSuppliers,
+} from "@/lib/api/stock";
 import type {
   ProductVariant,
   StockReceipt,
@@ -137,6 +140,8 @@ export interface ReceiveLineInput {
 }
 
 export interface ReceiveRequest {
+  source_type?: "supplier" | "borrow" | "uncounted_old";
+  source_name?: string;
   supplier_id?: number;
   supplier_invoice_no?: string;
   received_at?: string;
@@ -259,6 +264,21 @@ export async function receiveStock(request: ReceiveRequest): Promise<ReceiveResu
               ? t("receive.paidTooMuch")
               : error.message,
       };
+    }
+    throw error;
+  }
+}
+
+export type BorrowStoreNamesResult =
+  | { status: "success"; names: string[] }
+  | { status: "error"; message: string };
+
+export async function getBorrowStoreNames(): Promise<BorrowStoreNamesResult> {
+  try {
+    return { status: "success", names: await fetchBorrowStoreNames() };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return { status: "error", message: error.message };
     }
     throw error;
   }
