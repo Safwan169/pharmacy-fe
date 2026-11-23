@@ -195,7 +195,11 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
           line.variantId !== item.id
             ? line
             : line.unitId === unit.id
-              ? { ...line, quantity: line.quantity + quantity }
+              ? {
+                  ...line,
+                  quantity: line.quantity + quantity,
+                  stockAtAdd: Math.max(line.stockAtAdd, item.stock ?? 0),
+                }
               : {
                   ...line,
                   unitId: unit.id,
@@ -204,6 +208,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
                   unitPrice: unit.price,
                   nextPrice: unit.nextPrice,
                   quantity,
+                  stockAtAdd: Math.max(line.stockAtAdd, item.stock ?? 0),
                 },
         );
       }
