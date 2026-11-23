@@ -150,6 +150,25 @@ export async function searchForCounter(
   return counterMatches(stem);
 }
 
+export type CounterItemLookup =
+  | { status: "success"; item: CounterSearchResult }
+  | { status: "error"; message: string };
+
+export async function getCounterItemById(id: number): Promise<CounterItemLookup> {
+  const t = await getT();
+  if (!Number.isInteger(id) || id < 1) {
+    return { status: "error", message: t("action.reload") };
+  }
+  try {
+    return { status: "success", item: toResult(await getVariant(id)) };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return { status: "error", message: error.message };
+    }
+    throw error;
+  }
+}
+
 /**
  * The counter lists active catalogue matches, including medicines that have
  * no stock yet, so stock can be received without leaving the sale.

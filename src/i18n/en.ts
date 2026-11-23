@@ -413,6 +413,8 @@ export const en = {
   "pos.addOutOfStockTitle": "Add out-of-stock item",
   "pos.addMoreSourceTitle": "Receive more stock",
   "pos.addMoreFromSource": "Add more using a source",
+  "pos.stockIn": "Stock in",
+  "pos.stockInPriceRequired": "Set a price for this medicine before stocking it in from the counter.",
   "pos.source": "Source",
   "pos.sourceBorrow": "Borrow",
   "pos.sourceOldStock": "Uncounted old stock",

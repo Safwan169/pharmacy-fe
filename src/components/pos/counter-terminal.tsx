@@ -38,6 +38,7 @@ import { ModalShell } from "@/components/ui/modal";
 import { Flights, useFlights } from "@/components/ui/flight";
 import {
   pairBarcode,
+  getCounterItemById,
   scanBarcode,
   searchForCounter,
   type CounterSearchResult,
@@ -710,14 +711,32 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
                             </p>
                           )}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removeItem(line.variantId)}
-                          aria-label={t("pos.removeLine", { name: line.name })}
-                          className="rounded-md p-1 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
-                        >
-                          <Trash2 className="h-4 w-4" aria-hidden />
-                        </button>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            data-pos-action
+                            onClick={(event) => {
+                              void searchHandle.current?.openSource(
+                                line.variantId,
+                                line.unitId,
+                                event.currentTarget,
+                              );
+                            }}
+                            aria-label={`${t("pos.stockIn")} ${line.name}`}
+                            title={t("pos.stockIn")}
+                            className="inline-flex h-8 items-center rounded-lg border border-border bg-surface px-2.5 text-xs font-medium text-muted transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                          >
+                            {t("pos.stockIn")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeItem(line.variantId)}
+                            aria-label={t("pos.removeLine", { name: line.name })}
+                            className="rounded-md p-1 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+                          >
+                            <Trash2 className="h-4 w-4" aria-hidden />
+                          </button>
+                        </div>
                       </div>
 
                       <div className="mt-2 flex items-center justify-between gap-3">
@@ -1055,6 +1074,7 @@ export interface SearchHandle {
   hasResults(): boolean;
   move(delta: number): void;
   cycleUnit(): void;
+  openSource(variantId: number, unitId: number, from?: HTMLElement): Promise<void>;
   /** Adds the highlighted medicine. True when something was added. */
   commit(): boolean;
   type(char: string): void;
@@ -1125,6 +1145,7 @@ function ItemSearch({
   const [stockToast, setStockToast] = useState<string | null>(null);
   const rowRefs = useRef(new Map<number, HTMLLIElement>());
   const focusReturnId = useRef<number | null>(null);
+  const focusReturnElement = useRef<HTMLElement | null>(null);
   // Read once on the client: the server cannot know what this browser can do.
   const [hasCamera, setHasCamera] = useState(false);
   useEffect(() => {
@@ -1145,10 +1166,20 @@ function ItemSearch({
     return () => clearTimeout(timer);
   }, [stockToast]);
   useEffect(() => {
-    if (outOfStock !== null || focusReturnId.current === null) return;
+    if (
+      outOfStock !== null ||
+      (focusReturnId.current === null && focusReturnElement.current === null)
+    ) {
+      return;
+    }
     const id = focusReturnId.current;
     focusReturnId.current = null;
-    requestAnimationFrame(() => rowRefs.current.get(id)?.focus());
+    const element = focusReturnElement.current;
+    focusReturnElement.current = null;
+    requestAnimationFrame(() => {
+      if (element?.isConnected) element.focus();
+      else if (id !== null) rowRefs.current.get(id)?.focus();
+    });
   }, [outOfStock]);
 
   const closeOutOfStock = useCallback(() => {
@@ -1156,7 +1187,13 @@ function ItemSearch({
     focusReturnId.current = outOfStock.item.id;
     setOutOfStock(null);
   }, [outOfStock]);
-  const openSourceModal = useCallback((item: CounterSearchResult, unit: CounterUnit) => {
+  const openSourceModal = useCallback((
+    item: CounterSearchResult,
+    unit: CounterUnit,
+    from?: HTMLElement,
+  ) => {
+    focusReturnId.current = item.id;
+    focusReturnElement.current = from ?? rowRefs.current.get(item.id) ?? null;
     setStockToast(null);
     setOutOfStock({ item, unit });
   }, []);
@@ -1297,7 +1334,7 @@ function ItemSearch({
   const activate = useCallback(
     (item: CounterSearchResult, unit: CounterUnit, qty: number, from?: HTMLElement) => {
       if ((item.stock ?? 0) <= 0) {
-        openSourceModal(item, unit);
+        openSourceModal(item, unit, from);
         return;
       }
       choose(item, unit, qty, from);
@@ -1309,9 +1346,9 @@ function ItemSearch({
   // whether the cashier last touched the search box, a tile or the basket.
   // The handle reads through a ref of the latest render, which keeps it stable
   // without going stale.
-  const latest = useRef({ row, cursor, current, currentUnit, quantity, actionableRows, activate });
+  const latest = useRef({ row, cursor, current, currentUnit, quantity, actionableRows, results, activate });
   useEffect(() => {
-    latest.current = { row, cursor, current, currentUnit, quantity, actionableRows, activate };
+    latest.current = { row, cursor, current, currentUnit, quantity, actionableRows, results, activate };
   });
 
   useEffect(() => {
@@ -1351,6 +1388,26 @@ function ItemSearch({
           }));
         }
       },
+      async openSource(variantId, unitId, from) {
+        let item = latest.current.results.find((result) => result.id === variantId);
+        if (!item) {
+          const lookup = await getCounterItemById(variantId);
+          if (lookup.status === "error") {
+            setStockToast(lookup.message);
+            return;
+          }
+          item = lookup.item;
+        }
+        const unit =
+          item.units.find((candidate) => candidate.id === unitId) ??
+          item.units.find((candidate) => candidate.isDefault) ??
+          item.units[0];
+        if (!unit) {
+          setStockToast(t("pos.stockInPriceRequired"));
+          return;
+        }
+        openSourceModal(item, unit, from);
+      },
       commit() {
         const { current: item, currentUnit: unit, quantity: qty, activate: activateRow } = latest.current;
         if (item === undefined || unit === undefined) return false;
@@ -1364,7 +1421,7 @@ function ItemSearch({
     return () => {
       handle.current = null;
     };
-  }, [activate, applyTerm, choose, handleRef, inputRef]);
+  }, [activate, applyTerm, choose, handleRef, inputRef, openSourceModal, t]);
 
   return (
     <Card>
@@ -1600,12 +1657,12 @@ function ItemSearch({
                     type="button"
                     data-pos-action
                     title={t("pos.addMoreFromSource")}
-                    onClick={() => {
+                    onClick={(event) => {
                       const unit =
                         current?.id === item.id
                           ? currentUnit
                           : item.units.find((candidate) => candidate.isDefault) ?? item.units[0];
-                      if (unit) openSourceModal(item, unit);
+                      if (unit) openSourceModal(item, unit, event.currentTarget);
                     }}
                     className="mt-2 inline-flex h-8 max-w-full items-center rounded-lg border border-border bg-surface px-3 text-xs font-medium text-muted transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                   >
