@@ -21,7 +21,7 @@ export async function forgetBarcode(variantId: number, barcodeId: number): Promi
 export interface PricingState {
   status: "idle" | "success" | "error";
   message?: string;
-  errors?: { price?: string; stock_quantity?: string; units?: string; reorder_level?: string; mrp?: string };
+  errors?: { price?: string; stock_quantity?: string; units?: string; reorder_level?: string; mrp?: string; minimum_price?: string };
 }
 
 /**
@@ -50,6 +50,7 @@ export async function updatePricing(
     stock_note?: string;
     reorder_level?: number | null;
     mrp?: number | null;
+    minimum_price?: number | null;
     units?: Array<{
       name: string;
       qty_in_base: number;
@@ -118,11 +119,20 @@ export async function updatePricing(
     else return { status: "error", errors: { mrp: t("pricingAction.mrpNumber") } };
   }
 
+  const minimumPriceRaw = String(formData.get("minimum_price") ?? "").trim();
+  const minimumPriceWas = String(formData.get("minimum_price_was") ?? "").trim();
+  if (minimumPriceRaw !== minimumPriceWas) {
+    if (minimumPriceRaw === "") body.minimum_price = null;
+    else if (/^\d{1,8}(\.\d{1,2})?$/.test(minimumPriceRaw)) body.minimum_price = Number(minimumPriceRaw);
+    else return { status: "error", errors: { minimum_price: t("pricingAction.minimumPriceNumber") } };
+  }
+
   if (
     body.units === undefined &&
     body.stock_quantity === undefined &&
     body.reorder_level === undefined &&
-    body.mrp === undefined
+    body.mrp === undefined &&
+    body.minimum_price === undefined
   ) {
     return {
       status: "error",

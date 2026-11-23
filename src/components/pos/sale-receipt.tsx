@@ -6,7 +6,7 @@ import { CircleCheck, Download, Plus, Printer, Undo2 } from "lucide-react";
 import { Card, CardBody } from "@/components/ui/card";
 import { ModalShell } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatWholeCurrency } from "@/lib/utils";
 import type { PaymentMethod, Sale } from "@/types";
 import { useT } from "@/i18n/client";
 import { PAYMENT_METHOD_KEYS } from "@/i18n";
@@ -105,11 +105,11 @@ export function SaleReceipt({
                   : t("receipt.paid")}
             </p>
             <p className="text-3xl font-semibold tabular-nums">
-              {formatCurrency(change !== null && change > 0 ? change : sale.totalAmount)}
+              {formatWholeCurrency(change !== null && change > 0 ? change : sale.totalAmount)}
             </p>
             <p className="mt-1 text-xs text-muted">
               {change !== null && change > 0
-                ? t("receipt.ofTotal", { amount: formatCurrency(sale.totalAmount) })
+                ? t("receipt.ofTotal", { amount: formatWholeCurrency(sale.totalAmount) })
                 : method
                   ? t(method)
                   : sale.paymentMethod}
@@ -119,27 +119,23 @@ export function SaleReceipt({
           <dl className="space-y-1 text-sm">
             {sale.discountAmount > 0 && (
               <>
-                <Row label={t("pos.subtotal")} value={formatCurrency(sale.subtotal)} />
+                <Row label={t("pos.subtotal")} value={formatWholeCurrency(sale.subtotal)} />
                 <Row
-                  label={
-                    t("pos.discount") +
-                    (sale.discountType === "percentage" && sale.discountValue
-                      ? ` (${sale.discountValue}%)`
-                      : "")
-                  }
-                  value={`−${formatCurrency(sale.discountAmount)}`}
+                  label={t("pos.discount")}
+                  value={`−${formatWholeCurrency(sale.discountAmount)}`}
                   tone="success"
                 />
               </>
             )}
+            <Row label={t("receipt.paidAtCheckout")} value={formatWholeCurrency(sale.paidAmount)} />
             {change !== null && sale.amountTendered !== null && (
-              <Row label={t("payment.cashGiven")} value={formatCurrency(sale.amountTendered)} />
+              <Row label={t("payment.cashGiven")} value={formatWholeCurrency(sale.amountTendered)} />
             )}
             {onAccount && sale.customer && (
               <Row
                 label={t("receipt.customer")}
                 value={`${sale.customer.name} · ${t("receipt.owes", {
-                  amount: formatCurrency(sale.customer.dueBalance),
+                  amount: formatWholeCurrency(sale.customer.dueBalance),
                 })}`}
               />
             )}

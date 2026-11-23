@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Banknote, Plus, Smartphone, UserRound } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { quickAddCustomer, searchCustomers } from "@/lib/actions/customers";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatWholeCurrency } from "@/lib/utils";
 import type { Customer, PaymentMethod } from "@/types";
 import { useT } from "@/i18n/client";
 
@@ -44,7 +44,7 @@ export function PaymentPanel({
   useEffect(() => {
     if (value.method !== "cash") return;
     const n = Number(tendered);
-    onChange({ ...value, amountTendered: tendered && !Number.isNaN(n) ? n : undefined });
+    onChange({ ...value, amountTendered: tendered && !Number.isNaN(n) ? Math.round(n) : undefined });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tendered]);
 
@@ -57,12 +57,14 @@ export function PaymentPanel({
   useEffect(() => {
     if (value.method !== "due") return;
     const n = Number(now);
-    onChange({ ...value, paidNow: now && !Number.isNaN(n) && n > 0 ? n : undefined });
+    onChange({ ...value, paidNow: now && !Number.isNaN(n) && n > 0 ? Math.round(n) : undefined });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [now]);
 
   const tenderedNum = Number(tendered);
-  const change = tendered && !Number.isNaN(tenderedNum) ? tenderedNum - total : null;
+  const change = tendered && !Number.isNaN(tenderedNum)
+    ? Math.round(tenderedNum) - Math.round(total)
+    : null;
   const quick = suggestNotes(total);
 
   return (
@@ -82,10 +84,10 @@ export function PaymentPanel({
             </label>
             <Input
               id="tendered"
-              inputMode="decimal"
+              inputMode="numeric"
               value={tendered}
               onChange={(e) => setTendered(e.target.value)}
-              placeholder={formatCurrency(total)}
+              placeholder={formatWholeCurrency(total)}
               className="tabular-nums"
             />
           </div>
@@ -104,8 +106,8 @@ export function PaymentPanel({
           {change !== null && (
             <p className={cn("text-sm", change < 0 ? "text-danger" : "text-success")}>
               {change < 0
-                ? t("payment.shortBy", { amount: formatCurrency(-change) })
-                : t("payment.changeBack", { amount: formatCurrency(change) })}
+                ? t("payment.shortBy", { amount: formatWholeCurrency(-change) })
+                : t("payment.changeBack", { amount: formatWholeCurrency(change) })}
             </p>
           )}
         </div>
@@ -157,7 +159,7 @@ function PartPayment({
   const t = useT();
   const typed = Number(amount);
   const entered = amount.trim() !== "" && Number.isFinite(typed) && typed > 0;
-  const left = Math.round((total - typed) * 100) / 100;
+  const left = Math.round(total) - Math.round(typed);
 
   return (
     <div className="space-y-2 rounded-lg border border-border bg-background p-3">
@@ -167,7 +169,7 @@ function PartPayment({
       <div className="grid grid-cols-[1fr_auto] gap-2">
         <Input
           id="paid-now"
-          inputMode="decimal"
+          inputMode="numeric"
           value={amount}
           onChange={(e) => onAmount(e.target.value)}
           placeholder="0"
@@ -198,7 +200,7 @@ function PartPayment({
       ) : typed >= total ? (
         <p className="text-xs text-warning">{t("payment.payingNowIsAll")}</p>
       ) : (
-        <p className="text-xs text-muted">{t("payment.stillOwed", { amount: formatCurrency(left) })}</p>
+        <p className="text-xs text-muted">{t("payment.stillOwed", { amount: formatWholeCurrency(left) })}</p>
       )}
     </div>
   );

@@ -33,6 +33,8 @@ interface Line {
   units: { id: number; name: string; qtyInBase: number; price: number | null; isSellable: boolean }[];
   /** MRP printed on the pack, per base unit, and for a full pack. */
   mrp: number | null;
+  minimumPrice: number | null;
+  minimumPriceValue: string;
   packMrp: number | null;
   packSize: number | null;
   /** Sellable base units already on the shelf when the line was added. */
@@ -182,6 +184,8 @@ export function ReceiveForm({
         baseUnit: item.baseUnit,
         units: item.units,
         mrp: item.mrp,
+        minimumPrice: item.minimumPrice,
+        minimumPriceValue: item.minimumPrice === null ? "" : String(item.minimumPrice),
         packMrp: item.packMrp,
         packSize: item.packSize,
         stockBefore: item.stock ?? 0,
@@ -270,10 +274,16 @@ export function ReceiveForm({
      // already on the shelf. A typed value still has to be a number.
     if (l.unitCost !== "" && (Number.isNaN(cost) || cost < 0)) return t("receive.errCost");
     if (l.expiryMonth && !endOfMonth(l.expiryMonth)) return t("receive.errExpiry");
+    const minimumPrice = l.minimumPriceValue.trim() === "" ? null : Number(l.minimumPriceValue);
+    if (minimumPrice !== null && (!Number.isFinite(minimumPrice) || minimumPrice < 0)) return t("receive.minimumPriceNumber");
+    const currentMrp = l.mrpRevised ? basePrice(l) ?? l.mrp : l.mrp;
+    if (minimumPrice !== null && currentMrp !== null && minimumPrice > currentMrp) return t("receive.minimumPriceAboveMrp");
     for (const row of l.sellRows) {
       if (row.price === "") continue;
       const p = Number(row.price);
       if (!Number.isFinite(p) || p < 0) return t("receive.errSellPrice", { unit: row.name });
+      if (minimumPrice !== null && p / row.qtyInBase + 0.001 < minimumPrice) return t("receive.minimumPriceAboveSellPrice", { unit: row.name });
+      if (minimumPrice !== null && l.priceWhen === "after_old_stock" && row.current !== null && row.current / row.qtyInBase + 0.001 < minimumPrice) return t("receive.minimumPriceAboveSellPrice", { unit: row.name });
     }
     if (l.sellRows.every((r) => r.price === "" && r.current === null)) return t("receive.errNoPrice");
     return undefined;
@@ -304,12 +314,14 @@ export function ReceiveForm({
 
   /** Only prices that were typed and actually differ from today's go out. */
   function sellPricePayload(l: Line) {
+    const minimumPrice = l.minimumPriceValue.trim() === "" ? null : Number(l.minimumPriceValue);
+    const minimumPriceChanged = minimumPrice !== l.minimumPrice;
     const changed = l.sellRows
       .filter((r) => r.price !== "" && Number(r.price) !== r.current)
       .map((r) => ({ unit_name: r.name, qty_in_base: r.qtyInBase, price: Number(r.price) }));
     const newMrp = l.mrpRevised ? basePrice(l) : undefined;
-    if (changed.length === 0) return newMrp === undefined ? {} : { new_mrp: newMrp };
-    return { sell_prices: changed, price_when: l.priceWhen, ...(newMrp === undefined ? {} : { new_mrp: newMrp }) };
+    if (changed.length === 0) return { ...(newMrp === undefined ? {} : { new_mrp: newMrp }), ...(minimumPriceChanged ? { minimum_price: minimumPrice } : {}) };
+    return { sell_prices: changed, price_when: l.priceWhen, ...(newMrp === undefined ? {} : { new_mrp: newMrp }), ...(minimumPriceChanged ? { minimum_price: minimumPrice } : {}) };
   }
   /** The typed price of one base unit — which is what an MRP is quoted in. */
   function basePrice(l: Line): number | undefined {
@@ -746,6 +758,7 @@ function SellPriceBlock({
   const costPerBase = Number(line.unitCost) / (deliveredUnit?.qtyInBase ?? 1);
   const canMarkup = markupPercent !== null && costPerBase > 0;
   const changed = line.sellRows.some((r) => r.price !== "" && Number(r.price) !== r.current);
+  const minimumPriceChanged = (line.minimumPriceValue.trim() === "" ? null : Number(line.minimumPriceValue)) !== line.minimumPrice;
   const baseRow = line.sellRows.find((r) => r.qtyInBase === 1 && r.price !== "") ?? line.sellRows.find((r) => r.price !== "");
   const typedBase =
     baseRow === undefined ? undefined : Math.round((Number(baseRow.price) / baseRow.qtyInBase) * 100) / 100;
@@ -755,9 +768,32 @@ function SellPriceBlock({
     onChange({ sellRows: patch.price === undefined ? rows : propagate(rows, index) });
   }
 
+  function minimumPriceField() {
+    return (
+      <Field label={t("receive.minimumPriceLabel")} htmlFor={`minimum-price-${line.key}`} hint={t("receive.minimumPriceHint", { unit: line.baseUnit })}>
+        <Input
+          id={`minimum-price-${line.key}`}
+          inputMode="decimal"
+          value={line.minimumPriceValue}
+          placeholder={t("receive.minimumPriceNone")}
+          onChange={(event) => onChange({ minimumPriceValue: event.target.value })}
+          invalid={line.minimumPriceValue.trim() !== "" && (!Number.isFinite(Number(line.minimumPriceValue)) || Number(line.minimumPriceValue) < 0)}
+        />
+        {(() => {
+          const floor = Number(line.minimumPriceValue);
+          const printed = line.mrpRevised ? typedBase ?? line.mrp : line.mrp;
+          if (line.minimumPriceValue.trim() === "" || !Number.isFinite(floor) || floor < 0 || printed === null || printed <= 0) return null;
+          const percent = Math.max(0, ((printed - floor) / printed) * 100);
+              return <p className="mt-1 text-xs text-muted">{t("pricing.maximumDiscount", { percent: String(Math.round(percent)) })}</p>;
+        })()}
+      </Field>
+    );
+  }
+
   if (!line.pricesOpen) {
     const shown = changed ? line.sellRows.filter((r) => r.price !== "") : line.sellRows.filter((r) => r.current !== null);
     return (
+      <div className="space-y-2">
       <button
         type="button"
         onClick={() => onChange({ pricesOpen: true })}
@@ -773,8 +809,10 @@ function SellPriceBlock({
             ? t("receive.priceMissing")
             : shown.map((r) => `${r.name} ${formatCurrency(Number(changed ? r.price : r.current))}`).join(" · ")}
         </span>
-        <span className="shrink-0 font-medium">{changed ? "✓" : t("receive.changePrice")}</span>
+        <span className="shrink-0 font-medium">{changed || minimumPriceChanged ? "✓" : t("receive.changePrice")}</span>
       </button>
+      {minimumPriceField()}
+      </div>
     );
   }
 
@@ -833,7 +871,7 @@ function SellPriceBlock({
                   <span className="ml-auto truncate text-warning">{t("receive.aboveMrpShort")}</span>
                 ) : perBase !== null && costPerBase > 0 ? (
                   <span className="ml-auto truncate">
-                    {t("receive.marginIs", { percent: Math.round(((perBase - costPerBase) / costPerBase) * 100) })}
+                    {t("receive.marginIs", { percent: String(Math.round(((perBase - costPerBase) / costPerBase) * 100)) })}
                   </span>
                 ) : null}
               </div>
@@ -851,6 +889,8 @@ function SellPriceBlock({
           );
         })}
       </div>
+
+      {minimumPriceField()}
 
       {typedBase !== undefined && line.mrp !== null && Math.abs(typedBase - line.mrp) > 0.005 && (
         <label className="flex items-center gap-2 text-xs">

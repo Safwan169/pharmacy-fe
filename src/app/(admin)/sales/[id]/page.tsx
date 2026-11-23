@@ -167,12 +167,7 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
 
               {sale.discountAmount > 0 ? (
                 <div className="flex justify-between text-success">
-                  <dt>
-                    {t("pos.discount")}
-                    {sale.discountType === "percentage" && sale.discountValue !== null
-                      ? ` (${sale.discountValue}%)`
-                      : ""}
-                  </dt>
+                  <dt>{t("pos.discount")}</dt>
                   <dd className="tabular-nums">
                     −{formatCurrency(sale.discountAmount)}
                   </dd>
@@ -187,6 +182,10 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
               <div className="flex justify-between border-t border-border pt-2 text-base font-semibold">
                 <dt>{t("sale.totalPaid")}</dt>
                 <dd className="tabular-nums">{formatCurrency(sale.totalAmount)}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted">{t("receipt.paidAtCheckout")}</dt>
+                <dd className="tabular-nums">{formatCurrency(sale.paidAmount)}</dd>
               </div>
 
               {refunded > 0 && (

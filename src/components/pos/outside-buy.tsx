@@ -13,7 +13,7 @@ import {
   searchOutside,
   type CounterSearchResult,
 } from "@/lib/actions/search";
-import { formatCurrency } from "@/lib/utils";
+import { formatWholeCurrency } from "@/lib/utils";
 import type { Supplier } from "@/types";
 import { useT } from "@/i18n/client";
 
@@ -230,7 +230,7 @@ function OutsideBuyDialog({
 
           {owed > 0 && shop !== null && (
             <p className="rounded-lg bg-background p-3 text-xs text-muted">
-              {t("pos.outsideOwed", { amount: formatCurrency(owed), name: shop.name })}
+              {t("pos.outsideOwed", { amount: formatWholeCurrency(owed), name: shop.name })}
             </p>
           )}
 

@@ -203,6 +203,7 @@ export default async function VariantDetailPage({
                 stock={variant.stockQuantity}
                 reorderLevel={variant.reorderLevel}
                 mrp={variant.mrp}
+                minimumPrice={variant.minimumPrice}
               />
             </CardBody>
           </Card>

@@ -3,7 +3,7 @@
 import { useActionState, useMemo, useState } from "react";
 import { Lock, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { updatePricing, type PricingState } from "@/lib/actions/pricing";
-import { Field, Input } from "@/components/ui/input";
+import { Field, Input, Select } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { useResultPopup } from "@/lib/popup";
@@ -20,6 +20,7 @@ const initialState: PricingState = { status: "idle" };
 interface Row {
   key: number;
   name: string;
+  customUnit: boolean;
   qtyInBase: string;
   price: string;
   isSellable: boolean;
@@ -36,6 +37,8 @@ interface Row {
    */
   priceManual: boolean;
 }
+
+const COMMON_UNITS = ["tablet", "capsule", "strip", "blister", "box", "pack", "bottle", "carton", "sachet", "vial", "tube", "jar"];
 
 /** Pro-rata price for `qty` base units, rounded up to the nearest ৳0.50. */
 function priceFor(perBase: number, qty: number): string {
@@ -71,6 +74,7 @@ export function PricingForm({
   stock,
   reorderLevel,
   mrp,
+  minimumPrice,
 }: {
   variantId: number;
   baseUnit: string;
@@ -79,9 +83,11 @@ export function PricingForm({
   stock: number | null;
   reorderLevel: number | null;
   mrp: number | null;
+  minimumPrice: number | null;
 }) {
   const [state, formAction, pending] = useActionState(updatePricing, initialState);
   const t = useT();
+  const [mrpValue, setMrpValue] = useState(mrp === null ? "" : String(mrp));
 
   // The form is long; the message at its top is off screen by the time the
   // shop presses save, so it also comes up in the middle of the screen.
@@ -92,6 +98,7 @@ export function PricingForm({
       ? units.map((u, i) => ({
           key: i,
           name: u.name,
+          customUnit: !COMMON_UNITS.includes(u.name.toLowerCase()),
           qtyInBase: String(u.qtyInBase),
           price: u.price === null ? "" : String(u.price),
           isSellable: u.isSellable,
@@ -103,6 +110,7 @@ export function PricingForm({
           (u, i) => ({
             key: i,
             name: u.name,
+            customUnit: !COMMON_UNITS.includes(u.name.toLowerCase()),
             qtyInBase: String(u.qty_in_base),
             price: "",
             isSellable: u.is_sellable,
@@ -112,6 +120,7 @@ export function PricingForm({
           }),
         ),
   );
+  const [minimumPriceValue, setMinimumPriceValue] = useState(minimumPrice === null ? "" : String(minimumPrice));
   const [unitsChanged, setUnitsChanged] = useState(units.length === 0);
   const nextKey = useMemo(() => () => Math.max(0, ...rows.map((r) => r.key)) + 1, [rows]);
 
@@ -138,10 +147,13 @@ export function PricingForm({
 
   function add() {
     setUnitsChanged(true);
-    setRows((current) => [
-      ...current,
-      { key: nextKey(), name: "", qtyInBase: "", price: "", isSellable: true, isDefault: false, isBase: false, priceManual: false },
-    ]);
+    setRows((current) => {
+      const name = COMMON_UNITS.find((unit) => !current.some((row) => row.name.toLowerCase() === unit)) ?? "";
+      return [
+        ...current,
+        { key: nextKey(), name, customUnit: name === "", qtyInBase: "", price: "", isSellable: true, isDefault: false, isBase: false, priceManual: false },
+      ];
+    });
   }
 
   /** A typed price is the shop's own; the untouched rows re-price from it at once. */
@@ -241,12 +253,26 @@ export function PricingForm({
                   </div>
                 ) : (
                   <div className="grid grid-cols-[1fr_5rem] gap-2">
-                    <Input
-                      aria-label={t("pricing.unitName")}
-                      value={row.name}
-                      placeholder="strip"
-                      onChange={(e) => update(row.key, { name: e.target.value })}
-                    />
+                    <div className="space-y-1">
+                      <Select
+                        aria-label={t("pricing.unitName")}
+                        value={row.customUnit ? "other" : row.name.toLowerCase()}
+                        onChange={(e) => update(row.key, e.target.value === "other"
+                          ? { customUnit: true, name: "" }
+                          : { customUnit: false, name: e.target.value })}
+                      >
+                        {COMMON_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+                        <option value="other">{t("pricing.customUnit")}</option>
+                      </Select>
+                      {row.customUnit && (
+                        <Input
+                          aria-label={t("pricing.customUnitName")}
+                          value={row.name}
+                          placeholder={t("pricing.customUnitName")}
+                          onChange={(e) => update(row.key, { name: e.target.value })}
+                        />
+                      )}
+                    </div>
                     <Input
                       aria-label={t("pricing.howMany", { unit: pluralise(baseUnit, 2) })}
                       inputMode="numeric"
@@ -383,11 +409,39 @@ export function PricingForm({
           name="mrp"
           type="text"
           inputMode="decimal"
-          defaultValue={mrp ?? ""}
+          value={mrpValue}
+          onChange={(event) => setMrpValue(event.target.value)}
           placeholder={t("pricing.mrpNone")}
           autoComplete="off"
           invalid={!!state.errors?.mrp}
         />
+      </Field>
+
+      <Field
+        label={t("pricing.minimumPriceLabel")}
+        htmlFor="minimum_price"
+        error={state.errors?.minimum_price}
+        hint={t("pricing.minimumPriceHint", { unit: baseUnit })}
+      >
+        <input type="hidden" name="minimum_price_was" value={minimumPrice ?? ""} />
+        <Input
+          id="minimum_price"
+          name="minimum_price"
+          type="text"
+          inputMode="decimal"
+          value={minimumPriceValue}
+          onChange={(event) => setMinimumPriceValue(event.target.value)}
+          placeholder={t("pricing.minimumPriceNone")}
+          autoComplete="off"
+          invalid={!!state.errors?.minimum_price}
+        />
+        {(() => {
+          const floor = Number(minimumPriceValue);
+          const printed = Number(mrpValue);
+          if (minimumPriceValue.trim() === "" || !Number.isFinite(floor) || floor < 0 || mrpValue.trim() === "" || !Number.isFinite(printed) || printed <= 0) return null;
+          const percent = Math.max(0, ((printed - floor) / printed) * 100);
+          return <p className="mt-1 text-xs text-muted">{t("pricing.maximumDiscount", { percent: String(Math.round(percent)) })}</p>;
+        })()}
       </Field>
 
       <Field

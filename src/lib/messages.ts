@@ -38,6 +38,8 @@ const VALIDATION_PATTERNS: { test: RegExp; key: MessageKey }[] = [
   { test: /price.*maxDecimalPlaces|maxDecimalPlaces.*price/i, key: "api.priceDecimals" },
   { test: /price must not be greater than/i, key: "api.priceTooHigh" },
   { test: /price must not be less than 0|price.*must not be less than/i, key: "api.priceNegative" },
+  { test: /minimum_price cannot be greater than the selling price/i, key: "api.minimumPriceOverSellingPrice" },
+  { test: /minimum_price cannot be greater than MRP/i, key: "api.minimumPriceOverMrp" },
   { test: /stock_quantity must be an integer/i, key: "api.stockInteger" },
   { test: /stock_quantity must not be less than 0/i, key: "api.stockNegative" },
   { test: /at least one of price or stock_quantity/i, key: "api.priceOrStock" },
@@ -107,6 +109,7 @@ export function humaniseCheckoutFailure(
     not_found: "checkout.not_found",
     inactive: "checkout.inactive",
     not_priced: "checkout.not_priced",
+    minimum_price: "checkout.minimum_price",
     unit_not_found: "checkout.unit_not_found",
     unit_not_sellable: "checkout.unit_not_sellable",
     insufficient_stock:

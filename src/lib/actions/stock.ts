@@ -132,6 +132,8 @@ export interface ReceiveLineInput {
   price_when?: "now" | "after_old_stock";
   /** New MRP printed on these packs, per base unit. */
   new_mrp?: number;
+  /** Lowest selling price per base unit; null removes the limit. */
+  minimum_price?: number | null;
 }
 
 export interface ReceiveRequest {
@@ -308,6 +310,7 @@ async function receiveResults(variants: ProductVariant[]) {
     baseUnit: v.baseUnit,
     stock: v.stockQuantity,
     mrp: v.mrp,
+    minimumPrice: v.minimumPrice,
     packMrp: v.packMrp,
     packSize: v.packSize,
     units: (v.units ?? []).map((u) => ({

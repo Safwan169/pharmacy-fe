@@ -67,6 +67,8 @@ export interface ProductVariant {
   priceUpdatedAt: string | null;
   /** MRP printed on the pack, per base unit, from the catalogue file. */
   mrp: number | null;
+  /** Minimum allowed selling price per base unit. */
+  minimumPrice: number | null;
   /** MRP of a full pack of `packSize` units. */
   packMrp: number | null;
   /** Restock below this many base units; null = shop-wide setting. */
@@ -281,6 +283,8 @@ export interface SaleItem {
   qtyInBase: number;
   baseQtyDeducted: number;
   unitPrice: number;
+  /** Discount assigned to this line; invoices show one sale-wide discount total. */
+  discountAmount: number;
   /** In the sold unit. */
   quantity: number;
   /** How many of `quantity` have come back. */
@@ -536,6 +540,7 @@ export const CHECKOUT_FAILURE_REASONS = [
   "not_found",
   "inactive",
   "not_priced",
+  "minimum_price",
   "unit_not_found",
   "unit_not_sellable",
   "insufficient_stock",

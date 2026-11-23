@@ -111,7 +111,10 @@ function ReturnPanel({ sale, items }: { sale: Sale; items: SaleItem[] }) {
 
   // Mirrors the API: unit price less this line's share of the sale discount.
   const refundFor = (item: SaleItem, n: number) => {
-    const share = subtotal === 0 ? 0 : (sale.discountAmount * item.lineTotal) / subtotal;
+    const storedDiscounts = sale.items?.reduce((sum, line) => sum + Math.round(line.discountAmount * 100), 0) ?? 0;
+    const share = storedDiscounts === Math.round(sale.discountAmount * 100)
+      ? item.discountAmount
+      : subtotal === 0 ? 0 : (sale.discountAmount * item.lineTotal) / subtotal;
     return ((item.lineTotal - share) * n) / item.quantity;
   };
   const refundTotal = lines.reduce((sum, l) => sum + refundFor(l.item, l.quantity), 0);

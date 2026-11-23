@@ -26,6 +26,8 @@ export interface HeldLine {
   nextPrice?: { price: number; oldStockLeft: number };
   stockAtAdd: number;
   quantity: number;
+  minimumPrice?: number | null;
+  discountPercent?: string;
 }
 
 /**

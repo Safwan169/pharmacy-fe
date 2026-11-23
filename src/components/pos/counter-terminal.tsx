@@ -42,7 +42,7 @@ import {
   type CounterUnit,
 } from "@/lib/actions/search";
 import { checkout, type CheckoutResult } from "@/lib/actions/checkout";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, formatWholeCurrency, cn } from "@/lib/utils";
 import type { DiscountType, Sale } from "@/types";
 import { SaleReceipt } from "./sale-receipt";
 import { beep, setSoundOn, soundIsOn } from "./beep";
@@ -64,11 +64,41 @@ interface BasketLine {
   unitName: string;
   qtyInBase: number;
   unitPrice: number;
+  minimumPrice: number | null;
+  /** Empty means this product uses the whole-sale discount, if any. */
+  discountPercent: string;
   nextPrice?: { price: number; oldStockLeft: number };
   /** Base-unit stock at the time it was added — a guard rail, not the final word. */
   stockAtAdd: number;
   /** In the sold unit. */
   quantity: number;
+}
+
+function saleSegments(line: BasketLine) {
+  const split = splitLine(line);
+  const segments: { unitPrice: number; quantity: number }[] = [];
+  if (split.oldUnits > 0) segments.push({ unitPrice: line.unitPrice, quantity: split.oldUnits });
+  if (split.newUnits > 0 && line.nextPrice) segments.push({ unitPrice: line.nextPrice.price, quantity: split.newUnits });
+  return segments;
+}
+
+function maximumDiscountPercent(line: BasketLine): number {
+  if (line.minimumPrice === null) return 100;
+  const floor = line.minimumPrice * line.qtyInBase;
+  return Math.min(...saleSegments(line).map(({ unitPrice }) =>
+    unitPrice <= 0 ? 0 : Math.max(0, ((unitPrice - floor) / unitPrice) * 100),
+  ));
+}
+
+function productDiscountAmount(line: BasketLine, percent: number): number {
+  const floor = line.minimumPrice === null ? 0 : line.minimumPrice * line.qtyInBase;
+  return saleSegments(line).reduce((sum, segment) => {
+    const grossMinor = Math.round(segment.unitPrice * 100) * segment.quantity;
+    const floorMinor = Math.round(floor * 100) * segment.quantity;
+    const targetMinor = Math.round(((grossMinor * percent) / 100) / 100) * 100;
+    const wholeTakaCapacity = Math.floor(Math.max(0, grossMinor - floorMinor) / 100) * 100;
+    return sum + Math.min(targetMinor, wholeTakaCapacity);
+  }, 0) / 100;
 }
 
 export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearchResult[] }) {
@@ -140,7 +170,11 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
       : rest;
     setHeld(next);
     saveHeldSales(next);
-    setBasket(entry.lines);
+    setBasket(entry.lines.map((line) => ({
+      ...line,
+      minimumPrice: line.minimumPrice ?? null,
+      discountPercent: line.discountPercent ?? "",
+    })));
     setDiscountType(entry.discountType);
     setDiscountValue(entry.discountValue);
     setResult(null);
@@ -195,6 +229,8 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
           qtyInBase: unit.qtyInBase,
           unitPrice: unit.price,
           nextPrice: unit.nextPrice,
+          minimumPrice: item.minimumPrice,
+          discountPercent: "",
           stockAtAdd: item.stock ?? 0,
           quantity,
         },
@@ -375,22 +411,58 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
   }, [basket, lineCursor, favourites, addItem, completed, showKeys, returning]);
 
   const subtotal = basket.reduce((sum, line) => sum + splitLine(line).total, 0);
-
+  const productDiscountMode = basket.some((line) => Number(line.discountPercent) > 0);
+  const globalDiscountActive = discountValue.trim() !== "" && Number.isFinite(Number(discountValue)) && Number(discountValue) > 0;
   const parsedDiscount = Number(discountValue);
-  const discountAmount = (() => {
-    if (!discountValue || Number.isNaN(parsedDiscount) || parsedDiscount <= 0) return 0;
-    const raw =
-      discountType === "percentage"
-        ? (subtotal * Math.min(parsedDiscount, 100)) / 100
-        : parsedDiscount;
-    // The API clamps the discount to the subtotal so a total can't go negative;
-    // showing the same here keeps the preview honest.
-    return Math.min(raw, subtotal);
+  const itemDiscountErrors = basket.map((line) => {
+    if (line.discountPercent.trim() === "") return undefined;
+    const percent = Number(line.discountPercent);
+    if (!Number.isFinite(percent) || percent < 0) return t("pos.discountNumbers");
+    if (percent > maximumDiscountPercent(line) + 0.000001) {
+      return t("pos.lineDiscountTooHigh", { max: String(Math.floor(maximumDiscountPercent(line))) });
+    }
+    return undefined;
+  });
+  const manualDiscountAmount = basket.reduce((sum, line) => {
+    const percent = Number(line.discountPercent);
+    return sum + (percent > 0 ? productDiscountAmount(line, percent) : 0);
+  }, 0);
+  const globalDiscountAmount = (() => {
+    if (!globalDiscountActive || productDiscountMode) return 0;
+    const segments = basket.flatMap((line) => saleSegments(line).map((segment) => ({
+      ...segment,
+      floor: line.minimumPrice === null ? 0 : line.minimumPrice * line.qtyInBase,
+    })));
+    const weights = segments.map((segment) => Math.round(segment.unitPrice * 100) * segment.quantity);
+    const subtotalMinor = weights.reduce((sum, weight) => sum + weight, 0);
+    if (subtotalMinor <= 0) return 0;
+    const requestedMinorRaw = discountType === "percentage"
+      ? Math.round((subtotalMinor * Math.min(parsedDiscount, 100)) / 100)
+      : Math.min(Math.round(parsedDiscount * 100), subtotalMinor);
+    const requestedTaka = Math.round(requestedMinorRaw / 100);
+    const exactShares = weights.map((weight) => (requestedTaka * weight) / subtotalMinor);
+    const shares = exactShares.map(Math.floor);
+    let remainder = requestedTaka - shares.reduce((sum, value) => sum + value, 0);
+    const order = exactShares.map((share, index) => ({ index, fraction: share - shares[index] }))
+      .sort((a, b) => b.fraction - a.fraction);
+    for (let i = 0; i < remainder; i += 1) shares[order[i % order.length].index] += 1;
+    return segments.reduce((sum, segment, index) => {
+      const gross = weights[index];
+      const floor = Math.round(segment.floor * 100) * segment.quantity;
+      const wholeTakaCapacity = Math.floor(Math.max(0, gross - floor) / 100);
+      return sum + Math.min(shares[index], wholeTakaCapacity);
+    }, 0);
   })();
+  const discountAmount = Math.min(
+    Math.round(productDiscountMode ? manualDiscountAmount : globalDiscountAmount),
+    subtotal,
+  );
 
   const total = subtotal - discountAmount;
 
   const discountError = (() => {
+    const itemError = itemDiscountErrors.find(Boolean);
+    if (itemError) return itemError;
     if (!discountValue) return undefined;
     if (Number.isNaN(parsedDiscount)) return t("pos.discountNumbers");
     if (parsedDiscount < 0) return t("pos.discountNegative");
@@ -401,8 +473,13 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
   })();
 
   const paymentError = (() => {
-    if (payment.method === "cash" && payment.amountTendered !== undefined && payment.amountTendered < total) {
-      return t("pos.cashShort");
+    if (payment.method === "cash") {
+      if (payment.amountTendered === undefined || !Number.isFinite(payment.amountTendered)) {
+        return t("checkout.enterCash");
+      }
+      if (payment.amountTendered < total) {
+        return t("pos.cashShort");
+      }
     }
     if (payment.method === "due" && payment.paidNow !== undefined && payment.paidNow >= total) {
       return t("checkout.paidNowIsTotal");
@@ -423,9 +500,12 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
           unit_id: line.unitId,
           quantity: line.quantity,
           name: `${line.name} (${line.unitName})`,
+          ...(productDiscountMode && Number(line.discountPercent) > 0
+            ? { discount_percent: Number(line.discountPercent) }
+            : {}),
         })),
         discount:
-          discountAmount > 0 && !Number.isNaN(parsedDiscount)
+          !productDiscountMode && globalDiscountAmount > 0 && !Number.isNaN(parsedDiscount)
             ? { type: discountType, value: parsedDiscount }
             : undefined,
         payment_method: payment.method,
@@ -570,7 +650,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
                     <p className="truncate font-medium">{h.label}</p>
                     <p className="text-xs text-muted">
                       {t(h.lines.length === 1 ? "pos.itemCount" : "pos.itemsCount", { count: h.lines.length })} ·{" "}
-                      {formatCurrency(h.lines.reduce((s, l) => s + splitLine(l).total, 0))} ·{" "}
+                      {formatWholeCurrency(h.lines.reduce((s, l) => s + splitLine(l).total, 0))} ·{" "}
                       {new Date(h.heldAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>
@@ -708,6 +788,38 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
                         </p>
                       )}
 
+                      <div className="mt-2 flex items-center gap-2">
+                        <label htmlFor={`product-discount-${line.variantId}`} className="shrink-0 text-xs text-muted">
+                          {t("pos.productDiscount")}
+                        </label>
+                        <div className="relative min-w-0 flex-1">
+                          <input
+                            id={`product-discount-${line.variantId}`}
+                            type="text"
+                            inputMode="decimal"
+                            value={line.discountPercent}
+                            disabled={globalDiscountActive}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              if (Number(value) > 0) setDiscountValue("");
+                              setBasket((current) => current.map((item) => item.variantId === line.variantId
+                                ? { ...item, discountPercent: value }
+                                : item));
+                              setResult(null);
+                            }}
+                            placeholder="0"
+                            aria-label={t("pos.productDiscountFor", { name: line.name })}
+                            aria-invalid={!!itemDiscountErrors[index]}
+                            className="h-8 w-full rounded-md border border-border bg-surface px-2 pr-7 text-right text-xs tabular-nums focus:border-primary focus:outline-2 focus:outline-primary/30 disabled:opacity-60 aria-[invalid=true]:border-danger"
+                          />
+                          <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs text-muted">%</span>
+                        </div>
+                        <span className="shrink-0 text-[11px] text-muted">
+                          {t("pos.maximumProductDiscount", { percent: String(Math.floor(maximumDiscountPercent(line))) })}
+                        </span>
+                      </div>
+                      {itemDiscountErrors[index] && <p className="mt-1 text-xs text-danger">{itemDiscountErrors[index]}</p>}
+
                       {line.quantity * line.qtyInBase > line.stockAtAdd && (
                         <p className="mt-1.5 text-xs text-warning">
                           {t("pos.stockWarning", { count: Math.floor(line.stockAtAdd / line.qtyInBase), unit: line.unitName })}
@@ -734,6 +846,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
                       value={discountType}
                       onChange={(e) => setDiscountType(e.target.value as DiscountType)}
                       aria-label={t("pos.discountType")}
+                      disabled={productDiscountMode}
                       className="h-10 cursor-pointer rounded-lg border border-border bg-surface px-2 text-sm focus:border-primary focus:outline-2 focus:outline-primary/30"
                     >
                       <option value="percentage">%</option>
@@ -744,12 +857,20 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
                       type="text"
                       inputMode="decimal"
                       value={discountValue}
-                      onChange={(e) => setDiscountValue(e.target.value)}
+                      disabled={productDiscountMode}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (Number(value) > 0) {
+                          setBasket((current) => current.map((line) => ({ ...line, discountPercent: "" })));
+                        }
+                        setDiscountValue(value);
+                      }}
                       placeholder="0"
                       aria-invalid={!!discountError}
                       className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm tabular-nums focus:border-primary focus:outline-2 focus:outline-primary/30 aria-[invalid=true]:border-danger"
                     />
                   </div>
+                  {productDiscountMode && <p className="mt-1 text-xs text-muted">{t("pos.useProductDiscounts")}</p>}
                   {discountError && (
                     <p className="mt-1 text-xs text-danger">{discountError}</p>
                   )}
@@ -758,17 +879,17 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
                 <dl className="space-y-1.5 text-sm">
                   <div className="flex justify-between">
                     <dt className="text-muted">{t("pos.subtotal")}</dt>
-                    <dd className="tabular-nums">{formatCurrency(subtotal)}</dd>
+                    <dd className="tabular-nums">{formatWholeCurrency(subtotal)}</dd>
                   </div>
                   {discountAmount > 0 && (
                     <div className="flex justify-between text-success">
                       <dt>{t("pos.discount")}</dt>
-                      <dd className="tabular-nums">−{formatCurrency(discountAmount)}</dd>
+                      <dd className="tabular-nums">−{formatWholeCurrency(discountAmount)}</dd>
                     </div>
                   )}
                   <div className="flex justify-between border-t border-border pt-1.5 text-base font-semibold">
                     <dt>{t("pos.totalToPay")}</dt>
-                    <dd className="tabular-nums">{formatCurrency(total)}</dd>
+                    <dd className="tabular-nums">{formatWholeCurrency(total)}</dd>
                   </div>
                 </dl>
 
@@ -787,8 +908,8 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
                   {submitting
                     ? t("common.saving")
                     : payment.method === "due"
-                      ? `${t("pos.recordOnAccount")} · ${formatCurrency(total)}`
-                      : `${t("pos.takePayment")} · ${formatCurrency(total)}`}
+                      ? `${t("pos.recordOnAccount")} · ${formatWholeCurrency(total)}`
+                      : `${t("pos.takePayment")} · ${formatWholeCurrency(total)}`}
                 </Button>
               </CardBody>
             </>
@@ -808,7 +929,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
             <ShoppingCart className="mr-2 inline h-4 w-4" aria-hidden />
             {t(basket.length === 1 ? "pos.itemCount" : "pos.itemsCount", { count: basket.length })}
           </span>
-          <span className="tabular-nums">{formatCurrency(total)} →</span>
+          <span className="tabular-nums">{formatWholeCurrency(total)} →</span>
         </a>
       )}
     </div>
@@ -1163,6 +1284,7 @@ function ItemSearch({
   }, [term, choose, applyTerm, onInvoiceScanned]);
 
   const { status, results } = state;
+  console.log("search state", state);
   const searching = status === "searching";
   const failed = status === "failed";
 
@@ -1385,7 +1507,8 @@ function ItemSearch({
                       <Badge tone="danger">{t("stock.outOfStock")}</Badge>
                     ) : (
                       <p className="text-xs text-muted">
-                        {stock} {item.baseUnit} {t("pos.inStock")}
+                        {/* {stock} {item.baseUnit} - */}
+                        {t("pos.inStock")}
                       </p>
                     )}
                   </div>

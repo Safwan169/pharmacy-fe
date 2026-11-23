@@ -17,7 +17,7 @@ import { ModalShell } from "@/components/ui/modal";
 import { findSalesToReturn, returnItems, type ReturnResult } from "@/lib/actions/returns";
 import { scanBarcode } from "@/lib/actions/search";
 import { CameraScanner, cameraScanSupported } from "./camera-scanner";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatWholeCurrency } from "@/lib/utils";
 import type { RefundMethod, Sale, SaleItem } from "@/types";
 import { useT } from "@/i18n/client";
 
@@ -28,7 +28,10 @@ function left(item: SaleItem) {
 
 /** Mirrors the API: unit price less this line's share of the sale discount. */
 function refundFor(sale: Sale, item: SaleItem, count: number) {
-  const share = sale.subtotal === 0 ? 0 : (sale.discountAmount * item.lineTotal) / sale.subtotal;
+  const storedDiscounts = sale.items?.reduce((sum, line) => sum + Math.round(line.discountAmount * 100), 0) ?? 0;
+  const share = storedDiscounts === Math.round(sale.discountAmount * 100)
+    ? item.discountAmount
+    : sale.subtotal === 0 ? 0 : (sale.discountAmount * item.lineTotal) / sale.subtotal;
   return ((item.lineTotal - share) * count) / item.quantity;
 }
 
@@ -257,7 +260,7 @@ export function ReturnDialog({
                           </span>
                         </span>
                         <span className="shrink-0 text-sm font-semibold tabular-nums">
-                          {formatCurrency(sale.totalAmount)}
+                          {formatWholeCurrency(sale.totalAmount)}
                         </span>
                       </button>
                     </li>
@@ -407,7 +410,7 @@ function ReturnLines({
               <CircleCheck className="h-4 w-4" aria-hidden />
               {method === "due_adjust" ? t("ret.tookOffDue") : t("undo.giveCustomer")}
             </p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">{formatCurrency(result.refundAmount)}</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">{formatWholeCurrency(result.refundAmount)}</p>
           </div>
           <Button onClick={onClose} autoFocus className="h-11 w-full">
             {t("ret.backToCounter")}
@@ -502,7 +505,7 @@ function ReturnLines({
                   </button>
                 </span>
                 <span className="w-16 shrink-0 text-right text-sm tabular-nums">
-                  {count > 0 ? formatCurrency(refundFor(sale, item, count)) : "—"}
+                  {count > 0 ? formatWholeCurrency(refundFor(sale, item, count)) : "—"}
                 </span>
               </li>
             );
@@ -542,7 +545,7 @@ function ReturnLines({
             ) : (
               <Undo2 className="h-4 w-4" aria-hidden />
             )}
-            {t("ret.refundAmount", { amount: formatCurrency(total) })}
+            {t("ret.refundAmount", { amount: formatWholeCurrency(total) })}
           </Button>
         </div>
         <p className="text-xs text-muted">{t("ret.lineKeys")}</p>

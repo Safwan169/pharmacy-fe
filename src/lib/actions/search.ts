@@ -33,6 +33,8 @@ export interface CounterSearchResult {
   price: number | null;
   /** In the base unit. */
   stock: number | null;
+  /** Minimum allowed price per base unit. */
+  minimumPrice: number | null;
   baseUnit: string;
   /** Sellable, priced units only — what the counter can actually ring up. */
   units: CounterUnit[];
@@ -175,6 +177,7 @@ function toResult(variant: ProductVariant): CounterSearchResult {
     generic: variant.generic?.name ?? null,
     price: variant.price,
     stock: variant.stockQuantity,
+    minimumPrice: variant.minimumPrice,
     baseUnit: variant.baseUnit,
     units: (variant.units ?? [])
       .filter((u) => u.isSellable && u.price !== null)

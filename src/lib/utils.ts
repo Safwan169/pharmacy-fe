@@ -19,6 +19,15 @@ export function formatCurrency(amount: number | null | undefined) {
   return `৳${formatted}`;
 }
 
+export function formatWholeCurrency(amount: number | null | undefined) {
+  if (amount === null || amount === undefined) return "—";
+  const formatted = new Intl.NumberFormat("en-BD", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Math.round(amount));
+  return `৳${formatted}`;
+}
+
 export function formatNumber(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
   return new Intl.NumberFormat("en-BD").format(value);
