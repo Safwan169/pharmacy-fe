@@ -28,6 +28,12 @@ export default async function ReceiptDetailPage({ params }: PageProps<"/stock/re
     throw error;
   }
   const items = receipt.items ?? [];
+  const source =
+    receipt.sourceType === "borrow"
+      ? t("deliveries.borrowedFrom", { name: receipt.sourceName ?? t("catalogue.notRecorded") })
+      : receipt.sourceType === "uncounted_old"
+        ? t("deliveries.uncountedOld")
+        : receipt.supplier?.name ?? t("catalogue.notRecorded");
 
   return (
     <>
@@ -38,7 +44,7 @@ export default async function ReceiptDetailPage({ params }: PageProps<"/stock/re
 
       <PageHeader
         title={receipt.receiptNumber}
-        description={`${t("deliveries.receivedOn", { date: formatDate(receipt.receivedAt) })}${receipt.supplier ? ` ${t("deliveries.fromSupplier", { name: receipt.supplier.name })}` : ""}`}
+        description={t("deliveries.receivedOn", { date: formatDate(receipt.receivedAt) })}
       />
 
       <div className="grid gap-5 lg:grid-cols-3">
@@ -88,7 +94,7 @@ export default async function ReceiptDetailPage({ params }: PageProps<"/stock/re
         <Card className="h-fit">
           <CardHeader title={t("catalogue.details")} />
           <CardBody className="space-y-3 text-sm">
-            <Row label={t("deliveries.supplier")} value={receipt.supplier?.name ?? t("catalogue.notRecorded")} />
+            <Row label={t("deliveries.source")} value={source} />
             <Row label={t("deliveries.theirInvoice")} value={receipt.supplierInvoiceNo ?? "—"} />
             <Row label={t("deliveries.entered")} value={formatDateTime(receipt.createdAt)} />
             <Row label={t("receipt.by")} value={receipt.createdBy?.email ?? "—"} />
@@ -115,7 +121,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-4">
       <span className="text-muted">{label}</span>
-      <span className="text-right">{value}</span>
+      <span className="min-w-0 max-w-[65%] truncate text-right" title={value}>{value}</span>
     </div>
   );
 }

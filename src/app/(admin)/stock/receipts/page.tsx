@@ -114,25 +114,35 @@ async function ReceiptList({ filters }: { filters: ReceiptFilters }) {
           <tr>
             <Th>{t("deliveries.receipt")}</Th>
             <Th>{t("th.date")}</Th>
-            <Th className="hidden md:table-cell">{t("deliveries.supplier")}</Th>
+            <Th>{t("deliveries.source")}</Th>
             <Th className="hidden sm:table-cell">{t("deliveries.theirInvoice")}</Th>
             <Th className="text-right">{t("deliveries.totalCost")}</Th>
           </tr>
         </thead>
         <tbody>
-          {result.data.map((r) => (
-            <tr key={r.id} className="hover:bg-background/60">
-              <Td>
-                <Link href={`/stock/receipts/${r.id}`} className="font-mono text-sm font-medium text-primary hover:underline">
-                  {r.receiptNumber}
-                </Link>
-              </Td>
-              <Td className="text-muted">{formatDate(r.receivedAt)}</Td>
-              <Td className="hidden md:table-cell">{r.supplier?.name ?? <span className="text-muted">—</span>}</Td>
-              <Td className="hidden text-muted sm:table-cell">{r.supplierInvoiceNo ?? "—"}</Td>
-              <Td className="text-right font-semibold tabular-nums">{formatCurrency(r.totalCost)}</Td>
-            </tr>
-          ))}
+          {result.data.map((r) => {
+            const source =
+              r.sourceType === "borrow"
+                ? t("deliveries.borrowedFrom", { name: r.sourceName ?? t("catalogue.notRecorded") })
+                : r.sourceType === "uncounted_old"
+                  ? t("deliveries.uncountedOld")
+                  : r.supplier?.name ?? t("catalogue.notRecorded");
+            return (
+              <tr key={r.id} className="hover:bg-background/60">
+                <Td>
+                  <Link href={`/stock/receipts/${r.id}`} className="font-mono text-sm font-medium text-primary hover:underline">
+                    {r.receiptNumber}
+                  </Link>
+                </Td>
+                <Td className="text-muted">{formatDate(r.receivedAt)}</Td>
+                <Td className="max-w-[12rem]">
+                  <span className="block truncate" title={source}>{source}</span>
+                </Td>
+                <Td className="hidden text-muted sm:table-cell">{r.supplierInvoiceNo ?? "—"}</Td>
+                <Td className="text-right font-semibold tabular-nums">{formatCurrency(r.totalCost)}</Td>
+              </tr>
+            );
+          })}
         </tbody>
       </Table>
       <div className="p-4">

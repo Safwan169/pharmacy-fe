@@ -293,6 +293,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
         payRef.current?.click();
         return;
       }
+      if (target?.closest("[data-pos-action]")) return;
       if (typingElsewhere) {
         if (event.key === "Escape") (target as HTMLInputElement).blur();
         return;
@@ -1119,6 +1120,7 @@ function ItemSearch({
   >(null);
   const [camera, setCamera] = useState(false);
   const [outOfStockUnitIds, setOutOfStockUnitIds] = useState<Record<number, number>>({});
+  const [sourceAddedIds, setSourceAddedIds] = useState<Set<number>>(() => new Set());
   const [outOfStock, setOutOfStock] = useState<{ item: CounterSearchResult; unit: CounterUnit } | null>(null);
   const [stockToast, setStockToast] = useState<string | null>(null);
   const rowRefs = useRef(new Map<number, HTMLLIElement>());
@@ -1154,6 +1156,10 @@ function ItemSearch({
     focusReturnId.current = outOfStock.item.id;
     setOutOfStock(null);
   }, [outOfStock]);
+  const openSourceModal = useCallback((item: CounterSearchResult, unit: CounterUnit) => {
+    setStockToast(null);
+    setOutOfStock({ item, unit });
+  }, []);
 
   // The term is mirrored in a ref so that keystrokes arriving faster than a
   // re-render — a fast typist, or a barcode scanner "typing" a whole code in a
@@ -1291,13 +1297,12 @@ function ItemSearch({
   const activate = useCallback(
     (item: CounterSearchResult, unit: CounterUnit, qty: number, from?: HTMLElement) => {
       if ((item.stock ?? 0) <= 0) {
-        setStockToast(null);
-        setOutOfStock({ item, unit });
+        openSourceModal(item, unit);
         return;
       }
       choose(item, unit, qty, from);
     },
-    [choose],
+    [choose, openSourceModal],
   );
 
   // The counter listens for keys on the whole page, so the same moves work
@@ -1482,6 +1487,7 @@ function ItemSearch({
               item.units.find((unit) => unit.isDefault) ??
               item.units[0];
             const added = justAdded?.id === item.id;
+            const canReceiveAgain = sourceAddedIds.has(item.id);
             const actionIndex = actionableRows.findIndex((rowItem) => rowItem.id === item.id);
             return (
               // Re-keying on the nonce remounts the row, which restarts the
@@ -1589,6 +1595,26 @@ function ItemSearch({
                   </p>
                 )}
 
+                {canReceiveAgain && (
+                  <button
+                    type="button"
+                    data-pos-action
+                    title={t("pos.addMoreFromSource")}
+                    onClick={() => {
+                      const unit =
+                        current?.id === item.id
+                          ? currentUnit
+                          : item.units.find((candidate) => candidate.isDefault) ?? item.units[0];
+                      if (unit) openSourceModal(item, unit);
+                    }}
+                    className="mt-2 inline-flex h-8 max-w-full items-center rounded-lg border border-border bg-surface px-3 text-xs font-medium text-muted transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                  >
+                    <span className="truncate" title={t("pos.addMoreFromSource")}>
+                      {t("pos.addMoreFromSource")}
+                    </span>
+                  </button>
+                )}
+
                 {stock <= 0 && priced && outOfStockUnit && (
                   <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     {item.units.length > 1 && (
@@ -1658,6 +1684,11 @@ function ItemSearch({
                 ...outOfStock.item,
                 stock: (outOfStock.item.stock ?? 0) + addedQuantity * outOfStock.unit.qtyInBase,
               };
+              setSourceAddedIds((currentIds) => {
+                const next = new Set(currentIds);
+                next.add(updatedItem.id);
+                return next;
+              });
               setState((currentState) => ({
                 ...currentState,
                 results: currentState.results.map((item) =>
@@ -1726,6 +1757,10 @@ function OutOfStockModal({
     parsedQuantity >= 1 &&
     (source !== "borrow" || storeName.trim().length > 0);
   const storeListId = `borrow-stores-${item.id}`;
+  const modalTitle =
+    (item.stock ?? 0) > 0
+      ? t("pos.addMoreSourceTitle")
+      : t("pos.addOutOfStockTitle");
   const details = [item.dosageForm, item.generic, item.manufacturer]
     .filter((value): value is string => Boolean(value))
     .join(" · ");
@@ -1774,7 +1809,7 @@ function OutOfStockModal({
 
   return (
     <ModalShell
-      label={t("pos.addOutOfStockTitle")}
+      label={modalTitle}
       onDismiss={() => {
         if (!submitting) onDismiss();
       }}
