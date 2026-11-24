@@ -89,6 +89,7 @@ export default async function DailyClosingPage({ searchParams }: PageProps<"/rep
               )}
               <Row label={t("closing.cashSales")} value={report.by_method.cash} />
               <Row label={t("closing.bkashSales")} value={report.by_method.bkash} />
+              <Row label={t("closing.bankSales")} value={report.by_method.bank} />
               <Row label={t("closing.onAccount")} value={report.by_method.due} muted />
               <Row label={t("closing.dueCash")} value={report.due_collected.cash} />
               <Row label={t("closing.dueBkash")} value={report.due_collected.bkash} />

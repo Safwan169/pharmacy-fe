@@ -85,6 +85,7 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
                         <Link href={`/sales/${s.id}`} className="font-mono text-sm text-primary hover:underline">{s.invoiceNumber}</Link>
                         <p className="text-xs text-muted">
                           {PAYMENT_METHOD_KEYS[s.paymentMethod as PaymentMethod] ? t(PAYMENT_METHOD_KEYS[s.paymentMethod as PaymentMethod]) : s.paymentMethod}
+                          {s.bankName ? ` · ${s.bankName}` : ""}
                           {s.status !== "completed" ? ` · ${t(SALE_STATUS_KEYS[s.status])}` : ""}
                         </p>
                         {/* The date has no column of its own on a phone. */}

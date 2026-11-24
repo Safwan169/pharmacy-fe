@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Banknote, Plus, Smartphone, UserRound } from "lucide-react";
+import { Banknote, Landmark, Plus, Smartphone, UserRound } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { quickAddCustomer, searchCustomers } from "@/lib/actions/customers";
 import { cn, formatCurrency, formatWholeCurrency } from "@/lib/utils";
@@ -12,6 +12,7 @@ export interface PaymentChoice {
   method: PaymentMethod;
   amountTendered?: number;
   bkashTrxId?: string;
+  bankName?: string;
   customer?: Customer;
   /** Due only: part of the bill settled at the counter. */
   paidNow?: number;
@@ -27,10 +28,12 @@ export function PaymentPanel({
   total,
   value,
   onChange,
+  bankNames,
 }: {
   total: number;
   value: PaymentChoice;
   onChange: (next: PaymentChoice) => void;
+  bankNames: string[];
 }) {
   const [tendered, setTendered] = useState("");
   const [trx, setTrx] = useState("");
@@ -70,9 +73,17 @@ export function PaymentPanel({
   return (
     <div className="space-y-3">
       <p className="text-sm font-medium">{t("payment.how")}</p>
-      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t("payment.method")}>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label={t("payment.method")}>
         <MethodButton active={value.method === "cash"} onClick={() => pick("cash")} icon={Banknote} label={t("payment.cash")} />
         <MethodButton active={value.method === "bkash"} onClick={() => pick("bkash")} icon={Smartphone} label="bKash" />
+        <MethodButton
+          active={value.method === "bank"}
+          onClick={() => pick("bank")}
+          icon={Landmark}
+          label={t("payment.bank")}
+          disabled={bankNames.length === 0}
+          title={bankNames.length === 0 ? t("payment.addBankFirst") : undefined}
+        />
         <MethodButton active={value.method === "due"} onClick={() => pick("due")} icon={UserRound} label={t("payment.due")} />
       </div>
 
@@ -124,6 +135,23 @@ export function PaymentPanel({
             TrxID
           </label>
           <Input id="trx" value={trx} onChange={(e) => setTrx(e.target.value.toUpperCase())} placeholder={t("common.optional")} maxLength={30} className="font-mono uppercase" />
+        </div>
+      )}
+
+      {value.method === "bank" && (
+        <div className="flex items-center gap-2">
+          <label htmlFor="bank-name" className="w-24 shrink-0 text-xs text-muted">
+            {t("payment.bank")}
+          </label>
+          <select
+            id="bank-name"
+            value={value.bankName ?? ""}
+            onChange={(event) => onChange({ ...value, bankName: event.target.value || undefined })}
+            className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="">{t("payment.chooseBank")}</option>
+            {bankNames.map((name) => <option key={name} value={name}>{name}</option>)}
+          </select>
         </div>
       )}
 
@@ -216,21 +244,28 @@ function MethodButton({
   onClick,
   icon: Icon,
   label,
+  disabled = false,
+  title,
 }: {
   active: boolean;
   onClick: () => void;
   icon: typeof Banknote;
   label: string;
+  disabled?: boolean;
+  title?: string;
 }) {
   return (
     <button
       type="button"
       role="radio"
       aria-checked={active}
+      disabled={disabled}
+      title={title}
       onClick={onClick}
       className={cn(
         "flex h-14 flex-col items-center justify-center gap-1 rounded-lg border text-xs font-medium transition-colors",
         active ? "border-primary bg-primary/10 text-primary" : "border-border bg-surface text-muted hover:text-foreground",
+        disabled && "cursor-not-allowed opacity-50 hover:text-muted",
       )}
     >
       <Icon className="h-4 w-4" aria-hidden />

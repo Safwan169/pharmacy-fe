@@ -20,6 +20,7 @@ const KEYS: (keyof ShopSettings)[] = [
   "receipt_width_mm",
   "default_markup_percent",
   "opening_cash",
+  "bank_names",
 ];
 
 export async function saveSettings(_prev: SettingsState, formData: FormData): Promise<SettingsState> {
@@ -39,6 +40,20 @@ export async function saveSettings(_prev: SettingsState, formData: FormData): Pr
   if (body.opening_cash && !/^\d{1,8}(\.\d{1,2})?$/.test(body.opening_cash)) {
     return { status: "error", message: t("settingsAction.openingCashNumber") };
   }
+  if (body.bank_names) {
+    try {
+      const banks: unknown = JSON.parse(body.bank_names);
+      if (
+        !Array.isArray(banks) ||
+        banks.length > 20 ||
+        banks.some((name) => typeof name !== "string" || name.trim().length === 0 || name.trim().length > 100)
+      ) {
+        return { status: "error", message: t("settingsAction.bankNamesInvalid") };
+      }
+    } catch {
+      return { status: "error", message: t("settingsAction.bankNamesInvalid") };
+    }
+  }
   try {
     await apiFetch<ShopSettings>("/settings", { method: "PATCH", auth: true, body });
   } catch (error) {
@@ -46,6 +61,7 @@ export async function saveSettings(_prev: SettingsState, formData: FormData): Pr
     throw error;
   }
   revalidatePath("/settings");
+  revalidatePath("/pos");
   revalidatePath("/dashboard");
   return { status: "success", message: t("settingsAction.saved") };
 }

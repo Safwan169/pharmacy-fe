@@ -33,6 +33,19 @@ export function formatNumber(value: number | null | undefined) {
   return new Intl.NumberFormat("en-BD").format(value);
 }
 
+export function parseBankNames(value: string): string[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    throw new Error("The configured bank names are invalid. Review them in Settings.");
+  }
+  if (!Array.isArray(parsed) || parsed.some((name) => typeof name !== "string")) {
+    throw new Error("The configured bank names are invalid. Review them in Settings.");
+  }
+  return parsed;
+}
+
 /** The pharmacy runs on an Asia/Dhaka day, exactly like the backend's reports. */
 const TIME_ZONE = "Asia/Dhaka";
 

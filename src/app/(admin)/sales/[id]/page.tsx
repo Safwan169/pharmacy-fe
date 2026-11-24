@@ -204,7 +204,12 @@ export default async function SaleDetailPage({ params }: PageProps<"/sales/[id]"
 
               <div className="flex justify-between pt-2">
                 <dt className="text-muted">{t("sale.paidBy")}</dt>
-                <dd>{PAYMENT_METHOD_KEYS[sale.paymentMethod as PaymentMethod] ? t(PAYMENT_METHOD_KEYS[sale.paymentMethod as PaymentMethod]) : sale.paymentMethod}</dd>
+                <dd>
+                  {PAYMENT_METHOD_KEYS[sale.paymentMethod as PaymentMethod]
+                    ? t(PAYMENT_METHOD_KEYS[sale.paymentMethod as PaymentMethod])
+                    : sale.paymentMethod}
+                  {sale.bankName ? ` · ${sale.bankName}` : ""}
+                </dd>
               </div>
               {sale.paymentMethod === "cash" && sale.amountTendered !== null && (
                 <div className="flex justify-between">

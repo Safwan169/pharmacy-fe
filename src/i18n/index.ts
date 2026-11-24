@@ -36,6 +36,7 @@ export function makeTranslate(locale: Locale): Translate {
 export const PAYMENT_METHOD_KEYS: Record<PaymentMethod, MessageKey> = {
   cash: "paymentMethod.cash",
   bkash: "paymentMethod.bkash",
+  bank: "paymentMethod.bank",
   due: "paymentMethod.due",
 };
 

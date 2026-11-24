@@ -19,6 +19,7 @@ export interface CheckoutRequest {
   payment_method: PaymentMethod;
   amount_tendered?: number;
   bkash_trx_id?: string;
+  bank_name?: string;
   customer_id?: number;
   /** Due only: part of the bill settled at the counter. */
   paid_now?: number;
@@ -67,6 +68,7 @@ export async function checkout(request: CheckoutRequest): Promise<CheckoutResult
         payment_method: request.payment_method,
         ...(request.amount_tendered !== undefined ? { amount_tendered: request.amount_tendered } : {}),
         ...(request.bkash_trx_id ? { bkash_trx_id: request.bkash_trx_id } : {}),
+        ...(request.bank_name ? { bank_name: request.bank_name } : {}),
         ...(request.customer_id !== undefined ? { customer_id: request.customer_id } : {}),
         ...(request.paid_now !== undefined ? { paid_now: request.paid_now } : {}),
         ...(request.paid_now !== undefined ? { paid_now_method: request.paid_now_method ?? "cash" } : {}),
@@ -103,6 +105,10 @@ export async function checkout(request: CheckoutRequest): Promise<CheckoutResult
           ? t("checkout.tenderedShort")
           : reason === "customer_required"
             ? t("checkout.customerRequired")
+            : reason === "bank_required"
+              ? t("checkout.bankRequired")
+              : reason === "bank_not_configured"
+                ? t("checkout.bankNotConfigured")
             : reason === "customer_not_found"
               ? t("checkout.customerNotFound")
               : reason === "paid_now_is_total"

@@ -111,7 +111,7 @@ export function SaleReceipt({
               {change !== null && change > 0
                 ? t("receipt.ofTotal", { amount: formatWholeCurrency(sale.totalAmount) })
                 : method
-                  ? t(method)
+                  ? `${t(method)}${sale.paymentMethod === "bank" && sale.bankName ? ` · ${sale.bankName}` : ""}`
                   : sale.paymentMethod}
             </p>
           </div>

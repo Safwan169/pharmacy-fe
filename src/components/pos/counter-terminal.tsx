@@ -85,7 +85,13 @@ function saleSegments(line: BasketLine) {
   return segments;
 }
 
-export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearchResult[] }) {
+export function CounterTerminal({
+  favourites = [],
+  bankNames = [],
+}: {
+  favourites?: CounterSearchResult[];
+  bankNames?: string[];
+}) {
   const [basket, setBasket] = useState<BasketLine[]>([]);
   const [discountType, setDiscountType] = useState<DiscountType>("percentage");
   const [discountValue, setDiscountValue] = useState("");
@@ -465,6 +471,9 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
     if (payment.method === "due" && !payment.customer) {
       return t("pos.pickCustomer");
     }
+    if (payment.method === "bank" && !payment.bankName) {
+      return t("payment.chooseBank");
+    }
     return undefined;
   })();
 
@@ -487,6 +496,7 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
         payment_method: payment.method,
         amount_tendered: payment.method === "cash" ? payment.amountTendered : undefined,
         bkash_trx_id: payment.method === "bkash" ? payment.bkashTrxId : undefined,
+        bank_name: payment.method === "bank" ? payment.bankName : undefined,
         customer_id: payment.method === "due" ? payment.customer?.id : undefined,
         paid_now: payment.method === "due" ? payment.paidNow : undefined,
         paid_now_method: payment.method === "due" && payment.paidNow !== undefined ? payment.paidNowMethod ?? "cash" : undefined,
@@ -854,7 +864,12 @@ export function CounterTerminal({ favourites = [] }: { favourites?: CounterSearc
                 </dl>
 
                 <div className="border-t border-border pt-4">
-                  <PaymentPanel total={total} value={payment} onChange={setPayment} />
+                  <PaymentPanel
+                    total={total}
+                    value={payment}
+                    onChange={setPayment}
+                    bankNames={bankNames}
+                  />
                   {paymentError && <p className="mt-2 text-xs text-danger">{paymentError}</p>}
                 </div>
 
@@ -1621,14 +1636,13 @@ function ItemSearch({
                         <button
                           key={unit.id}
                           type="button"
-                          onClick={(event) => enough && choose(item, unit, quantity, event.currentTarget)}
-                          disabled={!enough}
+                          onClick={(event) => choose(item, unit, quantity, event.currentTarget)}
                           title={enough ? undefined : t("pos.notEnoughFor", { unit: unit.name })}
                           className={cn(
                             "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors",
                             enough
                               ? "cursor-pointer border-border bg-surface hover:border-primary hover:bg-primary/5 active:bg-primary/10"
-                              : "cursor-not-allowed border-border opacity-50",
+                              : "cursor-pointer border-warning/40 bg-warning/5 text-muted hover:border-warning hover:bg-warning/10",
                             unit.isDefault && enough && "border-primary/60",
                             current?.id === item.id && currentUnit?.id === unit.id && "border-primary bg-primary/10",
                           )}

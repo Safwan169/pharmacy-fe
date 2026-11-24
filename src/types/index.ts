@@ -296,12 +296,13 @@ export interface SaleItem {
   sourceStoreName: string | null;
 }
 
-export const PAYMENT_METHODS = ["cash", "bkash", "due"] as const;
+export const PAYMENT_METHODS = ["cash", "bkash", "bank", "due"] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: "Cash",
   bkash: "bKash",
+  bank: "Bank",
   due: "Due (pay later)",
 };
 
@@ -350,6 +351,8 @@ export interface ShopSettings {
   default_markup_percent: string;
   /** What the drawer held before the shop used this app. "" = nothing. */
   opening_cash: string;
+  /** JSON-encoded list of bank names available as POS payment methods. */
+  bank_names: string;
 }
 
 /** A selling-price change parked until the stock received before a delivery sells out. */
@@ -382,7 +385,7 @@ export interface DailyClosing {
   discounts: number;
   refunds: number;
   net_sales: number;
-  by_method: { cash: number; bkash: number; due: number };
+  by_method: { cash: number; bkash: number; bank: number; due: number };
   refunds_by_method: { cash: number; bkash: number; due_adjust: number };
   due_collected: { cash: number; bkash: number };
   supplier_paid: { cash: number; bkash: number; cash_outside: number };
@@ -482,6 +485,7 @@ export interface Sale {
   amountTendered: number | null;
   changeGiven: number | null;
   bkashTrxId: string | null;
+  bankName: string | null;
   paidAmount: number;
   dueAmount: number;
   createdById: number;

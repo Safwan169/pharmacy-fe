@@ -7,12 +7,15 @@ import { Alert } from "@/components/ui/alert";
 import { Field, Input, Select } from "@/components/ui/input";
 import type { ShopSettings } from "@/types";
 import { useT } from "@/i18n/client";
+import { parseBankNames } from "@/lib/utils";
 
 const initial: SettingsState = { status: "idle" };
 
 export function SettingsForm({ settings }: { settings: ShopSettings }) {
   const [state, action, pending] = useActionState(saveSettings, initial);
   const [preview, setPreview] = useState(settings);
+  const [bankNames, setBankNames] = useState(() => parseBankNames(settings.bank_names));
+  const [newBankName, setNewBankName] = useState("");
   const t = useT();
 
   function set<K extends keyof ShopSettings>(key: K, value: string) {
@@ -22,6 +25,7 @@ export function SettingsForm({ settings }: { settings: ShopSettings }) {
   return (
     <div className="grid gap-5 lg:grid-cols-3">
       <form action={action} className="space-y-4 lg:col-span-2" noValidate>
+        <input type="hidden" name="bank_names" value={JSON.stringify(bankNames)} />
         {state.status === "success" && state.message && <Alert tone="success">{state.message}</Alert>}
         {state.status === "error" && state.message && <Alert tone="error">{state.message}</Alert>}
 
@@ -61,6 +65,53 @@ export function SettingsForm({ settings }: { settings: ShopSettings }) {
             <Field label={t("settings.openingCash")} htmlFor="opening_cash" hint={t("settings.openingCashHint")}>
               <Input id="opening_cash" name="opening_cash" inputMode="decimal" placeholder="1000" defaultValue={settings.opening_cash ?? ""} onChange={(e) => set("opening_cash", e.target.value)} />
             </Field>
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Field label={t("settings.bankNames")} htmlFor="new-bank-name" hint={t("settings.bankNamesHint")}>
+              <div className="flex gap-2">
+                <Input
+                  id="new-bank-name"
+                  value={newBankName}
+                  maxLength={100}
+                  onChange={(event) => setNewBankName(event.target.value)}
+                  placeholder={t("settings.bankNamePlaceholder")}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={
+                    !newBankName.trim() ||
+                    bankNames.length >= 20 ||
+                    bankNames.some((name) => name.toLocaleLowerCase() === newBankName.trim().toLocaleLowerCase())
+                  }
+                  onClick={() => {
+                    const name = newBankName.trim();
+                    if (!name || bankNames.some((bank) => bank.toLocaleLowerCase() === name.toLocaleLowerCase())) return;
+                    setBankNames((current) => [...current, name]);
+                    setNewBankName("");
+                  }}
+                >
+                  {t("settings.addBank")}
+                </Button>
+              </div>
+            </Field>
+            {bankNames.length > 0 && (
+              <ul className="flex flex-wrap gap-2">
+                {bankNames.map((name) => (
+                  <li key={name}>
+                    <button
+                      type="button"
+                      onClick={() => setBankNames((current) => current.filter((bank) => bank !== name))}
+                      aria-label={t("settings.removeBank", { name })}
+                      title={t("settings.removeBank", { name })}
+                      className="rounded-full border border-border bg-background px-3 py-1 text-xs hover:border-danger hover:text-danger"
+                    >
+                      {name} ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
 
