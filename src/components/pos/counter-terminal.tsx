@@ -260,6 +260,17 @@ export function CounterTerminal({
     setResult(null);
   }
 
+  function refreshBasketStock(item: CounterSearchResult) {
+    setBasket((current) =>
+      current.map((line) =>
+        line.variantId === item.id
+          ? { ...line, stockAtAdd: Math.max(line.stockAtAdd, item.stock ?? 0) }
+          : line,
+      ),
+    );
+    setResult(null);
+  }
+
   // The flash is a one-shot; clearing it means a later re-render (a quantity
   // tweak, say) doesn't replay it.
   useEffect(() => {
@@ -557,6 +568,7 @@ export function CounterTerminal({
       <div className="space-y-4 lg:col-span-3">
         <ItemSearch
           onSelect={addItem}
+          onStockIn={refreshBasketStock}
           justAdded={justAdded}
           inputRef={searchRef}
           handleRef={searchHandle}
@@ -735,6 +747,7 @@ export function CounterTerminal({
                                 line.variantId,
                                 line.unitId,
                                 event.currentTarget,
+                                false,
                               );
                             }}
                             aria-label={`${t("pos.stockIn")} ${line.name}`}
@@ -1094,7 +1107,7 @@ export interface SearchHandle {
   hasResults(): boolean;
   move(delta: number): void;
   cycleUnit(): void;
-  openSource(variantId: number, unitId: number, from?: HTMLElement): Promise<void>;
+  openSource(variantId: number, unitId: number, from?: HTMLElement, addToBasket?: boolean): Promise<void>;
   /** Adds the highlighted medicine. True when something was added. */
   commit(): boolean;
   type(char: string): void;
@@ -1125,6 +1138,7 @@ function defaultUnitIndex(item: CounterSearchResult): number {
 
 function ItemSearch({
   onSelect,
+  onStockIn,
   justAdded,
   inputRef,
   handleRef,
@@ -1137,6 +1151,7 @@ function ItemSearch({
     from?: HTMLElement,
     source?: { type: "old_stock" | "borrowed"; storeName?: string },
   ) => void;
+  onStockIn: (item: CounterSearchResult) => void;
   justAdded: { id: number; nonce: number } | null;
   inputRef: React.RefObject<HTMLInputElement | null>;
   handleRef: React.RefObject<SearchHandle | null>;
@@ -1160,7 +1175,11 @@ function ItemSearch({
   >(null);
   const [camera, setCamera] = useState(false);
   const [outOfStockUnitIds, setOutOfStockUnitIds] = useState<Record<number, number>>({});
-  const [outOfStock, setOutOfStock] = useState<{ item: CounterSearchResult; unit: CounterUnit } | null>(null);
+  const [outOfStock, setOutOfStock] = useState<{
+    item: CounterSearchResult;
+    unit: CounterUnit;
+    addToBasket: boolean;
+  } | null>(null);
   const [stockToast, setStockToast] = useState<string | null>(null);
   const rowRefs = useRef(new Map<number, HTMLLIElement>());
   const focusReturnId = useRef<number | null>(null);
@@ -1210,11 +1229,12 @@ function ItemSearch({
     item: CounterSearchResult,
     unit: CounterUnit,
     from?: HTMLElement,
+    addToBasket = true,
   ) => {
     focusReturnId.current = item.id;
     focusReturnElement.current = from ?? rowRefs.current.get(item.id) ?? null;
     setStockToast(null);
-    setOutOfStock({ item, unit });
+    setOutOfStock({ item, unit, addToBasket });
   }, []);
 
   // The term is mirrored in a ref so that keystrokes arriving faster than a
@@ -1407,7 +1427,7 @@ function ItemSearch({
           }));
         }
       },
-      async openSource(variantId, unitId, from) {
+      async openSource(variantId, unitId, from, addToBasket = true) {
         let item = latest.current.results.find((result) => result.id === variantId);
         if (!item) {
           const lookup = await getCounterItemById(variantId);
@@ -1425,7 +1445,7 @@ function ItemSearch({
           setStockToast(t("pos.stockInPriceRequired"));
           return;
         }
-        openSourceModal(item, unit, from);
+        openSourceModal(item, unit, from, addToBasket);
       },
       commit() {
         const { current: item, currentUnit: unit, quantity: qty, activate: activateRow } = latest.current;
@@ -1731,6 +1751,7 @@ function ItemSearch({
           <OutOfStockModal
             item={outOfStock.item}
             unit={outOfStock.unit}
+            addToBasket={outOfStock.addToBasket}
             onDismiss={closeOutOfStock}
             onError={setStockToast}
             onAdded={(addedQuantity) => {
@@ -1744,7 +1765,11 @@ function ItemSearch({
                   item.id === updatedItem.id ? updatedItem : item,
                 ),
               }));
-              onSelect(updatedItem, outOfStock.unit, addedQuantity, rowRefs.current.get(updatedItem.id));
+              if (outOfStock.addToBasket) {
+                onSelect(updatedItem, outOfStock.unit, addedQuantity, rowRefs.current.get(updatedItem.id));
+              } else {
+                onStockIn(updatedItem);
+              }
               closeOutOfStock();
             }}
           />
@@ -1762,12 +1787,14 @@ function ItemSearch({
 function OutOfStockModal({
   item,
   unit,
+  addToBasket,
   onDismiss,
   onError,
   onAdded,
 }: {
   item: CounterSearchResult;
   unit: CounterUnit;
+  addToBasket: boolean;
   onDismiss: () => void;
   onError: (message: string) => void;
   onAdded: (quantity: number) => void;
@@ -2012,7 +2039,13 @@ function OutOfStockModal({
                 </Button>
                 <Button type="submit" disabled={!valid || submitting}>
                   {submitting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-                  {submitting ? t("pos.savingToBasket") : t("pos.addToBasket")}
+                  {submitting
+                    ? addToBasket
+                      ? t("pos.savingToBasket")
+                      : t("pos.stockingIn")
+                    : addToBasket
+                      ? t("pos.addToBasket")
+                      : t("pos.stockIn")}
                 </Button>
               </div>
             </form>

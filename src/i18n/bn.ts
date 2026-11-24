@@ -446,6 +446,7 @@ export const bn: Record<MessageKey, string> = {
   "pos.addOutOfStockTitle": "স্টকে নেই এমন ওষুধ যোগ করুন",
   "pos.addMoreSourceTitle": "আরও স্টক গ্রহণ করুন",
   "pos.stockIn": "স্টক গ্রহণ",
+  "pos.stockingIn": "স্টক গ্রহণ হচ্ছে…",
   "pos.stockInPriceRequired": "কাউন্টার থেকে স্টক নেওয়ার আগে এই ওষুধের দাম নির্ধারণ করুন।",
   "pos.source": "উৎস",
   "pos.sourceBorrow": "ধার",
