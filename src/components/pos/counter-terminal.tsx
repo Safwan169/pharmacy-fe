@@ -1145,7 +1145,6 @@ function ItemSearch({
   >(null);
   const [camera, setCamera] = useState(false);
   const [outOfStockUnitIds, setOutOfStockUnitIds] = useState<Record<number, number>>({});
-  const [sourceAddedIds, setSourceAddedIds] = useState<Set<number>>(() => new Set());
   const [outOfStock, setOutOfStock] = useState<{ item: CounterSearchResult; unit: CounterUnit } | null>(null);
   const [stockToast, setStockToast] = useState<string | null>(null);
   const rowRefs = useRef(new Map<number, HTMLLIElement>());
@@ -1549,7 +1548,6 @@ function ItemSearch({
               item.units.find((unit) => unit.isDefault) ??
               item.units[0];
             const added = justAdded?.id === item.id;
-            const canReceiveAgain = sourceAddedIds.has(item.id);
             const actionIndex = actionableRows.findIndex((rowItem) => rowItem.id === item.id);
             return (
               // Re-keying on the nonce remounts the row, which restarts the
@@ -1657,26 +1655,6 @@ function ItemSearch({
                   </p>
                 )}
 
-                {canReceiveAgain && (
-                  <button
-                    type="button"
-                    data-pos-action
-                    title={t("pos.addMoreFromSource")}
-                    onClick={(event) => {
-                      const unit =
-                        current?.id === item.id
-                          ? currentUnit
-                          : item.units.find((candidate) => candidate.isDefault) ?? item.units[0];
-                      if (unit) openSourceModal(item, unit, event.currentTarget);
-                    }}
-                    className="mt-2 inline-flex h-8 max-w-full items-center rounded-lg border border-border bg-surface px-3 text-xs font-medium text-muted transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-                  >
-                    <span className="truncate" title={t("pos.addMoreFromSource")}>
-                      {t("pos.addMoreFromSource")}
-                    </span>
-                  </button>
-                )}
-
                 {stock <= 0 && priced && outOfStockUnit && (
                   <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     {item.units.length > 1 && (
@@ -1746,11 +1724,6 @@ function ItemSearch({
                 ...outOfStock.item,
                 stock: (outOfStock.item.stock ?? 0) + addedQuantity * outOfStock.unit.qtyInBase,
               };
-              setSourceAddedIds((currentIds) => {
-                const next = new Set(currentIds);
-                next.add(updatedItem.id);
-                return next;
-              });
               setState((currentState) => ({
                 ...currentState,
                 results: currentState.results.map((item) =>
